@@ -34,7 +34,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && ['/login', '/signup'].includes(request.nextUrl.pathname)) {
+  // Public signup is intentionally disabled for Conik. Keep the old route
+  // unavailable while preserving the rest of the authentication architecture.
+  if (request.nextUrl.pathname === '/signup') {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  if (user && request.nextUrl.pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
