@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
@@ -9,7 +10,13 @@ const ALLOWED_EMAILS = new Set([
   'anamaspenser@gmail.com',
 ])
 
+function safeNext(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
+  return value
+}
+
 export default function LoginPage() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
@@ -40,7 +47,7 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = '/dashboard'
+      window.location.replace(safeNext(searchParams.get('next')))
     } finally {
       setLoading(false)
     }
