@@ -1,14 +1,5 @@
+'use client'
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-
-export const dynamic = 'force-dynamic'
-
-export default async function PublicFunnel({ params }: { params: Promise<{ funnelSlug: string }> }) {
-  const { funnelSlug } = await params
-  const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_published_funnel_page', { target_funnel_slug: funnelSlug, target_page_slug: 'home' })
-  if (error || !data?.[0]) notFound()
-  const page = data[0]
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${page.css || ''}</style></head><body>${page.html || ''}</body></html>`
-  return <main style={{ minHeight: '100vh', background: '#fff' }}><iframe title={page.page_name} sandbox="" srcDoc={srcDoc} style={{ width: '100%', minHeight: '100vh', border: 0, display: 'block' }} /></main>
-}
+import { useEffect,useRef,useState } from 'react'
+type Page={page_name:string;html:string;css:string}
+export default function PublicFunnel({params}:{params:Promise<{funnelSlug:string}>}){const[page,setPage]=useState<Page|null>(null),[bad,setBad]=useState(false),[slug,setSlug]=useState(''),frame=useRef<HTMLIFrameElement>(null);useEffect(()=>{params.then(p=>setSlug(p.funnelSlug))},[params]);useEffect(()=>{if(!slug)return;fetch(`/api/funnels/public?funnel=${encodeURIComponent(slug)}&page=home`).then(r=>r.ok?r.json():Promise.reject()).then(j=>setPage(j.page)).catch(()=>setBad(true))},[slug]);useEffect(()=>{const f=frame.current;if(!f||!page)return;const h=(e:MessageEvent)=>{if(e.source!==f.contentWindow||e.data?.type!=='conik-form-submit')return;const d=e.data.formData&&typeof e.data.formData==='object'?e.data.formData:{};fetch('/api/funnels/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({funnelSlug:slug,pageSlug:'home',email:String(d.email||d.mail||''),phone:String(d.phone||d.tel||''),firstName:String(d.first_name||d.firstname||d.prenom||''),lastName:String(d.last_name||d.lastname||d.nom||''),marketingConsent:Boolean(d.marketing_consent||d.consent),formData:d})}).then(r=>r.ok?r.json():Promise.reject()).then(()=>f.contentWindow?.postMessage({type:'conik-form-result',ok:true},'*')).catch(()=>f.contentWindow?.postMessage({type:'conik-form-result',ok:false},'*'))};window.addEventListener('message',h);return()=>window.removeEventListener('message',h)},[page,slug]);if(bad)return notFound();if(!page)return <main style={{minHeight:'100vh',display:'grid',placeItems:'center'}}>Loading…</main>;const src=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${page.css||''}</style></head><body>${page.html||''}<script>(function(){document.addEventListener('submit',function(e){e.preventDefault();var d={};new FormData(e.target).forEach(function(v,k){d[k]=String(v)});parent.postMessage({type:'conik-form-submit',formData:d},'*')},true)})()</script></body></html>`;return <main style={{minHeight:'100vh',background:'#fff'}}><iframe ref={frame} title={page.page_name} sandbox="allow-scripts allow-forms" srcDoc={src} style={{width:'100%',minHeight:'100vh',height:'100vh',border:0,display:'block'}}/></main>}
