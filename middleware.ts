@@ -1,6 +1,42 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PUBLIC_EXACT_PATHS = new Set(['/', '/login', '/signup'])
+const PUBLIC_PREFIXES = ['/auth/']
+const PUBLIC_FUNNEL_RESERVED = new Set([
+  'dashboard',
+  'login',
+  'signup',
+  'auth',
+  'onboarding',
+  'funnels',
+  'contacts',
+  'api',
+])
+
+function isPublicPath(pathname: string) {
+  if (PUBLIC_EXACT_PATHS.has(pathname)) return true
+  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true
+
+  // Published funnels use /<funnelSlug>. Keep this one-segment runtime public.
+  // Reserved application paths can never be treated as funnel slugs.
+  const segments = pathname.split('/').filter(Boolean)
+  return segments.length === 1 && !PUBLIC_FUNNEL_RESERVED.has(segments[0].toLowerCase())
+}
+
+function addSecurityHeaders(response: NextResponse) {
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
+
+  return response
+}
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
 
@@ -21,30 +57,32 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // getClaims() validates the signed session claims and also lets Supabase
+  // refresh the session through the SSR cookie flow when necessary.
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
-  const protectedPath = ['/dashboard', '/funnels', '/contacts'].some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  )
+  const pathname = request.nextUrl.pathname
+  const publicPath = isPublicPath(pathname)
 
-  if (protectedPath && !user) {
+  if (!publicPath && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('next', request.nextUrl.pathname)
-    return NextResponse.redirect(url)
+    // Preserve the internal destination so login can return the user there.
+    url.searchParams.set('next', `${pathname}${request.nextUrl.search}`)
+    return addSecurityHeaders(NextResponse.redirect(url))
   }
 
-  // Public signup is intentionally disabled for Conik. Keep the old route
-  // unavailable while preserving the rest of the authentication architecture.
-  if (request.nextUrl.pathname === '/signup') {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Public signup is intentionally disabled for Conik.
+  if (pathname === '/signup') {
+    return addSecurityHeaders(NextResponse.redirect(new URL('/login', request.url)))
   }
 
-  if (user && request.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  // Authenticated users should not see the login screen.
+  if (user && pathname === '/login') {
+    return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
   }
 
-  return response
+  return addSecurityHeaders(response)
 }
 
 export const config = {
