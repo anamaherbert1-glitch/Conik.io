@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       if (optInError) return NextResponse.json({ error: optInError.message }, { status: 400 })
       const optInResult = data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : { ok: false, reason: 'opt_in_failed' }
       whatsapp = { ok: optInResult.ok === true, reason: typeof optInResult.reason === 'string' ? optInResult.reason : undefined, contactId: typeof optInResult.contactId === 'string' ? optInResult.contactId : undefined, whatsappContactId: typeof optInResult.whatsappContactId === 'string' ? optInResult.whatsappContactId : undefined }
-      if (!whatsapp.ok) return NextResponse.json({ error: `WhatsApp opt-in refusé: ${whatsapp.reason || 'unknown'}` }, { status: 422 })
+      if (!whatsapp?.ok) return NextResponse.json({ error: `WhatsApp opt-in refusé: ${whatsapp?.reason || 'unknown'}` }, { status: 422 })
     }
 
     const { data: organizationId } = await supabase.rpc('funnel_organization_id', { target_funnel_slug: funnelSlug })
