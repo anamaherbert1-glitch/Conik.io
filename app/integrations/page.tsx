@@ -1,0 +1,2 @@
+import { AppShell } from '@/components/app-shell'
+export default function IntegrationsPage(){return <AppShell active="Integrations"><header><div><small>INTEGRATIONS</small><h1>Integrations</h1><p className="muted">External delivery integrations are optional and not simulated.</p></div></header><section className="panel"><div className="empty"><b>Core platform ready</b><span>Funnels, CRM, forms, tracking and automations can operate without external providers.</span></div></section></AppShell>}
