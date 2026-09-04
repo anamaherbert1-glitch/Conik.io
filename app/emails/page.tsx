@@ -1,0 +1,2 @@
+import { AppShell } from '@/components/app-shell'
+export default function EmailsPage(){return <AppShell active="Emails"><header><div><small>EMAILS</small><h1>Email marketing</h1><p className="muted">Email delivery is intentionally not connected in this phase.</p></div></header><section className="panel"><div className="empty"><b>Provider not connected</b><span>Connect an email provider later to enable sending, scheduling, delivery and unsubscribe processing.</span></div></section></AppShell>}
