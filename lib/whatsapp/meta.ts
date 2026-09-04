@@ -1,4 +1,4 @@
-import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v23.0'
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`
@@ -42,21 +42,8 @@ export function decryptAccessToken(value: string) {
   return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64url')), decipher.final()]).toString('utf8')
 }
 
-export function verifyMetaSignature(rawBody: string, signature: string | null) {
-  if (!signature?.startsWith('sha256=')) return false
-  const expected = createHash('sha256')
-    .update(rawBody)
-    .digest('hex')
-  // App-secret proof is HMAC, not a plain hash. This helper is intentionally
-  // replaced by verifyMetaSignatureHmac below; kept private to avoid callers
-  // accidentally using the wrong primitive.
-  void expected
-  return false
-}
-
 export function verifyMetaSignatureHmac(rawBody: string, signature: string | null) {
   if (!signature?.startsWith('sha256=')) return false
-  const { createHmac, timingSafeEqual } = require('node:crypto') as typeof import('node:crypto')
   const provided = Buffer.from(signature.slice(7), 'hex')
   const expected = createHmac('sha256', getMetaConfig().appSecret).update(rawBody).digest()
   return provided.length === expected.length && timingSafeEqual(provided, expected)
@@ -93,9 +80,7 @@ export async function debugToken(accessToken: string) {
 }
 
 export async function listOwnedWabas(accessToken: string, businessId?: string) {
-  if (businessId) {
-    return graph<{ data: Array<Record<string, unknown>> }>(`/${businessId}/owned_whatsapp_business_accounts?fields=id,name&access_token=${encodeURIComponent(accessToken)}`)
-  }
+  if (businessId) return graph<{ data: Array<Record<string, unknown>> }>(`/${businessId}/owned_whatsapp_business_accounts?fields=id,name&access_token=${encodeURIComponent(accessToken)}`)
   return graph<{ data: Array<Record<string, unknown>> }>(`/me/businesses?fields=id,name&access_token=${encodeURIComponent(accessToken)}`)
 }
 
@@ -105,6 +90,10 @@ export async function listPhoneNumbers(accessToken: string, wabaId: string) {
 
 export async function getWaba(accessToken: string, wabaId: string) {
   return graph<Record<string, unknown>>(`/${wabaId}?fields=id,name&access_token=${encodeURIComponent(accessToken)}`)
+}
+
+export async function subscribeWaba(accessToken: string, wabaId: string) {
+  return graph<Record<string, unknown>>(`/${wabaId}/subscribed_apps?access_token=${encodeURIComponent(accessToken)}`, { method: 'POST', body: JSON.stringify({}) })
 }
 
 export async function sendCloudApiMessage(accessToken: string, phoneNumberId: string, payload: Record<string, unknown>) {
