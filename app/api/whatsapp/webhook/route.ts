@@ -35,9 +35,8 @@ export async function POST(request: Request) {
       for (const change of changes as Array<Record<string, unknown>>) {
         const field = typeof change.field === 'string' ? change.field : ''
         const value = (change.value || {}) as Record<string, unknown>
-        const phoneNumberId = typeof value.metadata === 'object' && value.metadata && typeof (value.metadata as Record<string, unknown>).phone_number_id === 'string'
-          ? (value.metadata as Record<string, unknown>).phone_number_id as string
-          : null
+        const metadata = value.metadata && typeof value.metadata === 'object' ? value.metadata as Record<string, unknown> : null
+        const phoneNumberId = typeof metadata?.phone_number_id === 'string' ? metadata.phone_number_id : null
         const messages = Array.isArray(value.messages) ? value.messages : []
         const statuses = Array.isArray(value.statuses) ? value.statuses : []
 
@@ -61,9 +60,10 @@ export async function POST(request: Request) {
               if (item.kind === 'message' && phoneNumberId) {
                 const from = typeof item.item.from === 'string' ? item.item.from : ''
                 const type = typeof item.item.type === 'string' ? item.item.type : 'text'
-                const profile = (value.contacts && Array.isArray(value.contacts) ? value.contacts[0] : null) as Record<string, unknown> | null
+                const profile = (Array.isArray(value.contacts) ? value.contacts[0] : null) as Record<string, unknown> | null
                 const profileName = profile && typeof profile.profile === 'object' && profile.profile ? (profile.profile as Record<string, unknown>).name : null
-                const content = type === 'text' && typeof item.item.text === 'object' && item.item.text ? (item.item.text as Record<string, unknown>).body : null
+                const textPayload = item.item.text && typeof item.item.text === 'object' ? item.item.text as Record<string, unknown> : null
+                const content = type === 'text' ? textPayload?.body : null
                 const result = await supabase.rpc('whatsapp_ingest_inbound', {
                   p_secret: getMetaConfig().serverSecret,
                   p_phone_number_id: phoneNumberId,
@@ -77,29 +77,30 @@ export async function POST(request: Request) {
                   p_sent_at: new Date(Number(item.item.timestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
                 })
                 if (result.error) throw new Error(result.error.message)
-                const text = typeof content === 'string' ? content.trim().toLowerCase() : ''
+                const normalizedText = typeof content === 'string' ? content.trim().toLowerCase() : ''
                 const optOutKeywords = Array.isArray(result.data?.optOutKeywords) ? result.data.optOutKeywords.map(String).map((v: string) => v.toLowerCase()) : ['stop']
                 const optInKeywords = Array.isArray(result.data?.optInKeywords) ? result.data.optInKeywords.map(String).map((v: string) => v.toLowerCase()) : ['start']
                 const organizationId = typeof result.data?.organizationId === 'string' ? result.data.organizationId : null
-                if (organizationId && from && optOutKeywords.includes(text)) {
-                  await supabase.rpc('whatsapp_set_consent', { p_secret: getMetaConfig().serverSecret, p_organization_id: organizationId, p_phone_number: from, p_opt_in: false, p_source: `keyword:${text}` })
-                } else if (organizationId && from && optInKeywords.includes(text)) {
-                  await supabase.rpc('whatsapp_set_consent', { p_secret: getMetaConfig().serverSecret, p_organization_id: organizationId, p_phone_number: from, p_opt_in: true, p_source: `keyword:${text}` })
+                if (organizationId && from && optOutKeywords.includes(normalizedText)) {
+                  await supabase.rpc('whatsapp_set_consent', { p_secret: getMetaConfig().serverSecret, p_organization_id: organizationId, p_phone_number: from, p_opt_in: false, p_source: `keyword:${normalizedText}` })
+                } else if (organizationId && from && optInKeywords.includes(normalizedText)) {
+                  await supabase.rpc('whatsapp_set_consent', { p_secret: getMetaConfig().serverSecret, p_organization_id: organizationId, p_phone_number: from, p_opt_in: true, p_source: `keyword:${normalizedText}` })
                 }
               } else if (item.kind === 'status' && phoneNumberId) {
                 const timestamp = Number(item.item.timestamp || Math.floor(Date.now() / 1000)) * 1000
-                const conversation = (item.item.conversation || {}) as Record<string, unknown>
-                const pricing = (item.item.pricing || {}) as Record<string, unknown>
-                const errors = Array.isArray(item.item.errors) ? item.item.errors[0] as Record<string, unknown> | undefined : undefined
+                const conversation = item.item.conversation && typeof item.item.conversation === 'object' ? item.item.conversation as Record<string, unknown> : null
+                const pricing = item.item.pricing && typeof item.item.pricing === 'object' ? item.item.pricing as Record<string, unknown> : null
+                const errors = Array.isArray(item.item.errors) && item.item.errors[0] && typeof item.item.errors[0] === 'object' ? item.item.errors[0] as Record<string, unknown> : null
+                const origin = conversation?.origin && typeof conversation.origin === 'object' ? conversation.origin as Record<string, unknown> : null
                 const result = await supabase.rpc('whatsapp_ingest_status', {
                   p_secret: getMetaConfig().serverSecret,
                   p_phone_number_id: phoneNumberId,
                   p_wa_message_id: waMessageId,
                   p_status: typeof item.item.status === 'string' ? item.item.status : 'sent',
                   p_timestamp: new Date(timestamp).toISOString(),
-                  p_conversation_ref: typeof conversation.id === 'string' ? conversation.id : null,
-                  p_origin: typeof conversation.origin === 'string' ? conversation.origin.type : null,
-                  p_pricing_category: typeof pricing.category === 'string' ? pricing.category : null,
+                  p_conversation_ref: typeof conversation?.id === 'string' ? conversation.id : null,
+                  p_origin: typeof origin?.type === 'string' ? origin.type : null,
+                  p_pricing_category: typeof pricing?.category === 'string' ? pricing.category : null,
                   p_error_code: errors?.code != null ? String(errors.code) : null,
                   p_error_message: errors?.title != null ? String(errors.title) : null,
                   p_payload: item.item,
