@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server'
 import {requireWorkspaceRole} from '@/lib/auth/require-user'
 import {z} from 'zod'
 
+const triggerTypes=['new_contact','form_submission','whatsapp_message_received','whatsapp_opt_in','whatsapp_opt_out','whatsapp_message_delivered','whatsapp_message_read','whatsapp_message_failed'] as const
 const actionSchema=z.object({
   action_type:z.enum(['add_tag','remove_tag','wait','internal_log','send_whatsapp','update_contact','start_automation','stop_automation','notify_team']),
   action_config:z.record(z.string(),z.any()).default({}),
@@ -9,7 +10,7 @@ const actionSchema=z.object({
 const bodySchema=z.object({
   name:z.string().trim().min(1).max(120),
   status:z.enum(['draft','active','paused']),
-  trigger_type:z.enum(['new_contact','form_submission']),
+  trigger_type:z.enum(triggerTypes),
   trigger_config:z.record(z.string(),z.any()).default({}),
   actions:z.array(actionSchema).max(30).default([]),
 })
