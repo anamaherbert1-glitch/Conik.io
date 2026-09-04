@@ -1,0 +1,2 @@
+import { AppShell } from '@/components/app-shell'
+export default function WhatsAppPage(){return <AppShell active="WhatsApp"><header><div><small>WHATSAPP</small><h1>WhatsApp</h1><p className="muted">WhatsApp Business integration is intentionally disabled in this core build.</p></div></header><section className="panel"><div className="empty"><b>Integration not connected</b><span>No external WhatsApp API is being simulated. The integration can be enabled in a later phase.</span></div></section></AppShell>}
