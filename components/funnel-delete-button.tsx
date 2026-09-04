@@ -10,7 +10,7 @@ export function FunnelDeleteButton({ funnelId }: { funnelId: string }) {
   const [busy, setBusy] = useState(false)
 
   async function remove() {
-    if (!window.confirm('Delete this funnel and all of its pages and versions? This cannot be undone.')) return
+    if (!window.confirm('Supprimer ce tunnel ainsi que toutes ses pages et versions ? Cette action est irréversible.')) return
     setBusy(true)
     const supabase = createClient()
     const { error } = await supabase.from('funnels').delete().eq('id', funnelId)
@@ -23,5 +23,5 @@ export function FunnelDeleteButton({ funnelId }: { funnelId: string }) {
     router.refresh()
   }
 
-  return <button className="outline" onClick={remove} disabled={busy} title="Delete funnel"><Trash2 size={15}/>{busy ? 'Deleting…' : 'Delete'}</button>
+  return <button className="outline" onClick={remove} disabled={busy} title="Supprimer le tunnel"><Trash2 size={15}/>{busy ? 'Suppression…' : 'Supprimer'}</button>
 }

@@ -34,12 +34,12 @@ export default function OnboardingPage() {
     event.preventDefault(); setError(''); setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.rpc('create_organization', { org_name: name, org_slug: slugify(slug || name) })
-    if (error) setError(error.message.includes('Workspace already exists') ? 'A workspace already exists for this account.' : error.message)
+    if (error) setError(error.message.includes('Workspace already exists') ? 'Un espace de travail existe déjà pour ce compte.' : error.message)
     else window.location.replace('/dashboard')
     setLoading(false)
   }
 
-  if (checking) return <main className="auth-page"><div className="auth-card"><p>Checking your workspace…</p></div></main>
+  if (checking) return <main className="auth-page"><div className="auth-card"><p>Vérification de votre espace de travail…</p></div></main>
 
-  return <main className="auth-page"><div className="auth-card wide"><div className="step">STEP 1 OF 1</div><h1>Create your workspace</h1><p>This is the organization that will own your funnels, contacts and campaigns.</p><form onSubmit={submit}><label>Business / organization name<input required minLength={2} maxLength={120} value={name} onChange={e=>{setName(e.target.value); if(!slug) setSlug(slugify(e.target.value))}} placeholder="My Business" /></label><label>Workspace URL slug<input required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={slug} onChange={e=>setSlug(slugify(e.target.value))} placeholder="my-business" /><small className="hint">Public funnel URLs will use this workspace later.</small></label>{error && <div className="error">{error}</div>}<button className="primary full" disabled={loading}>{loading ? 'Creating workspace…' : 'Create workspace'}</button></form></div></main>
+  return <main className="auth-page"><div className="auth-card wide"><div className="step">ÉTAPE 1 SUR 1</div><h1>Créer votre espace de travail</h1><p>Il s’agit de l’organisation qui détiendra vos tunnels, contacts et campagnes.</p><form onSubmit={submit}><label>Nom de l’entreprise / organisation<input required minLength={2} maxLength={120} value={name} onChange={e=>{setName(e.target.value); if(!slug) setSlug(slugify(e.target.value))}} placeholder="Mon entreprise" /></label><label>Identifiant d’URL de l’espace de travail<input required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={slug} onChange={e=>setSlug(slugify(e.target.value))} placeholder="mon-entreprise" /><small className="hint">Les URL publiques de vos tunnels utiliseront cet espace de travail par la suite.</small></label>{error && <div className="error">{error}</div>}<button className="primary full" disabled={loading}>{loading ? 'Création de l’espace de travail…' : 'Créer l’espace de travail'}</button></form></div></main>
 }

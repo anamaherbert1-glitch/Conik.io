@@ -3,11 +3,19 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseConfig } from './lib/supabase/config'
 
 const PUBLIC_EXACT_PATHS = new Set(['/', '/login', '/signup'])
-const PUBLIC_PREFIXES = ['/auth/']
+const PUBLIC_PREFIXES = [
+  '/auth/',
+  // Runtime endpoints used by hosted funnel pages — visitors are never logged in.
+  '/api/funnels/public',
+  '/api/funnels/capture',
+  '/api/events/',
+  // Redirections de liens courts.
+  '/r/',
+]
 const PUBLIC_FUNNEL_RESERVED = new Set([
   'dashboard', 'login', 'signup', 'auth', 'onboarding', 'funnels', 'contacts',
   'campaigns', 'automations', 'whatsapp', 'emails', 'links', 'analytics', 'domains',
-  'settings', 'integrations', 'api', '_next',
+  'settings', 'integrations', 'api', '_next', 'r', 'segments',
 ])
 
 function isPublicPath(pathname: string) {

@@ -27,7 +27,12 @@ export async function POST(request: Request) {
     const firstName = clean(body.firstName, 120)
     const lastName = clean(body.lastName, 120)
     const consent = body.marketingConsent === true
-    const formData = body.formData && typeof body.formData === 'object' && !Array.isArray(body.formData) ? body.formData : {}
+    const rawFormData =
+      body.formData && typeof body.formData === 'object' && !Array.isArray(body.formData)
+        ? (body.formData as Record<string, unknown>)
+        : {}
+    // `source` alimente la colonne Source du CRM.
+    const formData = { source: `tunnel:${funnelSlug}`, ...rawFormData }
 
     const supabase = await createClient()
     const { data, error } = await supabase.rpc('capture_funnel_contact', {

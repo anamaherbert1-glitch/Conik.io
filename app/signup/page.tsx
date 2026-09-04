@@ -12,8 +12,8 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding` } })
     if (error) setError(error.message)
     else if (data.session) window.location.href = '/onboarding'
-    else setMessage('Check your email to confirm your account, then continue to onboarding.')
+    else setMessage('Consultez votre boîte mail pour confirmer votre compte, puis poursuivez la configuration.')
     setLoading(false)
   }
-  return <main className="auth-page"><div className="auth-card"><Link href="/" className="brand">CONIK<span>.io</span></Link><h1>Create your account</h1><p>Start building your marketing workspace.</p><form onSubmit={submit}><label>Email<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} /></label><label>Password<input type="password" required minLength={8} value={password} onChange={e=>setPassword(e.target.value)} /></label>{error && <div className="error">{error}</div>}{message && <div className="success">{message}</div>}<button className="primary full" disabled={loading}>{loading ? 'Creating…' : 'Create account'}</button></form><p className="auth-footer">Already have an account? <Link href="/login">Sign in</Link></p></div></main>
+  return <main className="auth-page"><div className="auth-card"><Link href="/" className="brand">CONIK<span>.io</span></Link><h1>Créer votre compte</h1><p>Commencez à construire votre espace de travail marketing.</p><form onSubmit={submit}><label>E-mail<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} /></label><label>Mot de passe<input type="password" required minLength={8} value={password} onChange={e=>setPassword(e.target.value)} /></label>{error && <div className="error">{error}</div>}{message && <div className="success">{message}</div>}<button className="primary full" disabled={loading}>{loading ? 'Création…' : 'Créer un compte'}</button></form><p className="auth-footer">Vous avez déjà un compte ? <Link href="/login">Se connecter</Link></p></div></main>
 }

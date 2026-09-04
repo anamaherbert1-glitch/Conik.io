@@ -10,7 +10,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
   const {supabase,membership}=await requireWorkspaceRole(['owner','admin','editor','viewer'])
   const {data:segment,error:segmentError}=await supabase.from('contact_segments').select('id,rules,match_mode').eq('id',id).eq('organization_id',membership.organizationId).maybeSingle()
   if(segmentError)return NextResponse.json({error:segmentError.message},{status:500})
-  if(!segment)return NextResponse.json({error:'Segment not found.'},{status:404})
+  if(!segment)return NextResponse.json({error:'Segment introuvable.'},{status:404})
   const {data:contacts,error}=await supabase.from('contacts').select('id,status,consent_status,custom_fields').eq('organization_id',membership.organizationId).limit(5000)
   if(error)return NextResponse.json({error:error.message},{status:500})
   const rules=(Array.isArray(segment.rules)?segment.rules:[]) as Rule[]

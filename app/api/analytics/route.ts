@@ -42,6 +42,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ pageViews: safeViews.length, visitors, clicks: safeClicks.length, submissions: safeSubs.length, leads: safeSubs.length, conversions: safeConversions.length, revenue, byDay: Object.values(by) })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: e?.message || 'Non autorisé' }, { status: 401 })
   }
 }
