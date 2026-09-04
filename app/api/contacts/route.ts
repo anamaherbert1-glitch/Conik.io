@@ -22,12 +22,20 @@ export async function POST(request: Request) {
   if (!email && !phone) return NextResponse.json({ error: 'Email or phone is required.' }, { status: 400 })
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: 'Invalid email.' }, { status: 400 })
 
-  const { data: duplicate } = await supabase.from('contacts').select('id').eq('organization_id', membership.organizationId).or([email ? `email.eq.${email}` : '', phone ? `phone.eq.${phone}` : ''].filter(Boolean).join(',')).limit(1).maybeSingle()
-  if (duplicate) return NextResponse.json({ error: 'A contact with this email or phone already exists.' }, { status: 409 })
+  const duplicateFilters = [email ? `email.eq.${email}` : '', phone ? `phone.eq.${phone}` : ''].filter(Boolean)
+  if (duplicateFilters.length) {
+    const { data: duplicate, error: duplicateError } = await supabase.from('contacts').select('id').eq('organization_id', membership.organizationId).or(duplicateFilters.join(',')).limit(1).maybeSingle()
+    if (duplicateError) return NextResponse.json({ error: duplicateError.message }, { status: 500 })
+    if (duplicate) return NextResponse.json({ error: 'A contact with this email or phone already exists.' }, { status: 409 })
+  }
 
   const consent = body.consent_marketing === true
   const customFields = { source: text(body.source, 160) || 'manual' }
   const { data, error } = await supabase.from('contacts').insert({ organization_id: membership.organizationId, email, phone, first_name: text(body.first_name, 120), last_name: text(body.last_name, 120), status: 'active', consent_status: consent ? 'granted' : 'unknown', custom_fields: customFields, last_activity_at: new Date().toISOString() }).select('id,email,phone,first_name,last_name,status,consent_status,custom_fields,created_at').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  const { error: activityError } = await supabase.from('contact_activity').insert({ contact_id: data.id, organization_id: membership.organizationId, type: 'contact_created', metadata: { source: customFields.source, created_by: user.id } })
+  if (activityError) return NextResponse.json({ error: activityError.message }, { status: 500 })
+
   return NextResponse.json({ contact: { ...data, source: customFields.source, consent_marketing: consent }, createdBy: user.id }, { status: 201 })
 }
