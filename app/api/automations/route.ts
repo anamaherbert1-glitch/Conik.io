@@ -1,6 +1,39 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { z } from 'zod'
-const schema=z.object({name:z.string().trim().min(1).max(120),trigger_type:z.enum(['new_contact','form_submission']),trigger_config:z.record(z.string(),z.any()).default({}),status:z.enum(['draft','active','paused']).default('draft'),actions:z.array(z.object({action_type:z.enum(['add_tag','remove_tag','wait','internal_log']),action_config:z.record(z.string(),z.any()).default({})})).max(30).default([])})
-export async function GET(){const{supabase,organization}=await requireWorkspaceRole(['owner','admin','editor','viewer']);const{data,error}=await supabase.from('automations').select('id,name,trigger_type,trigger_config,status,created_at,updated_at').eq('organization_id',organization.id).order('created_at',{ascending:false});if(error)return NextResponse.json({error:error.message},{status:500});return NextResponse.json({automations:data||[]})}
-export async function POST(request:Request){const{supabase,organization}=await requireWorkspaceRole(['owner','admin','editor']);const p=schema.safeParse(await request.json().catch(()=>null));if(!p.success)return NextResponse.json({error:'Automatisation invalide.'},{status:400});const{data:a,error}=await supabase.from('automations').insert({organization_id:organization.id,name:p.data.name,trigger_type:p.data.trigger_type,trigger_config:p.data.trigger_config,status:p.data.status}).select('id,name,trigger_type,trigger_config,status').single();if(error)return NextResponse.json({error:error.message},{status:400});if(p.data.actions.length){const{error:ae}=await supabase.from('automation_actions').insert(p.data.actions.map((x,i)=>({automation_id:a.id,action_type:x.action_type,action_config:x.action_config,position:i})));if(ae){await supabase.from('automations').delete().eq('id',a.id);return NextResponse.json({error:ae.message},{status:400})}}return NextResponse.json({automation:a},{status:201})}
+
+const triggerTypes = ['new_contact','form_submission','whatsapp_message_received','whatsapp_opt_in','whatsapp_opt_out','whatsapp_message_delivered','whatsapp_message_read','whatsapp_message_failed'] as const
+const actionSchema = z.object({
+  action_type: z.enum(['add_tag','remove_tag','wait','internal_log','send_whatsapp','update_contact','start_automation','stop_automation','notify_team']),
+  action_config: z.record(z.string(), z.any()).default({}),
+})
+const schema = z.object({
+  name: z.string().trim().min(1).max(120),
+  trigger_type: z.enum(triggerTypes),
+  trigger_config: z.record(z.string(),z.any()).default({}),
+  status: z.enum(['draft','active','paused']).default('draft'),
+  actions: z.array(actionSchema).max(30).default([]),
+})
+
+export async function GET(){
+  const {supabase,organization}=await requireWorkspaceRole(['owner','admin','editor','viewer'])
+  const {data,error}=await supabase.from('automations').select('id,name,trigger_type,trigger_config,status,created_at,updated_at').eq('organization_id',organization.id).order('created_at',{ascending:false})
+  if(error)return NextResponse.json({error:error.message},{status:500})
+  const ids=(data||[]).map((a)=>a.id)
+  const {data:actions,error:actionsError}=ids.length?await supabase.from('automation_actions').select('id,automation_id,action_type,action_config,position').in('automation_id',ids).order('position'): {data:[],error:null}
+  if(actionsError)return NextResponse.json({error:actionsError.message},{status:500})
+  return NextResponse.json({automations:(data||[]).map((a)=>({...a,actions:(actions||[]).filter((x)=>x.automation_id===a.id)}))})
+}
+
+export async function POST(request:Request){
+  const {supabase,organization}=await requireWorkspaceRole(['owner','admin','editor'])
+  const p=schema.safeParse(await request.json().catch(()=>null))
+  if(!p.success)return NextResponse.json({error:'Automatisation invalide.'},{status:400})
+  const {data:a,error}=await supabase.from('automations').insert({organization_id:organization.id,name:p.data.name,trigger_type:p.data.trigger_type,trigger_config:p.data.trigger_config,status:p.data.status}).select('id,name,trigger_type,trigger_config,status').single()
+  if(error)return NextResponse.json({error:error.message},{status:400})
+  if(p.data.actions.length){
+    const {error:ae}=await supabase.from('automation_actions').insert(p.data.actions.map((x,i)=>({automation_id:a.id,action_type:x.action_type,action_config:x.action_config,position:i})))
+    if(ae){await supabase.from('automations').delete().eq('id',a.id);return NextResponse.json({error:ae.message},{status:400})}
+  }
+  return NextResponse.json({automation:{...a,actions:p.data.actions.map((x,i)=>({...x,position:i}))}},{status:201})
+}

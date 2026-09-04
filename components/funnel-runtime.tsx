@@ -29,7 +29,6 @@ function localId(key: string) {
   }
 }
 
-/** Pick a value out of the submitted form data using a list of likely field names. */
 function pick(data: Record<string, string>, patterns: RegExp): string {
   for (const [key, value] of Object.entries(data)) {
     if (value && patterns.test(key)) return value
@@ -37,14 +36,18 @@ function pick(data: Record<string, string>, patterns: RegExp): string {
   return ''
 }
 
+function checked(value: string) {
+  return ['true', '1', 'on', 'yes', 'oui', 'checked', 'accepted', 'accepté', 'accepte'].includes(value.trim().toLowerCase())
+}
+
 const EMAIL_RE = /^(e?-?mail|courriel|adresse[-_ ]?mail)/i
 const PHONE_RE = /(phone|tel|telephone|téléphone|mobile|whatsapp|numero|numéro)/i
 const FIRST_RE = /(first[-_ ]?name|firstname|prenom|prénom|^fname$)/i
 const LAST_RE = /(last[-_ ]?name|lastname|surname|^nom$|family)/i
 const FULL_RE = /^(name|nom[-_ ]?complet|full[-_ ]?name|fullname)$/i
-const CONSENT_RE = /(consent|optin|opt[-_ ]?in|newsletter|accept)/i
+const WHATSAPP_OPTIN_RE = /whatsapp.*(consent|opt[-_ ]?in|accept|marketing)|(?:consent|opt[-_ ]?in).*whatsapp/i
+const WHATSAPP_CONSENT_TEXT_RE = /whatsapp.*(consent[_-]?text|opt[-_ ]?in[_-]?text)|(?:consent[_-]?text|opt[-_ ]?in[_-]?text).*whatsapp/i
 
-/** Injected into the sandboxed page: relays form submits and internal navigation. */
 const BRIDGE = `(function(){
 function send(t,p){try{parent.postMessage(Object.assign({type:t},p),'*')}catch(e){}}
 document.addEventListener('submit',function(e){
@@ -85,19 +88,11 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
     let cancelled = false
     setPage(null)
     setMissing(false)
-    fetch(
-      `/api/funnels/public?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(pageSlug)}`
-    )
+    fetch(`/api/funnels/public?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(pageSlug)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j) => {
-        if (!cancelled) setPage(j.page)
-      })
-      .catch(() => {
-        if (!cancelled) setMissing(true)
-      })
-    return () => {
-      cancelled = true
-    }
+      .then((j) => { if (!cancelled) setPage(j.page) })
+      .catch(() => { if (!cancelled) setMissing(true) })
+    return () => { cancelled = true }
   }, [funnelSlug, pageSlug])
 
   useEffect(() => {
@@ -109,38 +104,29 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
     fetch('/api/events/page-view', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        funnelId: page.funnel_id,
-        pageId: page.page_id,
-        visitorId: localId(VISITOR_KEY),
-        sessionId: localId(SESSION_KEY),
-        referrer: document.referrer || undefined,
-      }),
+      body: JSON.stringify({ funnelId: page.funnel_id, pageId: page.page_id, visitorId: localId(VISITOR_KEY), sessionId: localId(SESSION_KEY), referrer: document.referrer || undefined }),
     }).catch(() => {})
 
     const handler = (event: MessageEvent) => {
       if (event.source !== f.contentWindow) return
-
       if (event.data?.type === 'conik-navigate') {
         const href = String(event.data.href || '')
         if (href.startsWith('/')) router.push(href)
         else if (/^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener')
         return
       }
-
       if (event.data?.type !== 'conik-form-submit') return
-      const raw = event.data.formData
-      const data: Record<string, string> =
-        raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
 
+      const raw = event.data.formData
+      const data: Record<string, string> = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
       const full = pick(data, FULL_RE)
       const firstName = pick(data, FIRST_RE) || full.split(' ').slice(0, -1).join(' ') || full
       const lastName = pick(data, LAST_RE) || (full.includes(' ') ? full.split(' ').slice(-1)[0] : '')
+      const whatsappOptIn = Object.entries(data).some(([key, value]) => WHATSAPP_OPTIN_RE.test(key) && checked(value))
+      const whatsappConsentText = pick(data, WHATSAPP_CONSENT_TEXT_RE)
 
       let timezone = ''
-      try {
-        timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
-      } catch {}
+      try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '' } catch {}
 
       fetch('/api/funnels/capture', {
         method: 'POST',
@@ -152,14 +138,10 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
           phone: pick(data, PHONE_RE),
           firstName,
           lastName,
-          marketingConsent: Boolean(pick(data, CONSENT_RE)),
-          formData: {
-            ...data,
-            _timezone: timezone,
-            _language: navigator.language || '',
-            _referrer: document.referrer || '',
-            _page: `${funnelSlug}/${pageSlug}`,
-          },
+          marketingConsent: Boolean(pick(data, /(consent|optin|opt[-_ ]?in|newsletter|accept)/i)),
+          whatsappOptIn,
+          whatsappConsentText,
+          formData: { ...data, _timezone: timezone, _language: navigator.language || '', _referrer: document.referrer || '', _page: `${funnelSlug}/${pageSlug}` },
         }),
       })
         .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -172,49 +154,10 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
   }, [page, funnelSlug, pageSlug, router])
 
   if (missing) return notFound()
+  if (!page) return <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', font: '15px system-ui, sans-serif', color: '#5b6470', margin: 0, padding: 0, width: '100%', maxWidth: 'none' }}>Chargement…</main>
 
-  if (!page) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          font: '15px system-ui, sans-serif',
-          color: '#5b6470',
-          margin: 0,
-          padding: 0,
-          width: '100%',
-          maxWidth: 'none',
-        }}
-      >
-        Chargement…
-      </main>
-    )
-  }
-
-  const srcDoc = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0}${page.css || ''}</style></head><body>${page.html || ''}<script>${BRIDGE}<\/script></body></html>`
-
-  return (
-    // Les styles globaux de l'application ciblent `main` (sidebar) : on les neutralise
-    // pour que la page hébergée occupe toute la fenêtre.
-    <main
-      style={{
-        minHeight: '100vh',
-        background: '#fff',
-        margin: 0,
-        padding: 0,
-        width: '100%',
-        maxWidth: 'none',
-      }}
-    >
-      <iframe
-        ref={frame}
-        title={page.page_name}
-        sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-        srcDoc={srcDoc}
-        style={{ width: '100%', minHeight: '100vh', height: '100vh', border: 0, display: 'block' }}
-      />
-    </main>
-  )
+  const srcDoc = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0}${page.css || ''}</style></head><body>${page.html || ''}<script>${BRIDGE}<\\/script></body></html>`
+  return <main style={{ minHeight: '100vh', background: '#fff', margin: 0, padding: 0, width: '100%', maxWidth: 'none' }}>
+    <iframe ref={frame} title={page.page_name} sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" srcDoc={srcDoc} style={{ width: '100%', minHeight: '100vh', height: '100vh', border: 0, display: 'block' }} />
+  </main>
 }
