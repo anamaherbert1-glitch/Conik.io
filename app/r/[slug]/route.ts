@@ -1,0 +1,4 @@
+import {NextRequest,NextResponse} from 'next/server'
+import {createClient} from '@/lib/supabase/server'
+export const runtime='nodejs'
+export async function GET(req:NextRequest,{params}:{params:Promise<{slug:string}>}){const{slug}=await params;if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))return NextResponse.json({error:'Not found'},{status:404});const s=await createClient();const visitor=req.cookies.get('conik_visitor_id')?.value||crypto.randomUUID();const{data,error}=await s.rpc('record_link_click',{target_slug:slug,target_visitor:visitor,target_source:req.nextUrl.searchParams.get('source')||null,target_device:req.headers.get('user-agent')?.slice(0,100)||null});if(error||typeof data!=='string'||!/^https?:\/\//i.test(data))return NextResponse.json({error:'Link not found'},{status:404});const response=NextResponse.redirect(data,302);response.cookies.set('conik_visitor_id',visitor,{httpOnly:true,sameSite:'lax',secure:true,maxAge:31536000,path:'/'});return response}
