@@ -10,17 +10,22 @@ export async function GET(request: NextRequest) {
     const days = [7, 30, 90].includes(raw) ? raw : 30
     const since = new Date(Date.now() - days * 86400000).toISOString()
 
-    const [{ data: views }, { data: clicks }, { data: forms }] = await Promise.all([
-      supabase.from('page_views').select('id,visitor_id,created_at').eq('organization_id', organization.id).gte('created_at', since),
-      supabase.from('link_clicks').select('id,created_at').in('link_id', (await supabase.from('links').select('id').eq('organization_id', organization.id)).data?.map((x: any) => x.id) || ['00000000-0000-0000-0000-000000000000']).gte('created_at', since),
-      supabase.from('forms').select('id').in('funnel_id', (await supabase.from('funnels').select('id').eq('organization_id', organization.id)).data?.map((x: any) => x.id) || ['00000000-0000-0000-0000-000000000000'])
+    const { data: funnels, error: funnelError } = await supabase.from('funnels').select('id').eq('organization_id', organization.id)
+    if (funnelError) throw funnelError
+    const funnelIds = (funnels || []).map((x: any) => x.id)
+    const { data: links, error: linkError } = await supabase.from('links').select('id').eq('organization_id', organization.id)
+    if (linkError) throw linkError
+    const linkIds = (links || []).map((x: any) => x.id)
+
+    const [{ data: views }, { data: clicks }, { data: forms }, { data: conversions }] = await Promise.all([
+      funnelIds.length ? supabase.from('page_views').select('id,visitor_id,created_at').in('funnel_id', funnelIds).gte('created_at', since) : Promise.resolve({ data: [] as any[] }),
+      linkIds.length ? supabase.from('link_clicks').select('id,created_at').in('link_id', linkIds).gte('created_at', since) : Promise.resolve({ data: [] as any[] }),
+      funnelIds.length ? supabase.from('forms').select('id').in('funnel_id', funnelIds) : Promise.resolve({ data: [] as any[] }),
+      supabase.from('conversions').select('id,created_at,amount,currency').eq('organization_id', organization.id).gte('created_at', since)
     ])
 
     const formIds = (forms || []).map((x: any) => x.id)
-    const [{ data: submissions }, { data: conversions }] = await Promise.all([
-      formIds.length ? supabase.from('form_submissions').select('id,created_at').in('form_id', formIds).gte('created_at', since) : Promise.resolve({ data: [] as any[] }),
-      supabase.from('conversions').select('id,created_at,amount,currency').eq('organization_id', organization.id).gte('created_at', since)
-    ])
+    const { data: submissions } = formIds.length ? await supabase.from('form_submissions').select('id,created_at').in('form_id', formIds).gte('created_at', since) : { data: [] as any[] }
 
     const safeViews = views || [], safeClicks = clicks || [], safeSubs = submissions || [], safeConversions = conversions || []
     const visitors = new Set(safeViews.map((v: any) => v.visitor_id).filter(Boolean)).size
