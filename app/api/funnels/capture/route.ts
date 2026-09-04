@@ -5,6 +5,10 @@ export const runtime = 'nodejs'
 
 const LIMIT = 50 * 1024
 
+function firstHeaderValue(value: string | null) {
+  return value?.split(',')[0]?.trim() || null
+}
+
 export async function POST(request: Request) {
   try {
     const contentLength = Number(request.headers.get('content-length') || 0)
@@ -27,15 +31,20 @@ export async function POST(request: Request) {
     const firstName = clean(body.firstName, 120)
     const lastName = clean(body.lastName, 120)
     const consent = body.marketingConsent === true
+    const whatsappOptIn = body.whatsappOptIn === true
+    const whatsappConsentText = clean(body.whatsappConsentText, 1000)
     const rawFormData =
       body.formData && typeof body.formData === 'object' && !Array.isArray(body.formData)
         ? (body.formData as Record<string, unknown>)
         : {}
-    // `source` alimente la colonne Source du CRM.
     const formData = { source: `tunnel:${funnelSlug}`, ...rawFormData }
 
+    if (whatsappOptIn && !phone) {
+      return NextResponse.json({ error: 'Un numéro de téléphone est requis pour le consentement WhatsApp.' }, { status: 422 })
+    }
+
     const supabase = await createClient()
-    const { data, error } = await supabase.rpc('capture_funnel_contact', {
+    const { data: contactId, error } = await supabase.rpc('capture_funnel_contact', {
       target_funnel_slug: funnelSlug,
       target_page_slug: pageSlug,
       contact_email: email,
@@ -46,7 +55,24 @@ export async function POST(request: Request) {
       form_data: formData,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json({ ok: true, contactId: data })
+
+    let whatsapp: { ok: boolean; reason?: string; contactId?: string; whatsappContactId?: string } | null = null
+    if (whatsappOptIn && phone) {
+      const { data, error: optInError } = await supabase.rpc('whatsapp_register_funnel_opt_in', {
+        target_funnel_slug: funnelSlug,
+        contact_phone: phone,
+        contact_id_in: contactId,
+        consent_text_in:
+          whatsappConsentText || 'J’accepte de recevoir des messages WhatsApp de cette entreprise et je peux me désinscrire à tout moment.',
+        visitor_ip: firstHeaderValue(request.headers.get('x-forwarded-for')) || request.headers.get('x-real-ip'),
+        visitor_agent: clean(request.headers.get('user-agent'), 400),
+      })
+      if (optInError) return NextResponse.json({ error: optInError.message }, { status: 400 })
+      whatsapp = data || { ok: false, reason: 'opt_in_failed' }
+      if (!whatsapp.ok) return NextResponse.json({ error: `WhatsApp opt-in refusé: ${whatsapp.reason || 'unknown'}` }, { status: 422 })
+    }
+
+    return NextResponse.json({ ok: true, contactId, whatsapp })
   } catch {
     return NextResponse.json({ error: 'Invalid form submission.' }, { status: 400 })
   }
