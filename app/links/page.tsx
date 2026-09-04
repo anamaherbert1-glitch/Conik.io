@@ -1,0 +1,5 @@
+import Link from 'next/link'
+import { AppShell } from '@/components/app-shell'
+import { requireWorkspace } from '@/lib/auth/require-user'
+export const dynamic='force-dynamic'
+export default async function LinksPage(){const {supabase}=await requireWorkspace();const {data,error}=await supabase.from('links').select('id,slug,destination_url,funnel_id,created_at').order('created_at',{ascending:false});return <AppShell active="Links"><header><div><small>LINKS</small><h1>Tracking links</h1><p className="muted">Create redirect links and measure clicks.</p></div><Link className="primary" href="/links/new">Create link</Link></header>{error&&<div className="error">{error.message}</div>}<section className="panel">{data?.length?<div className="funnel-table">{data.map((l:any)=><div className="funnel-row" key={l.id}><div><b>/{l.slug}</b><span>{l.destination_url}</span></div><Link className="outline" href={`/links/${l.id}`}>Open</Link></div>)}</div>:<div className="empty"><b>No tracking links yet</b><span>Create your first redirect link.</span></div>}</section></AppShell>}
