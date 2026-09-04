@@ -1,0 +1,4 @@
+import { AppShell } from '@/components/app-shell'
+import { requireWorkspace } from '@/lib/auth/require-user'
+export const dynamic='force-dynamic'
+export default async function DomainsPage(){const {supabase}=await requireWorkspace();const {data,error}=await supabase.from('domains').select('id,hostname,status,funnel_id,created_at').order('created_at',{ascending:false});return <AppShell active="Domains"><header><div><small>DOMAINS</small><h1>Custom domains</h1><p className="muted">Manage domains assigned to your funnels.</p></div></header>{error&&<div className="error">{error.message}</div>}<section className="panel">{data?.length?<div className="funnel-table">{data.map((d:any)=><div className="funnel-row" key={d.id}><div><b>{d.hostname}</b><span>{d.status} · {d.funnel_id?'Assigned':'Unassigned'}</span></div></div>)}</div>:<div className="empty"><b>No custom domains</b><span>Add a domain after configuring DNS for Conik.</span></div>}</section></AppShell>}
