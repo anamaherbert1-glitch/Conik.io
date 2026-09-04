@@ -1,0 +1,5 @@
+import Link from 'next/link'
+import { AppShell } from '@/components/app-shell'
+import { requireWorkspace } from '@/lib/auth/require-user'
+export const dynamic='force-dynamic'
+export default async function AutomationsPage(){const {supabase}=await requireWorkspace();const {data,error}=await supabase.from('automations').select('id,name,trigger_type,status,created_at').order('created_at',{ascending:false});return <AppShell active="Automations"><header><div><small>AUTOMATIONS</small><h1>Automations</h1><p className="muted">Build event-driven workflows using real executions.</p></div><Link className="primary" href="/automations/new">Create automation</Link></header>{error&&<div className="error">{error.message}</div>}<section className="panel">{data?.length?<div className="funnel-table">{data.map((a:any)=><div className="funnel-row" key={a.id}><div><b>{a.name}</b><span>{a.trigger_type} · {a.status}</span></div><Link className="outline" href={`/automations/${a.id}`}>Open</Link></div>)}</div>:<div className="empty"><b>No automations yet</b><span>Create your first workflow.</span></div>}</section></AppShell>}
