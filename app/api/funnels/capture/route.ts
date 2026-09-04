@@ -39,7 +39,8 @@ export async function POST(request: Request) {
         visitor_agent: clean(request.headers.get('user-agent'), 400),
       })
       if (optInError) return NextResponse.json({ error: optInError.message }, { status: 400 })
-      whatsapp = data || { ok: false, reason: 'opt_in_failed' }
+      const optInResult = data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : { ok: false, reason: 'opt_in_failed' }
+      whatsapp = { ok: optInResult.ok === true, reason: typeof optInResult.reason === 'string' ? optInResult.reason : undefined, contactId: typeof optInResult.contactId === 'string' ? optInResult.contactId : undefined, whatsappContactId: typeof optInResult.whatsappContactId === 'string' ? optInResult.whatsappContactId : undefined }
       if (!whatsapp.ok) return NextResponse.json({ error: `WhatsApp opt-in refusé: ${whatsapp.reason || 'unknown'}` }, { status: 422 })
     }
 
@@ -48,12 +49,8 @@ export async function POST(request: Request) {
       try {
         await runAutomations('form_submission', { organizationId, contactId, phone, firstName, lastName, email, formData })
         await runAutomations('new_contact', { organizationId, contactId, phone, firstName, lastName, email, formData })
-      } catch (automationError) {
-        console.error('[automation] execution failed', automationError)
-      }
+      } catch (automationError) { console.error('[automation] execution failed', automationError) }
     }
     return NextResponse.json({ ok: true, contactId, whatsapp })
-  } catch {
-    return NextResponse.json({ error: 'Invalid form submission.' }, { status: 400 })
-  }
+  } catch { return NextResponse.json({ error: 'Invalid form submission.' }, { status: 400 }) }
 }
