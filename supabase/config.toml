@@ -1,0 +1,32 @@
+# Conik.io Supabase project config
+# Project ref: ndsksabyzxfmhnyykcfb
+# Dashboard: https://supabase.com/dashboard/project/ndsksabyzxfmhnyykcfb
+
+[project]
+id = "ndsksabyzxfmhnyykcfb"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "https://conik-io.vercel.app"
+additional_redirect_urls = ["http://localhost:3000", "https://conik-io.vercel.app"]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
