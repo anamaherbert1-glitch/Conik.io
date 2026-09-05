@@ -9,6 +9,8 @@ const PUBLIC_PREFIXES = [
   '/api/funnels/public',
   '/api/funnels/capture',
   '/api/events/',
+  // Meta/WhatsApp webhook verification and signed event delivery must reach the route without user auth.
+  '/api/whatsapp/webhook',
   // Redirections de liens courts.
   '/r/',
 ]
