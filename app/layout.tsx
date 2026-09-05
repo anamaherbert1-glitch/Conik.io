@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import './conik-theme.css'
+import './brand.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
 export const metadata: Metadata = {
