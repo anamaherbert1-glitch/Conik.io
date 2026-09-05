@@ -1,0 +1,29 @@
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { AppShell } from '@/components/app-shell'
+
+type Campaign = { id:string; name:string; status:string; template_name:string|null; audience_type:string; total_recipients:number; sent_count:number; failed_count:number; created_at:string }
+
+type Connection = { id:string; display_phone_number:string|null; verified_name:string|null; status:string }
+type Template = { id:string; name:string; language:string; status:string; category?:string|null }
+
+export default function WhatsAppCampaignsPage(){
+  const [campaigns,setCampaigns]=useState<Campaign[]>([]),[connections,setConnections]=useState<Connection[]>([]),[templates,setTemplates]=useState<Template[]>([])
+  const [name,setName]=useState(''),[connectionId,setConnectionId]=useState(''),[templateId,setTemplateId]=useState(''),[audienceType,setAudienceType]=useState('all_opted_in'),[funnelId,setFunnelId]=useState(''),[funnels,setFunnels]=useState<any[]>([])
+  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('')
+  async function load(){
+    setError('')
+    try{const [c,w,t,f]=await Promise.all([fetch('/api/whatsapp/campaigns',{cache:'no-store'}),fetch('/api/whatsapp/connection',{cache:'no-store'}),fetch('/api/whatsapp/templates',{cache:'no-store'}),fetch('/api/funnels',{cache:'no-store'})]);const cj=await c.json(),wj=await w.json(),tj=await t.json(),fj=await f.json();if(!c.ok)throw new Error(cj.error||'Campagnes indisponibles.');setCampaigns(cj.campaigns||[]);setConnections((wj.connections||[]).filter((x:Connection)=>x.status==='connected'));setTemplates((tj.templates||[]).filter((x:Template)=>x.status==='APPROVED'));setFunnels(fj.funnels||[])}catch(e){setError(e instanceof Error?e.message:'Chargement impossible.')}
+  }
+  useEffect(()=>{load()},[])
+  async function create(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const r=await fetch('/api/whatsapp/campaigns',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,connectionId,templateId,audienceType,audienceConfig:audienceType==='funnel'?{funnelId}:{} ,variableMapping:{}})});const j=await r.json();if(!r.ok)throw new Error(j.error||'Création impossible.');setMessage(`Campagne créée avec ${j.campaign.total_recipients} destinataire(s).`);setName('');await load()}catch(e){setError(e instanceof Error?e.message:'Création impossible.')}finally{setBusy(false)}}
+  async function send(id:string){if(!confirm('Lancer l’envoi WhatsApp de cette campagne ?'))return;setBusy(true);setError('');setMessage('');try{let done=false,totalSent=0;while(!done){const r=await fetch(`/api/whatsapp/campaigns/${id}/send`,{method:'POST'});const j=await r.json();if(!r.ok)throw new Error(j.error||'Envoi impossible.');totalSent+=Number(j.sent||0);done=Boolean(j.done);if(!done)await new Promise(res=>setTimeout(res,250))}setMessage(`Envoi terminé : ${totalSent} message(s) envoyé(s).`);await load()}catch(e){setError(e instanceof Error?e.message:'Envoi impossible.')}finally{setBusy(false)}}
+  const active=connections[0]
+  return <AppShell active="WhatsApp"><header><div><small>WHATSAPP / CAMPAGNES</small><h1>Campagnes WhatsApp</h1><p className="muted">Créez, ciblez et diffusez des templates WhatsApp approuvés.</p></div><Link className="outline" href="/whatsapp">Connexion WhatsApp</Link></header>
+    <section className="panel" style={{marginBottom:18}}><h2>Nouvelle campagne</h2><form onSubmit={create} style={{display:'grid',gap:12,maxWidth:760}}><input className="form-input" placeholder="Nom de la campagne" value={name} onChange={e=>setName(e.target.value)} required/><select className="form-input" value={connectionId} onChange={e=>setConnectionId(e.target.value)} required><option value="">{active?'Choisir le numéro WhatsApp':'Aucune connexion WhatsApp active'}</option>{connections.map(c=><option key={c.id} value={c.id}>{c.verified_name||'WhatsApp'} · {c.display_phone_number||'numéro'}</option>)}</select><select className="form-input" value={templateId} onChange={e=>setTemplateId(e.target.value)} required><option value="">Choisir un template approuvé</option>{templates.map(t=><option key={t.id} value={t.id}>{t.name} · {t.language}</option>)}</select><select className="form-input" value={audienceType} onChange={e=>setAudienceType(e.target.value)}><option value="all_opted_in">Tous les contacts opt-in WhatsApp</option><option value="funnel">Contacts d’un funnel</option></select>{audienceType==='funnel'&&<select className="form-input" value={funnelId} onChange={e=>setFunnelId(e.target.value)} required><option value="">Choisir le funnel</option>{funnels.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>}<button className="primary" disabled={busy||!connections.length}>{busy?'Traitement…':'Créer la campagne'}</button></form></section>
+    {error&&<div className="error" style={{marginBottom:12}}>{error}</div>}{message&&<div className="panel" style={{marginBottom:12}}>{message}</div>}
+    <section className="panel">{campaigns.length?<div className="funnel-table">{campaigns.map(c=><div className="funnel-row" key={c.id} style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><b>{c.name}</b><span>{c.status} · {c.template_name||'template'} · {c.audience_type} · {c.sent_count||0}/{c.total_recipients||0} envoyé(s) · {c.failed_count||0} échec(s)</span></div>{!['completed','cancelled'].includes(c.status)&&<button className="outline" disabled={busy} onClick={()=>send(c.id)}>{c.status==='sending'?'Continuer l’envoi':'Lancer l’envoi'}</button>}</div>)}</div>:<div className="empty"><b>Aucune campagne WhatsApp</b><span>Créez votre première campagne avec un template approuvé et des contacts opt-in.</span></div>}</section>
+  </AppShell>
+}
