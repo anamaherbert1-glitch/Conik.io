@@ -151,7 +151,15 @@ const dict = {
   },
 } as const
 
-export type Dictionary = (typeof dict)['fr']
+/** Structural type so FR/EN/AR/ZH are all assignable */
+export type Dictionary = {
+  brand: string
+  tagline: string
+  workspace: string
+  nav: Record<keyof (typeof dict)['fr']['nav'], string>
+  settings: Record<keyof (typeof dict)['fr']['settings'], string>
+}
+
 export function getDictionary(locale: Locale): Dictionary {
-  return dict[locale] || dict.fr
+  return (dict[locale] || dict.fr) as Dictionary
 }
