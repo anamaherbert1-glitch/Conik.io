@@ -1,5 +1,69 @@
 'use client'
-import { useEffect,useState } from 'react'
+
+import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { createClient } from '@/lib/supabase/client'
-export default function SettingsPage(){const [name,setName]=useState('');const [email,setEmail]=useState('');const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);useEffect(()=>{(async()=>{const s=createClient();const {data:{user}}=await s.auth.getUser();setEmail(user?.email||'');const {data:m}=await s.from('organization_members').select('organization_id').eq('user_id',user?.id||'').limit(1).maybeSingle();if(m){const {data:o}=await s.from('organizations').select('name').eq('id',m.organization_id).single();setName(o?.name||'')}})()},[]);async function save(){setBusy(true);setMsg('');const s=createClient();const {data:{user}}=await s.auth.getUser();const {data:m}=await s.from('organization_members').select('organization_id').eq('user_id',user?.id||'').limit(1).maybeSingle();if(!m){setMsg('Espace de travail introuvable.');setBusy(false);return}const {error}=await s.from('organizations').update({name:name.trim()}).eq('id',m.organization_id);setMsg(error?error.message:'Paramètres enregistrés.');setBusy(false)}return <AppShell active="Settings"><header><div><small>PARAMÈTRES</small><h1>Paramètres de l’espace de travail</h1><p className="muted">Les modifications sont enregistrées dans votre espace de travail.</p></div></header><section className="panel"><div className="form-grid"><label className="form-label">Nom de l’entreprise<input className="form-input" value={name} onChange={e=>setName(e.target.value)}/></label><label className="form-label">E-mail du compte<input className="form-input" value={email} disabled/></label></div><div className="button-row"><button className="primary" onClick={save} disabled={busy||!name.trim()}>{busy?'Enregistrement…':'Enregistrer les paramètres'}</button></div>{msg&&<div className="notice">{msg}</div>}</section></AppShell>}
+
+export default function SettingsPage() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [msg, setMsg] = useState('')
+  const [isError, setIsError] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    ;(async () => {
+      const s = createClient()
+      const { data: { user } } = await s.auth.getUser()
+      setEmail(user?.email || '')
+      if (!user) return
+      const { data: m } = await s.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+      if (m) {
+        const { data: o } = await s.from('organizations').select('name').eq('id', m.organization_id).single()
+        setName(o?.name || '')
+      }
+    })()
+  }, [])
+
+  async function save() {
+    setBusy(true)
+    setMsg('')
+    setIsError(false)
+    const s = createClient()
+    const { data: { user } } = await s.auth.getUser()
+    if (!user) {
+      setMsg('Session expirée. Veuillez vous reconnecter.')
+      setIsError(true)
+      setBusy(false)
+      return
+    }
+    const { data: m } = await s.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+    if (!m) {
+      setMsg('Espace de travail introuvable.')
+      setIsError(true)
+      setBusy(false)
+      return
+    }
+    const { error } = await s.from('organizations').update({ name: name.trim() }).eq('id', m.organization_id)
+    if (error) {
+      setMsg(error.message)
+      setIsError(true)
+    } else {
+      setMsg('Paramètres enregistrés.')
+      setIsError(false)
+    }
+    setBusy(false)
+  }
+
+  return <AppShell active="Settings">
+    <header><div><small>PARAMÈTRES</small><h1>Paramètres de l’espace de travail</h1><p className="muted">Les modifications sont enregistrées dans votre espace de travail.</p></div></header>
+    <section className="panel">
+      <div className="form-grid">
+        <label className="form-label">Nom de l’entreprise<input className="form-input" value={name} onChange={e => setName(e.target.value)} /></label>
+        <label className="form-label">E-mail du compte<input className="form-input" value={email} disabled /></label>
+      </div>
+      <div className="button-row"><button className="primary" onClick={save} disabled={busy || !name.trim()}>{busy ? 'Enregistrement…' : 'Enregistrer les paramètres'}</button></div>
+      {msg && <div className={isError ? 'error' : 'notice'}>{msg}</div>}
+    </section>
+  </AppShell>
+}
