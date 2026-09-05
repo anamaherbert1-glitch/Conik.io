@@ -141,13 +141,13 @@ export default function TutorialPage() {
                 Un funnel = un tunnel de pages (landing, opt-in, thank-you) heberge par Conik. Les formulaires
                 envoient les leads dans votre CRM.
               </p>
-              <StepCard n={1} title="Ouvrir Tunnels" text="Menu lateral -> Funnels. Liste + deux modes de creation." />
+              <StepCard n={1} title="Ouvrir Tunnels" text="Menu lateral vers Funnels. Liste + deux modes de creation." />
               <StepCard n={2} title="Creer un tunnel vide" text="Nouveau tunnel : nom + slug (ex. offre-ete)." />
               <StepCard n={3} title="Ou importer un ZIP" text="ZIP HTML/CSS/images. Conik valide, nettoie et heberge." />
-              <StepCard n={4} title="Editeur de pages" text="Ouvrez le tunnel -> Editeur. Pages, HTML/CSS, preview, publier." />
+              <StepCard n={4} title="Editeur de pages" text="Ouvrez le tunnel puis Editeur. Pages, HTML/CSS, preview, publier." />
               <StepCard n={5} title="Publication" text="Statut publie. URL publique : /votre-slug sur Conik." />
               <div className="tut-mocks-row">
-                <MockFrame title="Funnels — liste">
+                <MockFrame title="Funnels liste">
                   <div className="tut-list-row">
                     <b>Offre ete</b>
                     <span className="status published">publie</span>
@@ -173,7 +173,7 @@ export default function TutorialPage() {
                         <small>thanks</small>
                       </div>
                     </div>
-                    <div className="tut-preview">Apercu de la page…</div>
+                    <div className="tut-preview">Apercu de la page</div>
                   </div>
                 </MockFrame>
               </div>
@@ -195,12 +195,12 @@ export default function TutorialPage() {
                 Les tags classent vos leads (ex. <b>lead-chaud</b>, <b>webinar-juin</b>). Ils alimentent
                 segments, campagnes et automatisations.
               </p>
-              <StepCard n={1} title="Contacts" text="Menu -> Contacts : tous les leads captures par vos formulaires." />
+              <StepCard n={1} title="Contacts" text="Menu Contacts : tous les leads captures par vos formulaires." />
               <StepCard n={2} title="Fiche contact" text="Ouvrez un contact : email, statut, section Etiquettes." />
-              <StepCard n={3} title="Creer un tag" text="Nom du tag -> Creer et ajouter. Cree et assigne en une fois." />
-              <StepCard n={4} title="Assigner / retirer" text="Liste deroulante -> Ajouter. Cliquez x sur un badge pour retirer." />
+              <StepCard n={3} title="Creer un tag" text="Nom du tag puis Creer et ajouter. Cree et assigne en une fois." />
+              <StepCard n={4} title="Assigner / retirer" text="Liste deroulante puis Ajouter. Cliquez x sur un badge pour retirer." />
               <StepCard n={5} title="Bonnes pratiques" text="Noms courts : source-instagram, funnel-offre-ete." />
-              <MockFrame title="Fiche contact — tags">
+              <MockFrame title="Fiche contact tags">
                 <div className="tut-tags">
                   <span className="badge">lead-chaud x</span>
                   <span className="badge">webinar-juin x</span>
@@ -251,9 +251,9 @@ export default function TutorialPage() {
             <section className="panel tut-section">
               <h2>Automatisations</h2>
               <p className="muted">Declencheur puis actions (message, delai). Execution via le cron Conik.</p>
-              <StepCard n={1} title="Creer" text="Automatisations -> Nouvelle. Nommez le scenario." />
+              <StepCard n={1} title="Creer" text="Automatisations puis Nouvelle. Nommez le scenario." />
               <StepCard n={2} title="Declencheur" text="Evenement qui demarre le flux (contact, tag, etc.)." />
-              <StepCard n={3} title="Actions" text="Ajoutez les etapes dans l'ordre." />
+              <StepCard n={3} title="Actions" text="Ajoutez les etapes dans l ordre." />
               <StepCard n={4} title="Activer" text="Passez le statut a active." />
               <Link className="primary" href="/automations/new">
                 Creer une automatisation
@@ -266,7 +266,7 @@ export default function TutorialPage() {
               <h2>WhatsApp Business</h2>
               <p className="muted">Connexion Meta Embedded Signup, templates et conversations par organisation.</p>
               <StepCard n={1} title="Variables Meta" text="Vercel : META_APP_ID, SECRET, CONFIG_ID, secrets webhook." />
-              <StepCard n={2} title="Connecter" text="Page WhatsApp -> bouton Meta -> autoriser le Business." />
+              <StepCard n={2} title="Connecter" text="Page WhatsApp puis bouton Meta puis autoriser le Business." />
               <StepCard n={3} title="Templates" text="Modeles approuves Meta + fils entrants." />
               <Link className="primary" href="/whatsapp">
                 Ouvrir WhatsApp
@@ -278,8 +278,8 @@ export default function TutorialPage() {
             <section className="panel tut-section">
               <h2>Liens courts</h2>
               <p className="muted">Slugs trackes (clics) vers une URL ou un funnel.</p>
-              <StepCard n={1} title="Creer" text="Liens -> slug + destination." />
-              <StepCard n={2} title="Suivi" text="Chaque clic est enregistre pour l'analytique." />
+              <StepCard n={1} title="Creer" text="Liens : slug + destination." />
+              <StepCard n={2} title="Suivi" text="Chaque clic est enregistre pour l analytique." />
               <Link className="primary" href="/links">
                 Gerer les liens
               </Link>
@@ -299,7 +299,7 @@ export default function TutorialPage() {
           {active === 'domains' && (
             <section className="panel tut-section">
               <h2>Domaines personnalises</h2>
-              <p className="muted">Hostname lie a un funnel (DNS -> verification : pending / verified).</p>
+              <p className="muted">Hostname lie a un funnel (DNS puis verification : pending / verified).</p>
               <Link className="primary" href="/domains">
                 Gerer les domaines
               </Link>
@@ -309,7 +309,7 @@ export default function TutorialPage() {
           {active === 'settings' && (
             <section className="panel tut-section">
               <h2>Parametres</h2>
-              <p className="muted">Theme clair/sombre, langue FR EN AR ZH, nom de l'organisation.</p>
+              <p className="muted">Theme clair/sombre, langue FR EN AR ZH, nom de l organisation.</p>
               <div className="tut-checklist">
                 <div>
                   <CheckCircle2 size={16} /> Theme
