@@ -5,7 +5,7 @@ import { signOut } from '@/app/actions/auth'
 const items = [
   ['Dashboard', LayoutDashboard, '/dashboard', 'Tableau de bord'], ['Funnels', Zap, '/funnels', 'Tunnels'], ['Contacts', Users, '/contacts', 'Contacts'],
   ['Campaigns', Send, '/campaigns', 'Campagnes'], ['Automations', Bot, '/automations', 'Automatisations'], ['WhatsApp', MessageSquare, '/whatsapp', 'WhatsApp'],
-  ['Emails', Send, '/emails', 'E-mails'], ['Links', MousePointer2, '/links', 'Liens'], ['Analytics', BarChart3, '/analytics', 'Statistiques'], ['Domains', Globe2, '/domains', 'Domaines'],
+  ['Links', MousePointer2, '/links', 'Liens'], ['Analytics', BarChart3, '/analytics', 'Statistiques'], ['Domains', Globe2, '/domains', 'Domaines'],
 ] as const
 
 export function AppShell({ children, active }: { children: React.ReactNode; active: string }) {
