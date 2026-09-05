@@ -14,14 +14,7 @@ export default function OnboardingPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.replace('/login'); return }
-
-      const { data: membership } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle()
-
+      const { data: membership } = await supabase.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
       if (!active) return
       if (membership) window.location.replace('/dashboard')
       else setChecking(false)
@@ -30,16 +23,31 @@ export default function OnboardingPage() {
     return () => { active = false }
   }, [])
 
+  async function createWorkspace(workspaceName: string, workspaceSlug: string) {
+    const supabase = createClient()
+    const { error } = await supabase.rpc('create_organization', { org_name: workspaceName, org_slug: workspaceSlug })
+    if (error) throw new Error(error.message.includes('Workspace already exists') ? 'Un espace de travail existe déjà pour ce compte.' : error.message)
+    window.location.replace('/dashboard')
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(''); setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.rpc('create_organization', { org_name: name, org_slug: slugify(slug || name) })
-    if (error) setError(error.message.includes('Workspace already exists') ? 'Un espace de travail existe déjà pour ce compte.' : error.message)
-    else window.location.replace('/dashboard')
-    setLoading(false)
+    try { await createWorkspace(name.trim(), slugify(slug || name)) }
+    catch (err) { setError(err instanceof Error ? err.message : 'Impossible de créer l’espace de travail.'); setLoading(false) }
+  }
+
+  async function skip() {
+    setError(''); setLoading(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { window.location.replace('/login'); return }
+      const shortId = user.id.replace(/-/g, '').slice(0, 10)
+      await createWorkspace('Mon espace CONIK', `conik-${shortId}`)
+    } catch (err) { setError(err instanceof Error ? err.message : 'Impossible de continuer sans configuration.'); setLoading(false) }
   }
 
   if (checking) return <main className="auth-page"><div className="auth-card"><p>Vérification de votre espace de travail…</p></div></main>
 
-  return <main className="auth-page"><div className="auth-card wide"><div className="step">ÉTAPE 1 SUR 1</div><h1>Créer votre espace de travail</h1><p>Il s’agit de l’organisation qui détiendra vos tunnels, contacts et campagnes.</p><form onSubmit={submit}><label>Nom de l’entreprise / organisation<input required minLength={2} maxLength={120} value={name} onChange={e=>{setName(e.target.value); if(!slug) setSlug(slugify(e.target.value))}} placeholder="Mon entreprise" /></label><label>Identifiant d’URL de l’espace de travail<input required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={slug} onChange={e=>setSlug(slugify(e.target.value))} placeholder="mon-entreprise" /><small className="hint">Les URL publiques de vos tunnels utiliseront cet espace de travail par la suite.</small></label>{error && <div className="error">{error}</div>}<button className="primary full" disabled={loading}>{loading ? 'Création de l’espace de travail…' : 'Créer l’espace de travail'}</button></form></div></main>
+  return <main className="auth-page"><div className="auth-card wide"><div className="step">CONFIGURATION RAPIDE</div><h1>Configurez votre espace</h1><p>Vous pouvez le faire maintenant ou commencer directement. Vous pourrez créer votre projet depuis le tableau de bord.</p><form onSubmit={submit}><label>Nom de l’entreprise / organisation<input required minLength={2} maxLength={120} value={name} onChange={e=>{setName(e.target.value); if(!slug) setSlug(slugify(e.target.value))}} placeholder="Mon entreprise" /></label><label>Identifiant d’URL de l’espace de travail<input required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={slug} onChange={e=>setSlug(slugify(e.target.value))} placeholder="mon-entreprise" /><small className="hint">Les URL publiques de vos tunnels utiliseront cet espace de travail.</small></label>{error && <div className="error">{error}</div>}<div className="onboarding-actions"><button className="primary full" disabled={loading}>{loading ? 'Préparation…' : 'Créer l’espace de travail'}</button><button type="button" className="skip-button" onClick={skip} disabled={loading}>Passer pour l’instant →</button></div></form></div></main>
 }
