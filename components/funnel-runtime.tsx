@@ -3,161 +3,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { notFound, useRouter } from 'next/navigation'
 
-type PublishedPage = {
-  funnel_id: string
-  funnel_name?: string
-  funnel_slug?: string
-  page_id: string
-  page_name: string
-  page_slug?: string
-  html: string
-  css: string
-}
+type PublishedPage = { funnel_id:string; funnel_name?:string; funnel_slug?:string; page_id:string; page_name:string; page_slug?:string; html:string; css:string }
+const VISITOR_KEY='conik_visitor_id'; const SESSION_KEY='conik_session_id'
+function localId(key:string){try{const existing=localStorage.getItem(key);if(existing)return existing;const id=crypto.randomUUID();localStorage.setItem(key,id);return id}catch{return crypto.randomUUID()}}
+function pick(data:Record<string,string>,patterns:RegExp){for(const [key,value] of Object.entries(data)){if(value&&patterns.test(key))return value}return ''}
+function checked(value:string){return ['true','1','on','yes','oui','checked','accepted','accepté','accepte'].includes(value.trim().toLowerCase())}
+function explicitConsent(value:string){const normalized=value.trim().toLowerCase();if(['false','0','no','non','off','unchecked','declined','refused','refusé'].includes(normalized))return false;return checked(normalized)}
+const EMAIL_RE=/^(e?-?mail|courriel|adresse[-_ ]?mail)/i; const PHONE_RE=/(phone|tel|telephone|téléphone|mobile|whatsapp|numero|numéro)/i; const FIRST_RE=/(first[-_ ]?name|firstname|prenom|prénom|^fname$)/i; const LAST_RE=/(last[-_ ]?name|lastname|surname|^nom$|family)/i; const FULL_RE=/^(name|nom[-_ ]?complet|full[-_ ]?name|fullname)$/i; const WHATSAPP_OPTIN_RE=/whatsapp.*(consent|opt[-_ ]?in|accept|marketing)|(?:consent|opt[-_ ]?in).*whatsapp/i; const WHATSAPP_CONSENT_TEXT_RE=/whatsapp.*(consent[_-]?text|opt[-_ ]?in[_-]?text)|(?:consent[_-]?text|opt[-_ ]?in[_-]?text).*whatsapp/i
+const BRIDGE=`(function(){function send(t,p){try{parent.postMessage(Object.assign({type:t},p),'*')}catch(e){}}document.addEventListener('submit',function(e){e.preventDefault();var d={};try{new FormData(e.target).forEach(function(v,k){if(typeof v==='string')d[k]=v})}catch(err){}send('conik-form-submit',{formData:d});},true);document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var href=a.getAttribute('href')||'';if(!href||href.charAt(0)==='#')return;if(/^(mailto:|tel:|javascript:)/i.test(href))return;e.preventDefault();if(href.charAt(0)==='/'){send('conik-navigate',{href:href})}else{try{window.open(href,'_blank','noopener')}catch(err){send('conik-navigate',{href:href})}}},true);window.addEventListener('message',function(e){if(!e.data||e.data.type!=='conik-form-result')return;var m=document.getElementById('conik-result');if(!m){m=document.createElement('div');m.id='conik-result';m.setAttribute('role','status');m.style.cssText='position:fixed;bottom:20px;left:20px;right:20px;max-width:520px;margin:0 auto;padding:14px 16px;border-radius:10px;background:#101418;color:#fff;font:15px/1.4 system-ui,sans-serif;z-index:2147483647;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25)';document.body.appendChild(m)}m.style.background=e.data.ok?'#101418':'#8c1d18';m.textContent=e.data.ok?'Merci ! Vos informations ont bien été enregistrées.':'Envoi impossible. Merci de réessayer.';if(e.data.ok){try{var f=document.querySelector('form');if(f)f.reset()}catch(err){}}setTimeout(function(){if(m&&m.parentNode)m.parentNode.removeChild(m)},6000);});})()`
 
-const VISITOR_KEY = 'conik_visitor_id'
-const SESSION_KEY = 'conik_session_id'
-
-function localId(key: string) {
-  try {
-    const existing = localStorage.getItem(key)
-    if (existing) return existing
-    const id = crypto.randomUUID()
-    localStorage.setItem(key, id)
-    return id
-  } catch {
-    return crypto.randomUUID()
-  }
-}
-
-function pick(data: Record<string, string>, patterns: RegExp): string {
-  for (const [key, value] of Object.entries(data)) {
-    if (value && patterns.test(key)) return value
-  }
-  return ''
-}
-
-function checked(value: string) {
-  return ['true', '1', 'on', 'yes', 'oui', 'checked', 'accepted', 'accepté', 'accepte'].includes(value.trim().toLowerCase())
-}
-
-const EMAIL_RE = /^(e?-?mail|courriel|adresse[-_ ]?mail)/i
-const PHONE_RE = /(phone|tel|telephone|téléphone|mobile|whatsapp|numero|numéro)/i
-const FIRST_RE = /(first[-_ ]?name|firstname|prenom|prénom|^fname$)/i
-const LAST_RE = /(last[-_ ]?name|lastname|surname|^nom$|family)/i
-const FULL_RE = /^(name|nom[-_ ]?complet|full[-_ ]?name|fullname)$/i
-const WHATSAPP_OPTIN_RE = /whatsapp.*(consent|opt[-_ ]?in|accept|marketing)|(?:consent|opt[-_ ]?in).*whatsapp/i
-const WHATSAPP_CONSENT_TEXT_RE = /whatsapp.*(consent[_-]?text|opt[-_ ]?in[_-]?text)|(?:consent[_-]?text|opt[-_ ]?in[_-]?text).*whatsapp/i
-
-const BRIDGE = `(function(){
-function send(t,p){try{parent.postMessage(Object.assign({type:t},p),'*')}catch(e){}}
-document.addEventListener('submit',function(e){
-  e.preventDefault();
-  var d={};try{new FormData(e.target).forEach(function(v,k){if(typeof v==='string')d[k]=v})}catch(err){}
-  send('conik-form-submit',{formData:d});
-},true);
-document.addEventListener('click',function(e){
-  var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
-  if(!a)return;
-  var href=a.getAttribute('href')||'';
-  if(!href||href.charAt(0)==='#')return;
-  if(/^(mailto:|tel:|javascript:)/i.test(href))return;
-  e.preventDefault();
-  if(href.charAt(0)==='/'){send('conik-navigate',{href:href})}
-  else{try{window.open(href,'_blank','noopener')}catch(err){send('conik-navigate',{href:href})}}
-},true);
-window.addEventListener('message',function(e){
-  if(!e.data||e.data.type!=='conik-form-result')return;
-  var m=document.getElementById('conik-result');
-  if(!m){m=document.createElement('div');m.id='conik-result';m.setAttribute('role','status');
-    m.style.cssText='position:fixed;bottom:20px;left:20px;right:20px;max-width:520px;margin:0 auto;padding:14px 16px;border-radius:10px;background:#101418;color:#fff;font:15px/1.4 system-ui,sans-serif;z-index:2147483647;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25)';
-    document.body.appendChild(m)}
-  m.style.background=e.data.ok?'#101418':'#8c1d18';
-  m.textContent=e.data.ok?'Merci ! Vos informations ont bien été enregistrées.':"Envoi impossible. Merci de réessayer.";
-  if(e.data.ok){try{var f=document.querySelector('form');if(f)f.reset()}catch(err){}}
-  setTimeout(function(){if(m&&m.parentNode)m.parentNode.removeChild(m)},6000);
-});
-})()`
-
-export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pageSlug: string }) {
-  const router = useRouter()
-  const frame = useRef<HTMLIFrameElement>(null)
-  const [page, setPage] = useState<PublishedPage | null>(null)
-  const [missing, setMissing] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    setPage(null)
-    setMissing(false)
-    fetch(`/api/funnels/public?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(pageSlug)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j) => { if (!cancelled) setPage(j.page) })
-      .catch(() => { if (!cancelled) setMissing(true) })
-    return () => { cancelled = true }
-  }, [funnelSlug, pageSlug])
-
-  useEffect(() => {
-    const f = frame.current
-    if (!f || !page) return
-
-    document.title = page.page_name || page.funnel_name || 'Conik'
-
-    fetch('/api/events/page-view', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ funnelId: page.funnel_id, pageId: page.page_id, visitorId: localId(VISITOR_KEY), sessionId: localId(SESSION_KEY), referrer: document.referrer || undefined }),
-    }).catch(() => {})
-
-    const handler = (event: MessageEvent) => {
-      if (event.source !== f.contentWindow) return
-      if (event.data?.type === 'conik-navigate') {
-        const href = String(event.data.href || '')
-        if (href.startsWith('/')) router.push(href)
-        else if (/^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener')
-        return
-      }
-      if (event.data?.type !== 'conik-form-submit') return
-
-      const raw = event.data.formData
-      const data: Record<string, string> = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
-      const full = pick(data, FULL_RE)
-      const firstName = pick(data, FIRST_RE) || full.split(' ').slice(0, -1).join(' ') || full
-      const lastName = pick(data, LAST_RE) || (full.includes(' ') ? full.split(' ').slice(-1)[0] : '')
-      const whatsappOptIn = Object.entries(data).some(([key, value]) => WHATSAPP_OPTIN_RE.test(key) && checked(value))
-      const whatsappConsentText = pick(data, WHATSAPP_CONSENT_TEXT_RE)
-
-      let timezone = ''
-      try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '' } catch {}
-
-      fetch('/api/funnels/capture', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          funnelSlug,
-          pageSlug,
-          email: pick(data, EMAIL_RE),
-          phone: pick(data, PHONE_RE),
-          firstName,
-          lastName,
-          marketingConsent: Boolean(pick(data, /(consent|optin|opt[-_ ]?in|newsletter|accept)/i)),
-          whatsappOptIn,
-          whatsappConsentText,
-          formData: { ...data, _timezone: timezone, _language: navigator.language || '', _referrer: document.referrer || '', _page: `${funnelSlug}/${pageSlug}` },
-        }),
-      })
-        .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then(() => f.contentWindow?.postMessage({ type: 'conik-form-result', ok: true }, '*'))
-        .catch(() => f.contentWindow?.postMessage({ type: 'conik-form-result', ok: false }, '*'))
-    }
-
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
-  }, [page, funnelSlug, pageSlug, router])
-
-  if (missing) return notFound()
-  if (!page) return <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', font: '15px system-ui, sans-serif', color: '#5b6470', margin: 0, padding: 0, width: '100%', maxWidth: 'none' }}>Chargement…</main>
-
-  const srcDoc = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0}${page.css || ''}</style></head><body>${page.html || ''}<script>${BRIDGE}<\\/script></body></html>`
-  return <main style={{ minHeight: '100vh', background: '#fff', margin: 0, padding: 0, width: '100%', maxWidth: 'none' }}>
-    <iframe ref={frame} title={page.page_name} sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" srcDoc={srcDoc} style={{ width: '100%', minHeight: '100vh', height: '100vh', border: 0, display: 'block' }} />
-  </main>
+export function FunnelRuntime({funnelSlug,pageSlug}:{funnelSlug:string;pageSlug:string}){
+  const router=useRouter(); const frame=useRef<HTMLIFrameElement>(null); const [page,setPage]=useState<PublishedPage|null>(null); const [missing,setMissing]=useState(false)
+  useEffect(()=>{let cancelled=false;setPage(null);setMissing(false);fetch(`/api/funnels/public?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(pageSlug)}`).then(r=>r.ok?r.json():Promise.reject()).then(j=>{if(!cancelled)setPage(j.page)}).catch(()=>{if(!cancelled)setMissing(true)});return()=>{cancelled=true}},[funnelSlug,pageSlug])
+  useEffect(()=>{const f=frame.current;if(!f||!page)return;document.title=page.page_name||page.funnel_name||'Conik';fetch('/api/events/page-view',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({funnelId:page.funnel_id,pageId:page.page_id,visitorId:localId(VISITOR_KEY),sessionId:localId(SESSION_KEY),referrer:document.referrer||undefined})}).catch(()=>{});const handler=(event:MessageEvent)=>{if(event.source!==f.contentWindow)return;if(event.data?.type==='conik-navigate'){const href=String(event.data.href||'');if(href.startsWith('/'))router.push(href);else if(/^https?:\/\//i.test(href))window.open(href,'_blank','noopener');return}if(event.data?.type!=='conik-form-submit')return;const raw=event.data.formData;const data:Record<string,string>=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};const full=pick(data,FULL_RE);const firstName=pick(data,FIRST_RE)||full.split(' ').slice(0,-1).join(' ')||full;const lastName=pick(data,LAST_RE)||(full.includes(' ')?full.split(' ').slice(-1)[0]:'');const consentKey=Object.entries(data).find(([key])=>/(consent|optin|opt[-_ ]?in|newsletter|accept)/i.test(key));const marketingConsent=consentKey?explicitConsent(consentKey[1]):false;const whatsappOptIn=Object.entries(data).some(([key,value])=>WHATSAPP_OPTIN_RE.test(key)&&checked(value));const whatsappConsentText=pick(data,WHATSAPP_CONSENT_TEXT_RE);let timezone='';try{timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||''}catch{}fetch('/api/funnels/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({funnelSlug,pageSlug,email:pick(data,EMAIL_RE),phone:pick(data,PHONE_RE),firstName,lastName,marketingConsent,whatsappOptIn,whatsappConsentText,formData:{...data,_timezone:timezone,_language:navigator.language||'',_referrer:document.referrer||'',_page:`${funnelSlug}/${pageSlug}`}})}).then(r=>r.ok?r.json():Promise.reject()).then(()=>f.contentWindow?.postMessage({type:'conik-form-result',ok:true},'*')).catch(()=>f.contentWindow?.postMessage({type:'conik-form-result',ok:false},'*'))};window.addEventListener('message',handler);return()=>window.removeEventListener('message',handler)},[page,funnelSlug,pageSlug,router])
+  if(missing)return notFound(); if(!page)return <main style={{minHeight:'100vh',display:'grid',placeItems:'center',font:'15px system-ui,sans-serif',color:'#5b6470',margin:0,padding:0,width:'100%',maxWidth:'none'}}>Chargement…</main>
+  const srcDoc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0}${page.css||''}</style></head><body>${page.html||''}<script>${BRIDGE}<\\/script></body></html>`
+  return <main style={{minHeight:'100vh',background:'#fff',margin:0,padding:0,width:'100%',maxWidth:'none'}}><iframe ref={frame} title={page.page_name} sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" srcDoc={srcDoc} style={{width:'100%',minHeight:'100vh',height:'100vh',border:0,display:'block'}}/></main>
 }
