@@ -18,10 +18,17 @@ export default function SettingsPage() {
   useEffect(() => {
     ;(async () => {
       const s = createClient()
-      const { data: { user } } = await s.auth.getUser()
+      const {
+        data: { user },
+      } = await s.auth.getUser()
       setEmail(user?.email || '')
       if (!user) return
-      const { data: m } = await s.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+      const { data: m } = await s
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
       if (m) {
         const { data: o } = await s.from('organizations').select('name').eq('id', m.organization_id).single()
         setName(o?.name || '')
@@ -34,14 +41,21 @@ export default function SettingsPage() {
     setMsg('')
     setIsError(false)
     const s = createClient()
-    const { data: { user } } = await s.auth.getUser()
+    const {
+      data: { user },
+    } = await s.auth.getUser()
     if (!user) {
       setMsg(dict.settings.sessionExpired)
       setIsError(true)
       setBusy(false)
       return
     }
-    const { data: m } = await s.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+    const { data: m } = await s
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
     if (!m) {
       setMsg(dict.settings.workspaceMissing)
       setIsError(true)
@@ -68,33 +82,61 @@ export default function SettingsPage() {
           <p className="muted">{dict.settings.subtitle}</p>
         </div>
       </header>
+
       <section className="panel" style={{ marginBottom: 16 }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>{dict.settings.theme}</h3>
         <div className="button-row" style={{ marginBottom: 0 }}>
-          {([['light', dict.settings.themeLight, Sun], ['dark', dict.settings.themeDark, Moon], ['system', dict.settings.themeSystem, Monitor]] as const).map(([value, label, Icon]) => (
-            <button key={value} type="button" className={theme === value ? 'primary' : 'outline'} onClick={() => setTheme(value as Theme)}>
-              <Icon size={15} />{label}
+          {(
+            [
+              ['light', dict.settings.themeLight, Sun],
+              ['dark', dict.settings.themeDark, Moon],
+              ['system', dict.settings.themeSystem, Monitor],
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              className={theme === value ? 'primary' : 'outline'}
+              onClick={() => setTheme(value as Theme)}
+            >
+              <Icon size={15} />
+              {label}
             </button>
           ))}
         </div>
       </section>
+
       <section className="panel" style={{ marginBottom: 16 }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>{dict.settings.language}</h3>
         <div className="button-row" style={{ marginBottom: 0, flexWrap: 'wrap' }}>
           {locales.map((l) => (
-            <button key={l.code} type="button" className={locale === l.code ? 'primary' : 'outline'} onClick={() => setLocale(l.code as Locale)}>
+            <button
+              key={l.code}
+              type="button"
+              className={locale === l.code ? 'primary' : 'outline'}
+              onClick={() => setLocale(l.code as Locale)}
+            >
               {l.native}
             </button>
           ))}
         </div>
       </section>
+
       <section className="panel">
         <div className="form-grid">
-          <label className="form-label">{dict.settings.orgName}<input className="form-input" value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label className="form-label">{dict.settings.email}<input className="form-input" value={email} disabled /></label>
+          <label className="form-label">
+            {dict.settings.orgName}
+            <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="form-label">
+            {dict.settings.email}
+            <input className="form-input" value={email} disabled />
+          </label>
         </div>
         <div className="button-row">
-          <button className="primary" onClick={save} disabled={busy || !name.trim()}>{busy ? dict.settings.saving : dict.settings.save}</button>
+          <button className="primary" onClick={save} disabled={busy || !name.trim()}>
+            {busy ? dict.settings.saving : dict.settings.save}
+          </button>
         </div>
         {msg && <div className={isError ? 'error' : 'notice'}>{msg}</div>}
       </section>
