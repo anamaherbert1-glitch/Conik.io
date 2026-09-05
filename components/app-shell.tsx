@@ -14,6 +14,7 @@ import {
   Settings2,
   LogOut,
   Plug,
+  BookOpen,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
@@ -29,6 +30,7 @@ const items = [
   ['Analytics', BarChart3, '/analytics'],
   ['Domains', Globe2, '/domains'],
   ['Integrations', Plug, '/integrations'],
+  ['Tutorial', BookOpen, '/tutorial'],
 ] as const
 
 export function AppShell({ children, active }: { children: React.ReactNode; active: string }) {
