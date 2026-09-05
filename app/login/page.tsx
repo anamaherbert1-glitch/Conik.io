@@ -65,7 +65,9 @@ export default function LoginPage() {
     <main className="auth-page">
       <div className="auth-card">
         <Link href="/" className="brand">
-          CONIK<span>.io</span>
+          <b>C</b>
+          <strong>Conik.io</strong>
+          <small>Marketing OS</small>
         </Link>
         <h1>Bienvenue sur Conik</h1>
         <p>Saisissez votre e-mail autorisé et votre code d&apos;accès pour continuer.</p>
