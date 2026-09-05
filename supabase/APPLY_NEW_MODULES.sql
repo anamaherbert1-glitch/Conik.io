@@ -1,0 +1,19 @@
+-- CONIK: apply new modules (safe if foundation already exists)
+-- Run in: https://supabase.com/dashboard/project/ndsksabyzxfmhnyykcfb/sql/new
+--
+-- This script applies:
+--   1) 20260905_core_modules.sql
+--   2) whatsapp_06_automation_scheduler.sql
+--   3) 20260905_security_hardening.sql
+--
+-- If tables like organizations/funnels are missing, run the full
+-- supabase/migrations/*.sql files in order instead (see supabase/README.md).
+
+-- Open and run these three files from the repo in order:
+-- 1. supabase/migrations/20260905_core_modules.sql
+-- 2. supabase/migrations/whatsapp_06_automation_scheduler.sql
+-- 3. supabase/migrations/20260905_security_hardening.sql
+--
+-- Verification query (run after):
+-- select tablename from pg_tables where schemaname='public'
+--   and tablename in ('campaigns','links','domains','automations','link_clicks');
