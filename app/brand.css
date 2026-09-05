@@ -16,12 +16,13 @@
 .auth-footer a{color:var(--accent);font-weight:700}
 .ico{background:#fff7ed!important;color:#ea580c!important}
 .page-item:hover,.page-item.active{background:#fff7ed!important;border-color:#ffedd5!important}
-.btn-whatsapp,.wa-primary{
+.btn-whatsapp,.wa-primary,.whatsapp-primary,button.whatsapp-primary{
   background:#25D366!important;color:#fff!important;border:0!important;
   display:inline-flex;align-items:center;justify-content:center;gap:7px;
   padding:10px 14px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer
 }
-.btn-whatsapp:hover{background:#1ebe57!important}
+.btn-whatsapp:hover,.whatsapp-primary:hover{background:#1ebe57!important}
+.whatsapp-status{color:#25D366!important}
 @media(max-width:520px){
   .auth-page{padding:16px 12px}
   .auth-card,.auth-card.wide{width:100%;max-width:100%;padding:24px 18px}
