@@ -38,7 +38,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       continue
     }
     const variables = Array.isArray(recipient.variables) ? recipient.variables.map((v: unknown) => ({ type: 'text', text: String(v).slice(0,500) })) : Object.values(recipient.variables || {}).map((v: unknown) => ({ type: 'text', text: String(v).slice(0,500) }))
-    const record = await supabase.rpc('whatsapp_record_outbound', { p_connection_id: connection.id, p_phone_number: recipient.phone_number, p_message_type: 'template', p_content: null, p_template_name: campaign.template_name, p_template_language: campaign.template_language || 'fr', p_payload: { source: 'campaign', campaignId: campaign.id } })
+    const record = await supabase.rpc('whatsapp_record_outbound', { p_connection_id: connection.id, p_phone_number: recipient.phone_number, p_message_type: 'template', p_content: null, p_template_name: campaign.template_name, p_template_language: campaign.template_language || 'fr', p_campaign_id: campaign.id, p_payload: { source: 'campaign', campaignId: campaign.id } })
     if (record.error || !record.data?.ok) {
       failed++
       await supabase.from('whatsapp_campaign_recipients').update({ status: 'failed', error_message: record.error?.message || record.data?.reason || 'record_failed' }).eq('id', recipient.id).eq('organization_id', membership.organizationId)
