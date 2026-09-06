@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Eye, Globe2, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Globe2, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 type Page = { id: string; name: string; slug: string; page_type: string; position: number; published_version_id: string | null }
 type Version = { id: string; version_number: number; html: string; css: string; js: string; metadata: Record<string, unknown> }
+type CodeTab = 'html' | 'css' | 'js'
 
 const DEFAULT_HTML = '<main style="font-family:system-ui;max-width:900px;margin:80px auto;padding:24px"><h1>Votre tunnel commence ici</h1><p>Importez votre page HTML/ZIP ou modifiez cette page.</p><a href="#cta" id="cta">Commencer</a></main>'
 const DEFAULT_CSS = 'body{margin:0;background:#fff;color:#111827}a{font-weight:700;color:#6d28d9}'
@@ -43,6 +44,8 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   const [redirectUrl, setRedirectUrl] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showCode, setShowCode] = useState(true)
+  const [activeCodeTab, setActiveCodeTab] = useState<CodeTab>('html')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { params.then(p => setFunnelId(p.id)) }, [params])
@@ -64,7 +67,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   useEffect(() => { void load() }, [funnelId])
 
   async function selectPage(page: Page) {
-    setSelected(page); setName(page.name); setSlug(page.slug); setMessage('')
+    setSelected(page); setName(page.name); setSlug(page.slug); setMessage(''); setShowCode(true); setActiveCodeTab('html')
     const supabase = createClient()
     const { data: v, error } = await supabase.from('funnel_versions').select('id,version_number,html,css,js,metadata').eq('page_id', page.id).order('version_number', { ascending: false }).limit(1).maybeSingle()
     if (error) { setMessage(error.message); return }
@@ -87,7 +90,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     if (error) { setMessage(error.message); setBusy(false); return }
     const { data: v, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: data.id, version_number: 1, html: DEFAULT_HTML, css: DEFAULT_CSS, js: '', metadata: { editor: 'conik', redirectUrl: '' } }).select('id,version_number,html,css,js,metadata').single()
     if (versionError || !v) { setMessage(versionError?.message || 'Impossible de créer la première version.'); setBusy(false); return }
-    setPages(p => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectUrl(''); setSelected(data); setName(data.name); setSlug(data.slug); setMessage(`Page ${pageNumber} créée. Vous pouvez maintenant importer votre HTML/ZIP.`)
+    setPages(p => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectUrl(''); setSelected(data); setName(data.name); setSlug(data.slug); setShowCode(true); setActiveCodeTab('html'); setMessage(`Page ${pageNumber} créée. Vous pouvez maintenant importer votre HTML/ZIP.`)
     setBusy(false)
   }
 
@@ -101,7 +104,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
       const response = await fetch('/api/funnels/pages/import', { method: 'POST', body })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Import impossible.')
-      setVersion(data.version); setHtml(data.version.html); setCss(data.version.css); setJs(data.version.js); setName(data.page.name); setMessage(`Page importée avec succès · ${data.assets} asset(s). HTML, CSS et code importés. Cliquez sur « Enregistrer la version » puis « Publier ».`)
+      setVersion(data.version); setHtml(data.version.html); setCss(data.version.css); setJs(data.version.js); setName(data.page.name); setActiveCodeTab('html'); setShowCode(true); setMessage(`Page importée avec succès · ${data.assets} asset(s). HTML, CSS et code importés. Cliquez sur « Enregistrer la version » puis « Publier ».`)
       if (inputRef.current) inputRef.current.value = ''
     } catch (err) { setMessage(err instanceof Error ? err.message : 'Import impossible.') }
     finally { setBusy(false) }
@@ -145,6 +148,15 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     setBusy(false)
   }
 
+  function clearCode(kind: CodeTab) {
+    if (kind === 'html') setHtml(DEFAULT_HTML)
+    if (kind === 'css') setCss(DEFAULT_CSS)
+    if (kind === 'js') setJs('')
+    setMessage(`${kind.toUpperCase()} réinitialisé. Cliquez sur « Enregistrer la version » pour conserver la modification.`)
+  }
+
+  const codeValue = activeCodeTab === 'html' ? html : activeCodeTab === 'css' ? css : js
+  const setCodeValue = activeCodeTab === 'html' ? setHtml : activeCodeTab === 'css' ? setCss : setJs
   const preview = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`
   if (!funnel) return <div className="page"><p>{message || 'Chargement de l’éditeur de tunnel…'}</p></div>
 
@@ -156,13 +168,31 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     <div className="page-tabs" aria-label="Pages du tunnel">
       <button className="page-add" onClick={createPage} disabled={busy} title="Ajouter une page" aria-label="Ajouter une page"><Plus size={16}/></button>
       <div className="page-tabs-scroll">
-        {pages.map(p => <button key={p.id} className={`page-tab ${selected?.id === p.id ? 'active' : ''}`} onClick={() => void selectPage(p)}><span>Page {p.position + 1}</span><small>/{p.slug}</small></button>)}
+        {pages.map(p => {
+          const isSelected = selected?.id === p.id
+          return <div key={p.id} className={`page-tab-wrap ${isSelected ? 'active' : ''}`}>
+            <button className="page-tab" onClick={() => void selectPage(p)} title={`Ouvrir Page ${p.position + 1}`}>
+              <span>Page {p.position + 1}</span><small>/{p.slug}</small>
+            </button>
+            <button className="page-visibility" onClick={(e) => { e.stopPropagation(); if (isSelected) setShowCode(v => !v); else void selectPage(p).then(() => setShowCode(false)) }} title={isSelected && showCode ? 'Masquer le panneau de code' : 'Afficher le panneau de code'} aria-label={isSelected && showCode ? 'Masquer le panneau de code' : 'Afficher le panneau de code'}>
+              {isSelected && showCode ? <EyeOff size={14}/> : <Eye size={14}/>} 
+            </button>
+          </div>
+        })}
       </div>
     </div>
 
-    <div className="editor-grid">
-      <section className="panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="icon-button" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer"><Trash2 size={16}/></button></div></div>{selected ? <><div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div><label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label><label className="form-label">HTML<textarea className="code-input" value={html} onChange={e=>setHtml(e.target.value)}/></label><label className="form-label">CSS<textarea className="code-input" value={css} onChange={e=>setCss(e.target.value)}/></label><label className="form-label">JavaScript<textarea className="code-input" value={js} onChange={e=>setJs(e.target.value)} placeholder="Le JavaScript importé est conservé ici pour édition, mais n'est pas exécuté dans l'aperçu de sécurité."/></label></> : <div className="empty"><b>Créez une page</b><span>Une page sera enregistrée avant l'import de votre HTML/ZIP.</span></div>}</section>
-      <section className="panel"><div className="section-head"><h3>Aperçu</h3><span className="muted">Bac à sable · scripts désactivés</span></div><iframe title="Aperçu du tunnel" sandbox="" srcDoc={preview} className="preview-frame"/></section>
+    <div className={`editor-grid ${showCode ? '' : 'editor-grid-preview-only'}`}>
+      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button" onClick={() => clearCode('html')} disabled={busy || !selected} title="Réinitialiser le contenu HTML"><Trash2 size={15}/>HTML</button><button className="icon-button danger-icon" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page"><Trash2 size={16}/></button></div></div>{selected ? <>
+        <div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div>
+        <label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label>
+        <div className="code-tabs" role="tablist" aria-label="Code de la page">
+          {(['html','css','js'] as CodeTab[]).map(tab => <button key={tab} className={`code-tab ${activeCodeTab === tab ? 'active' : ''}`} onClick={() => setActiveCodeTab(tab)} role="tab" aria-selected={activeCodeTab === tab}>{tab === 'html' ? 'HTML' : tab === 'css' ? 'CSS' : 'JavaScript'}</button>)}
+          <button className="code-trash" onClick={() => clearCode(activeCodeTab)} disabled={busy} title={`Réinitialiser ${activeCodeTab.toUpperCase()}`} aria-label={`Réinitialiser ${activeCodeTab.toUpperCase()}`}><Trash2 size={15}/></button>
+        </div>
+        <label className="form-label code-editor-label"><span className="sr-only">{activeCodeTab.toUpperCase()}</span><textarea className="code-input code-input-large" value={codeValue} onChange={e=>setCodeValue(e.target.value)} placeholder={activeCodeTab === 'html' ? 'Code HTML…' : activeCodeTab === 'css' ? 'Code CSS…' : 'Code JavaScript…'}/></label>
+      </> : <div className="empty"><b>Créez une page</b><span>Une page sera enregistrée avant l'import de votre HTML/ZIP.</span></div>}</section>}
+      <section className="panel preview-panel"><div className="section-head"><h3>Aperçu</h3><span className="muted">Bac à sable · scripts désactivés</span></div><iframe title="Aperçu du tunnel" sandbox="" srcDoc={preview} className="preview-frame"/></section>
     </div>
   </div>
 }
