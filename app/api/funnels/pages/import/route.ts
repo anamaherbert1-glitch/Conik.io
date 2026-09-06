@@ -22,6 +22,37 @@ function extractInlineScripts(html: string) {
   return { html: clean, js: scripts.join('\n\n') }
 }
 
+async function getAuthorizedPage(request: NextRequest) {
+  const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
+  const form = await request.formData()
+  const parsed = schema.safeParse({ pageId: String(form.get('pageId') || '') })
+  if (!parsed.success) throw new Error('La page est obligatoire.')
+  const { data: page, error: pageError } = await supabase.from('funnel_pages').select('id,funnel_id,name,slug').eq('id', parsed.data.pageId).single()
+  if (pageError || !page) throw new Error('Page introuvable.')
+  const { data: funnel, error: funnelError } = await supabase.from('funnels').select('id,organization_id,slug').eq('id', page.funnel_id).single()
+  if (funnelError || !funnel || funnel.organization_id !== organization.id) throw new Error('Tunnel introuvable ou accès refusé.')
+  return { supabase, organization, page, funnel }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { supabase, organization, page, funnel } = await getAuthorizedPage(request)
+    const prefix = `${organization.id}/${funnel.id}/${page.id}/`
+    const { data: assets, error: assetQueryError } = await supabase.from('funnel_assets').select('storage_path').eq('funnel_id', funnel.id)
+    if (assetQueryError) throw new Error(assetQueryError.message)
+    const paths = (assets || []).map(a => a.storage_path).filter((path: string) => path.startsWith(prefix))
+    if (paths.length) {
+      const { error: storageError } = await supabase.storage.from('funnel-assets').remove(paths)
+      if (storageError) throw new Error(storageError.message)
+      const { error: deleteError } = await supabase.from('funnel_assets').delete().eq('funnel_id', funnel.id).in('storage_path', paths)
+      if (deleteError) throw new Error(deleteError.message)
+    }
+    return NextResponse.json({ ok: true, removed: paths.length })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Suppression impossible.' }, { status: 400 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
