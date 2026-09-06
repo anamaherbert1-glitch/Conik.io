@@ -110,20 +110,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     finally { setBusy(false) }
   }
 
-  async function removeImportedFile() {
-    if (!selected) return
-    if (!window.confirm('Supprimer les fichiers importés de cette page ? Le contenu HTML/CSS/JS sera réinitialisé.')) return
-    setBusy(true); setMessage('')
-    try {
-      const form = new FormData(); form.append('pageId', selected.id)
-      const response = await fetch('/api/funnels/pages/import', { method: 'DELETE', body: form })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Suppression impossible.')
-      setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setActiveCodeTab('html'); setMessage(`${data.removed || 0} fichier(s) importé(s) supprimé(s). Enregistrez la version pour publier le contenu réinitialisé.`)
-    } catch (err) { setMessage(err instanceof Error ? err.message : 'Suppression impossible.') }
-    finally { setBusy(false) }
-  }
-
   async function saveVersion() {
     if (!selected) return
     const cleanName = name.trim(); const clean = cleanSlug(slug); const target = safeRedirect(redirectUrl)
@@ -162,13 +148,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     setBusy(false)
   }
 
-  function clearCode(kind: CodeTab) {
-    if (kind === 'html') setHtml(DEFAULT_HTML)
-    if (kind === 'css') setCss(DEFAULT_CSS)
-    if (kind === 'js') setJs('')
-    setMessage(`${kind.toUpperCase()} réinitialisé. Cliquez sur « Enregistrer la version » pour conserver la modification.`)
-  }
-
   const codeValue = activeCodeTab === 'html' ? html : activeCodeTab === 'css' ? css : js
   const setCodeValue = activeCodeTab === 'html' ? setHtml : activeCodeTab === 'css' ? setCss : setJs
   const preview = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`
@@ -180,7 +159,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     {message && <div className="notice">{message}</div>}
 
     <div className="page-tabs" aria-label="Pages du tunnel">
-      <button className="page-add" onClick={createPage} disabled={busy} title="Ajouter une page" aria-label="Ajouter une page"><Plus size={18}/></button>
       <div className="page-tabs-scroll">
         {pages.map(p => {
           const isSelected = selected?.id === p.id
@@ -194,15 +172,15 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
           </div>
         })}
       </div>
+      <button className="page-add page-add-right" onClick={createPage} disabled={busy} title="Ajouter une page" aria-label="Ajouter une page"><Plus size={18}/></button>
     </div>
 
     <div className={`editor-grid ${showCode ? '' : 'editor-grid-preview-only'}`}>
-      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Importer HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button" onClick={removeImportedFile} disabled={busy || !selected} title="Supprimer les fichiers importés"><Trash2 size={15}/>Supprimer l’import</button><button className="icon-button danger-icon" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page" aria-label="Supprimer la page"><Trash2 size={16}/></button></div></div>{selected ? <>
+      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row editor-actions"><label className="outline upload-label import-button"><UploadCloud size={16}/>Importer HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button page-delete-button" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page"><Trash2 size={16}/>Supprimer</button></div></div>{selected ? <>
         <div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div>
         <label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label>
         <div className="code-tabs" role="tablist" aria-label="Code de la page">
           {(['html','css','js'] as CodeTab[]).map(tab => <button key={tab} className={`code-tab ${activeCodeTab === tab ? 'active' : ''}`} onClick={() => setActiveCodeTab(tab)} role="tab" aria-selected={activeCodeTab === tab}>{tab === 'html' ? 'HTML' : tab === 'css' ? 'CSS' : 'JavaScript'}</button>)}
-          <button className="code-trash" onClick={() => clearCode(activeCodeTab)} disabled={busy} title={`Réinitialiser ${activeCodeTab.toUpperCase()}`} aria-label={`Réinitialiser ${activeCodeTab.toUpperCase()}`}><Trash2 size={15}/></button>
         </div>
         <label className="form-label code-editor-label"><span className="sr-only">{activeCodeTab.toUpperCase()}</span><textarea className="code-input code-input-large" value={codeValue} onChange={e=>setCodeValue(e.target.value)} placeholder={activeCodeTab === 'html' ? 'Code HTML…' : activeCodeTab === 'css' ? 'Code CSS…' : 'Code JavaScript…'}/></label>
       </> : <div className="empty"><b>Créez une page</b><span>Une page sera enregistrée avant l'import de votre HTML/ZIP.</span></div>}</section>}
