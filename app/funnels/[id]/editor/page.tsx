@@ -110,6 +110,20 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     finally { setBusy(false) }
   }
 
+  async function removeImportedFile() {
+    if (!selected) return
+    if (!window.confirm('Supprimer les fichiers importés de cette page ? Le contenu HTML/CSS/JS sera réinitialisé.')) return
+    setBusy(true); setMessage('')
+    try {
+      const form = new FormData(); form.append('pageId', selected.id)
+      const response = await fetch('/api/funnels/pages/import', { method: 'DELETE', body: form })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Suppression impossible.')
+      setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setActiveCodeTab('html'); setMessage(`${data.removed || 0} fichier(s) importé(s) supprimé(s). Enregistrez la version pour publier le contenu réinitialisé.`)
+    } catch (err) { setMessage(err instanceof Error ? err.message : 'Suppression impossible.') }
+    finally { setBusy(false) }
+  }
+
   async function saveVersion() {
     if (!selected) return
     const cleanName = name.trim(); const clean = cleanSlug(slug); const target = safeRedirect(redirectUrl)
@@ -183,7 +197,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     </div>
 
     <div className={`editor-grid ${showCode ? '' : 'editor-grid-preview-only'}`}>
-      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button" onClick={() => clearCode('html')} disabled={busy || !selected} title="Réinitialiser le contenu HTML"><Trash2 size={15}/>HTML</button><button className="icon-button danger-icon" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page"><Trash2 size={16}/></button></div></div>{selected ? <>
+      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button" onClick={removeImportedFile} disabled={busy || !selected} title="Supprimer les fichiers importés"><Trash2 size={15}/>Import</button><button className="icon-button danger-icon" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page"><Trash2 size={16}/></button></div></div>{selected ? <>
         <div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div>
         <label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label>
         <div className="code-tabs" role="tablist" aria-label="Code de la page">
