@@ -17,7 +17,7 @@ const steps = [
   ['04', 'Stay protected', 'Use backups, secure local storage, licensing and updates.'],
 ] as const
 const downloads = [
-  ['Windows', 'Windows 10/11 · 64-bit', 'https://github.com/anamaherbert1-glitch/conic-school/releases/latest/download/CONIK-Setup.exe'],
+  ['Windows', 'Windows 10/11 · 64-bit', 'https://github.com/anamaherbert1-glitch/conik-school/releases/latest/download/CONIK-Setup.exe'],
   ['MacBook', 'macOS · Apple Silicon & Intel', '#'],
   ['iPhone', 'iOS · App Store', '#'],
 ] as const
