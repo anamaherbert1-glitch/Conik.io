@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Eye, Globe2, Plus, Save, Trash2, UploadCloud, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ArrowLeft, Eye, Globe2, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -43,7 +43,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   const [redirectUrl, setRedirectUrl] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { params.then(p => setFunnelId(p.id)) }, [params])
@@ -153,9 +152,16 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     <Link href={`/funnels/${funnelId}`} className="back"><ArrowLeft size={15}/>Tunnel</Link>
     <div className="head"><div><small>ÉDITEUR DE TUNNEL</small><h1>{funnel.name}</h1><p>/{funnel.slug} · {funnel.status}</p></div><div className="button-row"><a className="outline" href={`/funnels/${funnelId}/editor`}><Eye size={15}/>Éditeur</a>{funnel.status === 'published' && <a className="outline" href={`/${funnel.slug}`} target="_blank" rel="noreferrer"><Globe2 size={15}/>Ouvrir le tunnel</a>}<button className="primary" onClick={saveVersion} disabled={busy || !selected}><Save size={15}/>{busy ? 'Enregistrement…' : 'Enregistrer la version'}</button><button className="primary" onClick={publish} disabled={busy || !version}><Globe2 size={15}/>Publier</button></div></div>
     {message && <div className="notice">{message}</div>}
-    <div className={`editor-grid ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <aside className="panel editor-sidebar"><div className="section-head"><h3>Pages</h3><div className="button-row"><button className="icon-button" onClick={createPage} disabled={busy} title="Ajouter une page"><Plus size={16}/></button><button className="icon-button sidebar-toggle" onClick={() => setSidebarCollapsed(true)} title="Masquer la barre des pages" aria-label="Masquer la barre des pages"><PanelLeftClose size={16}/></button></div></div><div className="page-rail">{pages.length === 0 ? <div className="empty"><b>Aucune page</b><span>Cliquez sur + pour créer la première page.</span></div> : pages.map(p => <button key={p.id} className={`page-item ${selected?.id === p.id ? 'active' : ''}`} onClick={() => void selectPage(p)}><span>Page {p.position + 1}</span><small>/{p.slug}</small></button>)}</div></aside>
-      <section className="panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row">{sidebarCollapsed && <button className="icon-button" onClick={() => setSidebarCollapsed(false)} title="Afficher les pages" aria-label="Afficher les pages"><PanelLeftOpen size={16}/></button>}<label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="icon-button" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer"><Trash2 size={16}/></button></div></div>{selected ? <><div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div><label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label><label className="form-label">HTML<textarea className="code-input" value={html} onChange={e=>setHtml(e.target.value)}/></label><label className="form-label">CSS<textarea className="code-input" value={css} onChange={e=>setCss(e.target.value)}/></label><label className="form-label">JavaScript<textarea className="code-input" value={js} onChange={e=>setJs(e.target.value)} placeholder="Le JavaScript importé est conservé ici pour édition, mais n'est pas exécuté dans l'aperçu de sécurité."/></label></> : <div className="empty"><b>Créez une page</b><span>Une page sera enregistrée avant l'import de votre HTML/ZIP.</span></div>}</section>
+
+    <div className="page-tabs" aria-label="Pages du tunnel">
+      <button className="page-add" onClick={createPage} disabled={busy} title="Ajouter une page" aria-label="Ajouter une page"><Plus size={16}/></button>
+      <div className="page-tabs-scroll">
+        {pages.map(p => <button key={p.id} className={`page-tab ${selected?.id === p.id ? 'active' : ''}`} onClick={() => void selectPage(p)}><span>Page {p.position + 1}</span><small>/{p.slug}</small></button>)}
+      </div>
+    </div>
+
+    <div className="editor-grid">
+      <section className="panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="icon-button" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer"><Trash2 size={16}/></button></div></div>{selected ? <><div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div><label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label><label className="form-label">HTML<textarea className="code-input" value={html} onChange={e=>setHtml(e.target.value)}/></label><label className="form-label">CSS<textarea className="code-input" value={css} onChange={e=>setCss(e.target.value)}/></label><label className="form-label">JavaScript<textarea className="code-input" value={js} onChange={e=>setJs(e.target.value)} placeholder="Le JavaScript importé est conservé ici pour édition, mais n'est pas exécuté dans l'aperçu de sécurité."/></label></> : <div className="empty"><b>Créez une page</b><span>Une page sera enregistrée avant l'import de votre HTML/ZIP.</span></div>}</section>
       <section className="panel"><div className="section-head"><h3>Aperçu</h3><span className="muted">Bac à sable · scripts désactivés</span></div><iframe title="Aperçu du tunnel" sandbox="" srcDoc={preview} className="preview-frame"/></section>
     </div>
   </div>
