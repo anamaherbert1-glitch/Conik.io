@@ -1,22 +1,76 @@
-const WINDOWS_DOWNLOAD = 'https://github.com/anamaherbert1-glitch/School-management-conik/releases/latest/download/CONIK-Setup.exe'
-const RELEASES = 'https://github.com/anamaherbert1-glitch/School-management-conik/releases'
+import Link from 'next/link'
 
 export default function Home() {
   return (
-    <main style={{minHeight:'100vh',background:'#FAFAF9',color:'#14161C',fontFamily:'Arial,sans-serif'}}>
-      <header style={{padding:'20px 32px',borderBottom:'1px solid #E4E3DD',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <strong style={{fontSize:22}}>CONIK</strong>
-        <nav style={{display:'flex',gap:22,fontSize:14}}><a href="#features">Features</a><a href="#download">Download</a><a href="#pricing">Pricing</a></nav>
-        <a href={WINDOWS_DOWNLOAD} style={{background:'#2A4CE0',color:'#fff',padding:'11px 17px',borderRadius:6,fontWeight:700}}>Download CONIK</a>
+    <main style={{ minHeight: '100vh', background: '#070812', color: '#f8f8ff', fontFamily: 'Arial, sans-serif' }}>
+      <header style={{ maxWidth: 1180, margin: '0 auto', padding: '22px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+        <Link href="/" style={{ color: '#fff', textDecoration: 'none', fontSize: 22, fontWeight: 800 }}>Conik.io</Link>
+        <nav style={{ display: 'flex', gap: 24, alignItems: 'center', fontSize: 14 }}>
+          <a href="#features" style={{ color: '#b9bbcc', textDecoration: 'none' }}>Fonctionnalités</a>
+          <a href="#workflow" style={{ color: '#b9bbcc', textDecoration: 'none' }}>Comment ça marche</a>
+          <a href="#pricing" style={{ color: '#b9bbcc', textDecoration: 'none' }}>Tarifs</a>
+          <Link href="/login" style={{ color: '#fff', textDecoration: 'none' }}>Connexion</Link>
+        </nav>
       </header>
-      <section style={{maxWidth:1180,margin:'0 auto',padding:'100px 32px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:60,alignItems:'center'}}>
-        <div><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>CONIK SCHOOL MANAGEMENT</p><h1 style={{fontSize:'clamp(42px,6vw,68px)',lineHeight:1.02,margin:'14px 0 22px'}}>Run your school with confidence.</h1><p style={{fontSize:19,color:'#585C68',maxWidth:560}}>Professional school management software built for reliable everyday operations, including offline-first work on Windows.</p><div style={{display:'flex',gap:12,marginTop:30,flexWrap:'wrap'}}><a href={WINDOWS_DOWNLOAD} style={{background:'#2A4CE0',color:'#fff',padding:'14px 22px',borderRadius:6,fontWeight:700}}>Download for Windows</a><a href="#features" style={{border:'1px solid #D3D2CA',padding:'14px 22px',borderRadius:6,fontWeight:600}}>Explore features</a></div><p style={{fontSize:12,color:'#8A8D97',marginTop:14}}>Windows 10/11 · 64-bit</p></div>
-        <div style={{background:'#fff',border:'1px solid #D3D2CA',borderRadius:16,padding:28}}><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>CONIK DESKTOP</p><h2 style={{fontSize:30}}>Everything your school needs.</h2><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:22}}>{['Students','Academics','Finance','Exams','Documents','Timetable','Teachers','Reports'].map(x=><div key={x} style={{border:'1px solid #E4E3DD',borderRadius:8,padding:15,fontWeight:600}}>{x}</div>)}</div></div>
+
+      <section style={{ maxWidth: 1180, margin: '0 auto', padding: '92px 28px 110px', textAlign: 'center' }}>
+        <div style={{ display: 'inline-block', padding: '7px 12px', borderRadius: 999, background: '#15172a', border: '1px solid #282b4a', color: '#aeb2ff', fontSize: 13, fontWeight: 700 }}>MARKETING OS</div>
+        <h1 style={{ maxWidth: 900, margin: '24px auto 20px', fontSize: 'clamp(44px, 7vw, 78px)', lineHeight: 1.02, letterSpacing: -2 }}>Créez, publiez et automatisez vos tunnels marketing.</h1>
+        <p style={{ maxWidth: 700, margin: '0 auto', color: '#a6a9ba', fontSize: 19, lineHeight: 1.6 }}>Conik.io centralise vos tunnels, pages, contacts, automatisations, WhatsApp et analytics dans un seul espace de travail.</p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginTop: 34 }}>
+          <Link href="/signup" style={{ background: '#5b5cf0', color: '#fff', padding: '14px 22px', borderRadius: 10, fontWeight: 800, textDecoration: 'none' }}>Commencer avec Conik</Link>
+          <Link href="/login" style={{ border: '1px solid #34374f', color: '#fff', padding: '14px 22px', borderRadius: 10, fontWeight: 700, textDecoration: 'none' }}>Se connecter</Link>
+        </div>
       </section>
-      <section id="features" style={{background:'#0D0F16',color:'#E7E8ED',padding:'80px 32px'}}><div style={{maxWidth:1180,margin:'0 auto'}}><p style={{fontFamily:'monospace',color:'#B7C3FF'}}>FEATURES</p><h2 style={{fontSize:38}}>One professional system for your institution.</h2><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginTop:30}}>{['Student management','Academic management','Finance & payments','Documents & PDFs','Exams & grades','Timetable','Roles & security','Backups & local data'].map(x=><div key={x} style={{border:'1px solid #2A2E3D',borderRadius:10,padding:20}}>{x}</div>)}</div></div></section>
-      <section id="download" style={{maxWidth:1180,margin:'0 auto',padding:'90px 32px'}}><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>DOWNLOAD</p><h2 style={{fontSize:38}}>Get CONIK for Windows.</h2><p style={{color:'#585C68'}}>The button below points directly to the latest official Windows installer published in the CONIK GitHub Releases.</p><div style={{marginTop:28,padding:30,border:'1px solid #D3D2CA',borderRadius:16}}><h3>CONIK Setup</h3><p style={{color:'#585C68'}}>Windows 10/11 · 64-bit · Latest stable release</p><div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><a href={WINDOWS_DOWNLOAD} style={{background:'#2A4CE0',color:'#fff',padding:'13px 20px',borderRadius:6,fontWeight:700}}>Download CONIK Setup</a><a href={RELEASES} target="_blank" rel="noreferrer" style={{border:'1px solid #D3D2CA',padding:'13px 20px',borderRadius:6,fontWeight:600}}>View releases</a></div></div></section>
-      <section id="pricing" style={{background:'#F5F5F2',padding:'80px 32px'}}><div style={{maxWidth:1180,margin:'0 auto'}}><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>PRICING</p><h2 style={{fontSize:38}}>Choose the right CONIK plan.</h2><p style={{color:'#585C68'}}>Contact CONIK for licensing and deployment options.</p></div></section>
-      <footer style={{padding:'45px 32px',borderTop:'1px solid #E4E3DD'}}><div style={{maxWidth:1180,margin:'0 auto',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:20}}><strong>CONIK</strong><span style={{color:'#585C68'}}>Lomé, Togo · contact@conik.io</span></div></footer>
+
+      <section id="features" style={{ borderTop: '1px solid #1c1e2d', borderBottom: '1px solid #1c1e2d', background: '#0b0d18', padding: '82px 28px' }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+          <p style={{ color: '#8f93ff', fontWeight: 800, fontSize: 13 }}>TOUT AU MÊME ENDROIT</p>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 50px)', margin: '12px 0 34px' }}>Un véritable centre de commande marketing.</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16 }}>
+            {[
+              ['Tunnels', 'Créez plusieurs tunnels et gérez leurs pages depuis un éditeur unique.'],
+              ['Pages HTML / ZIP', 'Importez vos pages HTML ou ZIP directement dans une page de tunnel.'],
+              ['CRM', 'Centralisez les contacts capturés par vos formulaires et tunnels.'],
+              ['Automatisations', 'Déclenchez des actions lorsque vos contacts réalisent des événements.'],
+              ['WhatsApp', 'Préparez et envoyez vos communications WhatsApp depuis votre espace.'],
+              ['Analytics', 'Suivez visiteurs, formulaires, conversions et performances.'],
+            ].map(([title, text]) => (
+              <article key={title} style={{ padding: 24, border: '1px solid #272a3d', borderRadius: 14, background: '#101221' }}>
+                <h3 style={{ margin: '0 0 10px', fontSize: 19 }}>{title}</h3>
+                <p style={{ margin: 0, color: '#9699ab', lineHeight: 1.55 }}>{text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="workflow" style={{ maxWidth: 1180, margin: '0 auto', padding: '88px 28px' }}>
+        <p style={{ color: '#8f93ff', fontWeight: 800, fontSize: 13 }}>WORKFLOW</p>
+        <h2 style={{ fontSize: 'clamp(32px, 5vw, 50px)', margin: '12px 0 38px' }}>De l'idée au client.</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 14 }}>
+          {['Créer un espace', 'Créer un tunnel', 'Ajouter les pages', 'Publier', 'Capturer les contacts', 'Automatiser et analyser'].map((step, index) => (
+            <div key={step} style={{ padding: 20, borderRadius: 12, background: '#101221', border: '1px solid #272a3d' }}>
+              <strong style={{ color: '#8f93ff' }}>0{index + 1}</strong>
+              <div style={{ marginTop: 10, fontWeight: 700 }}>{step}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="pricing" style={{ background: '#0b0d18', padding: '82px 28px' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ color: '#8f93ff', fontWeight: 800, fontSize: 13 }}>CONIK.IO</p>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 50px)', margin: '12px 0 16px' }}>Un seul outil pour votre machine marketing.</h2>
+          <p style={{ color: '#9699ab', lineHeight: 1.6 }}>Créez votre espace de travail et commencez à construire vos tunnels sans mélanger vos projets avec d'autres applications.</p>
+          <Link href="/signup" style={{ display: 'inline-block', marginTop: 26, background: '#5b5cf0', color: '#fff', padding: '14px 22px', borderRadius: 10, fontWeight: 800, textDecoration: 'none' }}>Créer mon espace</Link>
+        </div>
+      </section>
+
+      <footer style={{ maxWidth: 1180, margin: '0 auto', padding: '35px 28px', display: 'flex', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', color: '#777b8d', fontSize: 13 }}>
+        <strong style={{ color: '#fff' }}>Conik.io</strong>
+        <span>Marketing OS · Tunnels · CRM · Automatisations · WhatsApp · Analytics</span>
+      </footer>
     </main>
   )
 }
