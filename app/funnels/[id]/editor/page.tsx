@@ -77,14 +77,16 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     if (!funnelId) return
     setBusy(true); setMessage('')
     const supabase = createClient()
-    const base = `page-${pages.length + 1}`
+    const isFirstPage = pages.length === 0
+    const base = isFirstPage ? 'home' : `page-${pages.length + 1}`
+    const pageName = isFirstPage ? "Page d'accueil" : `Page ${pages.length + 1}`
     let clean = base; let suffix = 2
-    while (pages.some(p => p.slug === clean)) clean = `${base}-${suffix++}`
-    const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: `Page ${pages.length + 1}`, title: `Page ${pages.length + 1}`, slug: clean, page_type: 'landing', position: pages.length, html_content: DEFAULT_HTML }).select('id,name,slug,page_type,position,published_version_id').single()
+    while (pages.some(p => p.slug === clean)) clean = isFirstPage ? `home-${suffix++}` : `${base}-${suffix++}`
+    const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: pageName, title: pageName, slug: clean, page_type: 'landing', position: pages.length, html_content: DEFAULT_HTML }).select('id,name,slug,page_type,position,published_version_id').single()
     if (error) { setMessage(error.message); setBusy(false); return }
     const { data: v, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: data.id, version_number: 1, html: DEFAULT_HTML, css: DEFAULT_CSS, js: '', metadata: { editor: 'conik', redirectUrl: '' } }).select('id,version_number,html,css,js,metadata').single()
     if (versionError || !v) { setMessage(versionError?.message || 'Impossible de créer la première version.'); setBusy(false); return }
-    setPages(p => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectUrl(''); setSelected(data); setName(data.name); setSlug(data.slug); setMessage('Première page créée. Vous pouvez maintenant importer votre HTML/ZIP.')
+    setPages(p => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectUrl(''); setSelected(data); setName(data.name); setSlug(data.slug); setMessage(isFirstPage ? "Page d'accueil créée. Vous pouvez maintenant importer votre HTML/ZIP." : 'Page créée. Vous pouvez maintenant importer votre HTML/ZIP.')
     setBusy(false)
   }
 
