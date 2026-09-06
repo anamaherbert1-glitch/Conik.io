@@ -30,3 +30,15 @@
   .auth-card>p{text-align:center}
   .auth-card .brand{margin-left:auto;margin-right:auto}
 }
+
+/* Tutorial detail blocks */
+.tut-section h3{margin:8px 0 0;font-size:14px;color:var(--ink)}
+.tut-inline-result{margin:8px 0 0!important;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--ink)!important;font-size:12px!important;line-height:1.45}
+.tut-result,.tut-tip{display:flex;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-size:12px;line-height:1.5}
+.tut-result{background:color-mix(in srgb,#25D366 10%,var(--panel));border-color:color-mix(in srgb,#25D366 35%,var(--line))}
+.tut-result b{display:block;margin-bottom:4px}
+.tut-result p{margin:0;color:var(--muted)}
+.tut-tip{background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.tut-list{margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7}
+.tut-list b{color:var(--ink)}
+.tut-section code{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--code-bg);border:1px solid var(--line)}
