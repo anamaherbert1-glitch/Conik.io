@@ -3,12 +3,12 @@
 import { useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
+const SUPABASE_URL = 'https://ndsksabyzxfmhnyykcfb.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_-adOy-Xd9Xuqugx74Cjklg_CV9EzTfF'
+
 export default function OfficialLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    if (!url || !key) return
-    const supabase = createClient(url, key)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
     const record = (event_type: 'page_view' | 'download' | 'support_click', metadata: Record<string, unknown> = {}) => {
       void supabase.from('site_events').insert({ event_type, platform: navigator.platform, metadata })
     }
