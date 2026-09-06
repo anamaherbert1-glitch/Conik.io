@@ -5,13 +5,10 @@ import { getSupabaseConfig } from './lib/supabase/config'
 const PUBLIC_EXACT_PATHS = new Set(['/', '/login', '/signup'])
 const PUBLIC_PREFIXES = [
   '/auth/',
-  // Runtime endpoints used by hosted funnel pages — visitors are never logged in.
   '/api/funnels/public',
   '/api/funnels/capture',
   '/api/events/',
-  // Meta/WhatsApp webhook verification and signed event delivery must reach the route without user auth.
   '/api/whatsapp/webhook',
-  // Redirections de liens courts.
   '/r/',
 ]
 const PUBLIC_FUNNEL_RESERVED = new Set([
@@ -19,12 +16,18 @@ const PUBLIC_FUNNEL_RESERVED = new Set([
   'campaigns', 'automations', 'whatsapp', 'emails', 'links', 'analytics', 'domains',
   'settings', 'integrations', 'api', '_next', 'r', 'segments',
 ])
+const PLATFORM_HOSTS = new Set([
+  'conik-io.vercel.app',
+  'conik-io-anamaherbert1-glitchs-projects.vercel.app',
+  'conik-io-git-main-anamaherbert1-glitchs-projects.vercel.app',
+  'conik.io',
+  'www.conik.io',
+])
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_EXACT_PATHS.has(pathname)) return true
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true
   const segments = pathname.split('/').filter(Boolean)
-  // Public funnel runtime supports /funnel and /funnel/page.
   return (segments.length === 1 || segments.length === 2) && !PUBLIC_FUNNEL_RESERVED.has(segments[0].toLowerCase())
 }
 
@@ -51,14 +54,30 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  const pathname = request.nextUrl.pathname
+  const host = (request.headers.get('host') || '').split(':')[0].toLowerCase()
+  const segments = pathname.split('/').filter(Boolean)
+
+  // A verified custom domain turns /slug into the internal public redirect route.
+  // The original host is forwarded so the redirect resolver can select the correct link.
+  if (host && !PLATFORM_HOSTS.has(host) && segments.length === 1 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(segments[0])) {
+    const { data: verifiedDomain } = await supabase.rpc('is_verified_custom_domain', { target_host: host })
+    if (verifiedDomain === true) {
+      const rewriteUrl = request.nextUrl.clone()
+      rewriteUrl.pathname = `/r/${segments[0].toLowerCase()}`
+      const headers = new Headers(request.headers)
+      headers.set('x-conik-host', host)
+      return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
+    }
+  }
+
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
-  const pathname = request.nextUrl.pathname
   if (!isPublicPath(pathname) && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('next', `${pathname}${request.nextUrl.search}`)
-    return addSecurityHeaders(NextResponse.redirect(url))
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/login'
+    redirectUrl.searchParams.set('next', `${pathname}${request.nextUrl.search}`)
+    return addSecurityHeaders(NextResponse.redirect(redirectUrl))
   }
   if (pathname === '/signup') return addSecurityHeaders(NextResponse.redirect(new URL('/login', request.url)))
   if (user && pathname === '/login') return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
