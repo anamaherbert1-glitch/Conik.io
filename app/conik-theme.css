@@ -44,3 +44,9 @@
 .page-visibility{flex:0 0 30px!important}
 .page-add{flex:0 0 40px!important;width:40px!important;margin-left:auto!important}
 @media(max-width:620px){.page-tabs{width:100%!important;display:flex!important;flex-flow:row nowrap!important}.page-tabs-scroll{display:flex!important;flex-flow:row nowrap!important;flex:1 1 auto!important;overflow-x:auto!important}.page-tab-wrap{flex:0 0 auto!important;display:flex!important;flex-flow:row nowrap!important}.page-tab{flex:0 0 90px!important;width:90px!important;min-width:90px!important}.page-add{flex:0 0 40px!important;width:40px!important;margin-left:auto!important}}
+
+/* Links page — align both input bands on exactly the same horizontal baseline */
+.inline-form{align-items:start!important}
+.inline-form>label{align-self:start!important}
+.inline-form>.primary{align-self:start!important;margin-top:22px!important}
+@media(max-width:850px){.inline-form>.primary{align-self:stretch!important;margin-top:0!important}}
