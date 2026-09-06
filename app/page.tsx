@@ -1,2 +1,22 @@
-import {redirect} from 'next/navigation';
-export default function Home(){redirect('/dashboard')}
+const WINDOWS_DOWNLOAD = 'https://github.com/anamaherbert1-glitch/School-management-conik/releases/latest/download/CONIK-Setup.exe'
+const RELEASES = 'https://github.com/anamaherbert1-glitch/School-management-conik/releases'
+
+export default function Home() {
+  return (
+    <main style={{minHeight:'100vh',background:'#FAFAF9',color:'#14161C',fontFamily:'Arial,sans-serif'}}>
+      <header style={{padding:'20px 32px',borderBottom:'1px solid #E4E3DD',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <strong style={{fontSize:22}}>CONIK</strong>
+        <nav style={{display:'flex',gap:22,fontSize:14}}><a href="#features">Features</a><a href="#download">Download</a><a href="#pricing">Pricing</a></nav>
+        <a href={WINDOWS_DOWNLOAD} style={{background:'#2A4CE0',color:'#fff',padding:'11px 17px',borderRadius:6,fontWeight:700}}>Download CONIK</a>
+      </header>
+      <section style={{maxWidth:1180,margin:'0 auto',padding:'100px 32px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:60,alignItems:'center'}}>
+        <div><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>CONIK SCHOOL MANAGEMENT</p><h1 style={{fontSize:'clamp(42px,6vw,68px)',lineHeight:1.02,margin:'14px 0 22px'}}>Run your school with confidence.</h1><p style={{fontSize:19,color:'#585C68',maxWidth:560}}>Professional school management software built for reliable everyday operations, including offline-first work on Windows.</p><div style={{display:'flex',gap:12,marginTop:30,flexWrap:'wrap'}}><a href={WINDOWS_DOWNLOAD} style={{background:'#2A4CE0',color:'#fff',padding:'14px 22px',borderRadius:6,fontWeight:700}}>Download for Windows</a><a href="#features" style={{border:'1px solid #D3D2CA',padding:'14px 22px',borderRadius:6,fontWeight:600}}>Explore features</a></div><p style={{fontSize:12,color:'#8A8D97',marginTop:14}}>Windows 10/11 · 64-bit</p></div>
+        <div style={{background:'#fff',border:'1px solid #D3D2CA',borderRadius:16,padding:28}}><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>CONIK DESKTOP</p><h2 style={{fontSize:30}}>Everything your school needs.</h2><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:22}}>{['Students','Academics','Finance','Exams','Documents','Timetable','Teachers','Reports'].map(x=><div key={x} style={{border:'1px solid #E4E3DD',borderRadius:8,padding:15,fontWeight:600}}>{x}</div>)}</div></div>
+      </section>
+      <section id="features" style={{background:'#0D0F16',color:'#E7E8ED',padding:'80px 32px'}}><div style={{maxWidth:1180,margin:'0 auto'}}><p style={{fontFamily:'monospace',color:'#B7C3FF'}}>FEATURES</p><h2 style={{fontSize:38}}>One professional system for your institution.</h2><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginTop:30}}>{['Student management','Academic management','Finance & payments','Documents & PDFs','Exams & grades','Timetable','Roles & security','Backups & local data'].map(x=><div key={x} style={{border:'1px solid #2A2E3D',borderRadius:10,padding:20}}>{x}</div>)}</div></div></section>
+      <section id="download" style={{maxWidth:1180,margin:'0 auto',padding:'90px 32px'}}><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>DOWNLOAD</p><h2 style={{fontSize:38}}>Get CONIK for Windows.</h2><p style={{color:'#585C68'}}>The button below points directly to the latest official Windows installer published in the CONIK GitHub Releases.</p><div style={{marginTop:28,padding:30,border:'1px solid #D3D2CA',borderRadius:16}}><h3>CONIK Setup</h3><p style={{color:'#585C68'}}>Windows 10/11 · 64-bit · Latest stable release</p><div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><a href={WINDOWS_DOWNLOAD} style={{background:'#2A4CE0',color:'#fff',padding:'13px 20px',borderRadius:6,fontWeight:700}}>Download CONIK Setup</a><a href={RELEASES} target="_blank" rel="noreferrer" style={{border:'1px solid #D3D2CA',padding:'13px 20px',borderRadius:6,fontWeight:600}}>View releases</a></div></div></section>
+      <section id="pricing" style={{background:'#F5F5F2',padding:'80px 32px'}}><div style={{maxWidth:1180,margin:'0 auto'}}><p style={{fontFamily:'monospace',color:'#1B2E8C'}}>PRICING</p><h2 style={{fontSize:38}}>Choose the right CONIK plan.</h2><p style={{color:'#585C68'}}>Contact CONIK for licensing and deployment options.</p></div></section>
+      <footer style={{padding:'45px 32px',borderTop:'1px solid #E4E3DD'}}><div style={{maxWidth:1180,margin:'0 auto',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:20}}><strong>CONIK</strong><span style={{color:'#585C68'}}>Lomé, Togo · contact@conik.io</span></div></footer>
+    </main>
+  )
+}
