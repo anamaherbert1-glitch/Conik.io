@@ -22,12 +22,12 @@ function safeRedirect(value: string) {
 }
 function bindRedirect(source: string, target: string) {
   if (!target) return source
-  const escaped = target.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-  const anchor = /<a\b([^>]*?)\bhref=(['"])[^'"]*\2([^>]*)>/i
-  if (anchor.test(source)) return source.replace(anchor, `<a$1href="${escaped}"$3>`)
+  const escaped = target.replace(/&/g, '&amp;').replace(/\"/g, '&quot;')
+  const anchor = /<a\b([^>]*?)\bhref=(['\"])[^'\"]*\2([^>]*)>/i
+  if (anchor.test(source)) return source.replace(anchor, `<a$1href=\"${escaped}\"$3>`)
   const button = /<button\b([^>]*)>/i
-  if (button.test(source)) return source.replace(button, `<a href="${escaped}"$1>`).replace(/<\/button>/i, '</a>')
-  return `<p style="margin-top:24px"><a href="${escaped}">Continuer</a></p>${source}`
+  if (button.test(source)) return source.replace(button, `<a href=\"${escaped}\"$1>`).replace(/<\/button>/i, '</a>')
+  return `<p style=\"margin-top:24px\"><a href=\"${escaped}\">Continuer</a></p>${source}`
 }
 
 export default function FunnelEditor({ params }: { params: Promise<{ id: string }> }) {
@@ -180,7 +180,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     {message && <div className="notice">{message}</div>}
 
     <div className="page-tabs" aria-label="Pages du tunnel">
-      <button className="page-add" onClick={createPage} disabled={busy} title="Ajouter une page" aria-label="Ajouter une page"><Plus size={16}/></button>
+      <button className="page-add" onClick={createPage} disabled={busy} title="Ajouter une page" aria-label="Ajouter une page"><Plus size={18}/></button>
       <div className="page-tabs-scroll">
         {pages.map(p => {
           const isSelected = selected?.id === p.id
@@ -197,7 +197,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     </div>
 
     <div className={`editor-grid ${showCode ? '' : 'editor-grid-preview-only'}`}>
-      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Charger HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button" onClick={removeImportedFile} disabled={busy || !selected} title="Supprimer les fichiers importés"><Trash2 size={15}/>Import</button><button className="icon-button danger-icon" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page"><Trash2 size={16}/></button></div></div>{selected ? <>
+      {showCode && <section className="panel code-panel"><div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row"><label className="outline upload-label"><UploadCloud size={15}/>Importer HTML / ZIP<input ref={inputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" onChange={() => void importPage()} hidden /></label><button className="danger-button" onClick={removeImportedFile} disabled={busy || !selected} title="Supprimer les fichiers importés"><Trash2 size={15}/>Supprimer l’import</button><button className="icon-button danger-icon" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page" aria-label="Supprimer la page"><Trash2 size={16}/></button></div></div>{selected ? <>
         <div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div>
         <label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection. Il est appliqué au premier bouton ou lien d'action trouvé lors de l'enregistrement.</small></label>
         <div className="code-tabs" role="tablist" aria-label="Code de la page">
