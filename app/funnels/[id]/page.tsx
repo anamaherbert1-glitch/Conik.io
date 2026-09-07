@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Globe2, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Globe2, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { FunnelDeleteButton } from '@/components/funnel-delete-button'
@@ -23,7 +23,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
     <Link href="/funnels" className="back"><ArrowLeft size={15}/>Tunnels</Link>
     <div className="head">
       <div><small>TUNNEL</small><h1>{funnel.name}</h1><p>/{funnel.slug} · {STATUS_FR[funnel.status] ?? funnel.status} · source : {SOURCE_FR[funnel.source] ?? funnel.source}</p></div>
-      <div className="button-row"><Link className="outline" href={`/funnels/${id}/editor`}><Pencil size={15}/>Ouvrir l’éditeur</Link>{funnel.status === 'published' && <a className="outline" href={`/${funnel.slug}`} target="_blank" rel="noreferrer"><Globe2 size={15}/>Voir le tunnel public</a>}<FunnelDeleteButton funnelId={id}/></div>
+      <div className="button-row"><Link className="outline" href={`/funnels/${id}/capture`}><UserRoundPlus size={15}/>Page de capture</Link><Link className="outline" href={`/funnels/${id}/editor`}><Pencil size={15}/>Ouvrir l’éditeur</Link>{funnel.status === 'published' && <a className="outline" href={`/${funnel.slug}`} target="_blank" rel="noreferrer"><Globe2 size={15}/>Voir le tunnel public</a>}<FunnelDeleteButton funnelId={id}/></div>
     </div>
     <div className="panel"><div className="section-head"><h3>Pages</h3><span className="muted">{pages?.length || 0} page(s)</span></div>{pages?.length ? <div className="funnel-table">{pages.map(page => <div className="funnel-row" key={page.id}><div><b>{page.name}</b><span>/{page.slug} · {page.page_type}</span></div><span className={`status ${page.published_version_id ? 'published' : 'draft'}`}>{page.published_version_id ? 'Publiée' : 'Brouillon'}</span><div className="button-row"><Link className="outline" href={`/funnels/${id}/editor`}>Modifier</Link>{page.published_version_id && <a className="outline" href={`/${funnel.slug}/${page.slug}`} target="_blank" rel="noreferrer"><Globe2 size={14}/>Ouvrir</a>}</div></div>)}</div> : <div className="empty"><b>Aucune page pour le moment</b><span>Ouvrez l’éditeur pour créer votre première landing page et enregistrer des versions.</span><Link className="primary" href={`/funnels/${id}/editor`}>Créer la première page</Link></div>}</div>
   </div>
