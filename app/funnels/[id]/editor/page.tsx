@@ -8,177 +8,37 @@ import { createClient } from '@/lib/supabase/client'
 type Page = { id: string; name: string; slug: string; page_type: string; position: number; published_version_id: string | null }
 type Version = { id: string; version_number: number; html: string; css: string; js: string; metadata: Record<string, unknown> }
 type CodeTab = 'html' | 'css' | 'js'
+type RedirectControl = { key: string; tag: string; label: string; target: string }
 
 const DEFAULT_HTML = '<main style="font-family:system-ui;max-width:900px;margin:80px auto;padding:24px"><h1>Votre tunnel commence ici</h1><p>Importez votre HTML, CSS ou JavaScript.</p><a href="#cta" id="cta">Commencer</a></main>'
 const DEFAULT_CSS = 'body{margin:0;background:#fff;color:#111827}a{font-weight:700;color:#ea580c}'
-
 function cleanSlug(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) }
-function safeRedirect(value: string) {
-  const v = value.trim(); if (!v) return ''
-  if (v.startsWith('/')) return v
-  try { const u = new URL(v); if (u.protocol === 'http:' || u.protocol === 'https:') return u.toString() } catch {}
-  return ''
+function safeRedirect(value: string) { const v=value.trim(); if(!v)return ''; if(v.startsWith('/'))return v; try{const u=new URL(v);if(u.protocol==='http:'||u.protocol==='https:')return u.toString()}catch{} return '' }
+function escapeAttr(value:string){return value.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}
+function detectRedirectControls(source:string): RedirectControl[] {
+  const controls: RedirectControl[]=[]; const re=/<(a|button)\b([^>]*)>/gi; let m:RegExpExecArray|null; let i=0
+  while((m=re.exec(source))!==null){ const attrs=m[2]||''; const text=attrs.replace(/\s+/g,' ').trim(); const key=`${m[1].toLowerCase()}-${i++}`; const id=(attrs.match(/\bid=["']([^"']+)["']/i)?.[1]||'').trim(); controls.push({key,tag:m[1].toLowerCase(),label:id?`#${id}`:`${m[1].toLowerCase()} ${i}`,target:''}) }
+  return controls
 }
-function bindRedirect(source: string, target: string) {
-  if (!target) return source
-  const escaped = target.replace(/&/g, '&amp;').replace(/\"/g, '&quot;')
-  const anchor = /<a\b([^>]*?)\bhref=(['\"])[^'\"]*\2([^>]*)>/i
-  if (anchor.test(source)) return source.replace(anchor, `<a$1href=\"${escaped}\"$3>`)
-  const button = /<button\b([^>]*)>/i
-  if (button.test(source)) return source.replace(button, `<a href=\"${escaped}\"$1>`).replace(/<\/button>/i, '</a>')
-  return `<p style=\"margin-top:24px\"><a href=\"${escaped}\">Continuer</a></p>${source}`
+function applyRedirects(source:string, controls:RedirectControl[]) {
+  let index=0; return source.replace(/<(a|button)\b([^>]*)>/gi,(full,tag,attrs)=>{ const c=controls[index++]; if(!c?.target)return full; const target=escapeAttr(c.target); if(String(tag).toLowerCase()==='a'){ if(/\bhref\s*=\s*(["'])[^"']*\1/i.test(attrs)) return `<${tag}${attrs.replace(/\bhref\s*=\s*(["'])[^"']*\1/i,`href="${target}"`) } return `<${tag}${attrs} href="${target}">`; } return `<a${attrs} href="${target}" style="text-decoration:inherit;display:inline-block">${source.slice(0,0)}</a>` })
+}
+function applyButtonRedirects(source:string, controls:RedirectControl[]) {
+  let i=0; return source.replace(/<(a|button)\b([^>]*)>([\s\S]*?)<\/\1>/gi,(full,tag,attrs,body)=>{const c=controls[i++];if(!c?.target)return full;const target=escapeAttr(c.target);if(String(tag).toLowerCase()==='a')return `<a${attrs.replace(/\bhref\s*=\s*(["'])[^"']*\1/i,`href="${target}"`)}>${body}</a>`;return `<a${attrs} href="${target}" style="text-decoration:inherit;display:inline-block">${body}</a>`})
 }
 
 export default function FunnelEditor({ params }: { params: Promise<{ id: string }> }) {
-  const [funnelId, setFunnelId] = useState('')
-  const [funnel, setFunnel] = useState<{ name: string; slug: string; status: string } | null>(null)
-  const [pages, setPages] = useState<Page[]>([])
-  const [selected, setSelected] = useState<Page | null>(null)
-  const [version, setVersion] = useState<Version | null>(null)
-  const [name, setName] = useState('Home')
-  const [slug, setSlug] = useState('home')
-  const [html, setHtml] = useState(DEFAULT_HTML)
-  const [css, setCss] = useState(DEFAULT_CSS)
-  const [js, setJs] = useState('')
-  const [redirectUrl, setRedirectUrl] = useState('')
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [showCode, setShowCode] = useState(true)
-  const [activeCodeTab, setActiveCodeTab] = useState<CodeTab>('html')
-  const htmlInputRef = useRef<HTMLInputElement>(null)
-  const cssInputRef = useRef<HTMLInputElement>(null)
-  const jsInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => { params.then(p => setFunnelId(p.id)) }, [params])
-
-  async function load() {
-    if (!funnelId) return
-    const supabase = createClient()
-    const { data: f, error: funnelError } = await supabase.from('funnels').select('name,slug,status').eq('id', funnelId).single()
-    if (funnelError || !f) { setMessage('Tunnel introuvable ou accès refusé.'); return }
-    setFunnel(f)
-    const { data: ps, error: pagesError } = await supabase.from('funnel_pages').select('id,name,slug,page_type,position,published_version_id').eq('funnel_id', funnelId).order('position')
-    if (pagesError) { setMessage(pagesError.message); return }
-    const list = ps || []; setPages(list)
-    if (!list.length) { setSelected(null); return }
-    const first = (selected?.id && list.find(p => p.id === selected.id)) || list[0]
-    await selectPage(first)
-  }
-  useEffect(() => { void load() }, [funnelId])
-
-  async function selectPage(page: Page) {
-    setSelected(page); setName(page.name); setSlug(page.slug); setMessage(''); setShowCode(true); setActiveCodeTab('html')
-    const supabase = createClient()
-    const { data: v, error } = await supabase.from('funnel_versions').select('id,version_number,html,css,js,metadata').eq('page_id', page.id).order('version_number', { ascending: false }).limit(1).maybeSingle()
-    if (error) { setMessage(error.message); return }
-    setVersion(v)
-    if (v) { setHtml(v.html); setCss(v.css); setJs(v.js); setRedirectUrl(typeof v.metadata?.redirectUrl === 'string' ? v.metadata.redirectUrl : '') }
-    else { setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectUrl('') }
-  }
-
-  async function createPage() {
-    if (!funnelId) return
-    setBusy(true); setMessage('')
-    const supabase = createClient(); const pageNumber = pages.length + 1
-    const base = pages.length === 0 ? 'home' : `page-${pageNumber}`; const pageName = `Page ${pageNumber}`
-    let clean = base; let suffix = 2
-    while (pages.some(p => p.slug === clean)) clean = pages.length === 0 ? `home-${suffix++}` : `${base}-${suffix++}`
-    const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: pageName, title: pageName, slug: clean, page_type: 'landing', position: pages.length, html_content: DEFAULT_HTML }).select('id,name,slug,page_type,position,published_version_id').single()
-    if (error) { setMessage(error.message); setBusy(false); return }
-    const { data: v, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: data.id, version_number: 1, html: DEFAULT_HTML, css: DEFAULT_CSS, js: '', metadata: { editor: 'conik', redirectUrl: '' } }).select('id,version_number,html,css,js,metadata').single()
-    if (versionError || !v) { setMessage(versionError?.message || 'Impossible de créer la première version.'); setBusy(false); return }
-    setPages(p => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectUrl(''); setSelected(data); setName(data.name); setSlug(data.slug); setShowCode(true); setActiveCodeTab('html'); setMessage(`Page ${pageNumber} créée.`); setBusy(false)
-  }
-
-  async function importHtmlOrZip(file: File) {
-    if (!selected) return
-    setBusy(true); setMessage('Import HTML/ZIP en cours…')
-    try {
-      const body = new FormData(); body.append('file', file); body.append('pageId', selected.id)
-      const response = await fetch('/api/funnels/pages/import', { method: 'POST', body }); const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Import impossible.')
-      setVersion(data.version); setHtml(data.version.html); setCss(data.version.css); setJs(data.version.js); setName(data.page.name); setActiveCodeTab('html'); setShowCode(true)
-      setMessage(`HTML/ZIP importé avec succès · ${data.assets} asset(s). Enregistrez puis publiez la version.`)
-    } catch (err) { setMessage(err instanceof Error ? err.message : 'Import impossible.') }
-    finally { setBusy(false) }
-  }
-
-  async function importTextFile(file: File, kind: 'css' | 'js') {
-    if (!selected) return
-    setBusy(true); setMessage(`Import ${kind.toUpperCase()} en cours…`)
-    try {
-      const text = await file.text()
-      if (!text.trim()) throw new Error(`Le fichier ${kind.toUpperCase()} est vide.`)
-      if (kind === 'css') { setCss(text); setActiveCodeTab('css') } else { setJs(text); setActiveCodeTab('js') }
-      setShowCode(true); setMessage(`${kind.toUpperCase()} importé. Cliquez sur « Enregistrer la version » pour le conserver.`)
-    } catch (err) { setMessage(err instanceof Error ? err.message : `Import ${kind.toUpperCase()} impossible.`) }
-    finally { setBusy(false) }
-  }
-
-  async function saveVersion() {
-    if (!selected) return
-    const cleanName = name.trim(); const clean = cleanSlug(slug); const target = safeRedirect(redirectUrl)
-    if (!cleanName || !clean) { setMessage('Le nom et le slug de la page sont obligatoires.'); return }
-    if (pages.some(p => p.id !== selected.id && p.slug === clean)) { setMessage('Cet identifiant de page est déjà utilisé dans ce tunnel.'); return }
-    if (redirectUrl.trim() && !target) { setMessage('Le lien de redirection doit être une URL http(s) ou un chemin interne commençant par /.'); return }
-    setBusy(true); setMessage('')
-    const supabase = createClient(); const finalHtml = bindRedirect(html, target)
-    const { error: pageError } = await supabase.from('funnel_pages').update({ name: cleanName, title: cleanName, slug: clean, html_content: finalHtml }).eq('id', selected.id)
-    if (pageError) { setMessage(pageError.message); setBusy(false); return }
-    const { data: latest, error: latestError } = await supabase.from('funnel_versions').select('version_number').eq('page_id', selected.id).order('version_number', { ascending: false }).limit(1).maybeSingle()
-    if (latestError) { setMessage(latestError.message); setBusy(false); return }
-    const next = (latest?.version_number || 0) + 1
-    const { data: v, error } = await supabase.from('funnel_versions').insert({ page_id: selected.id, version_number: next, html: finalHtml, css, js, metadata: { editor: 'conik', redirectUrl: target } }).select('id,version_number,html,css,js,metadata').single()
-    if (error) setMessage(error.message)
-    else { setVersion(v); setHtml(finalHtml); setSelected(p => p ? { ...p, name: cleanName, slug: clean } : p); setPages(ps => ps.map(p => p.id === selected.id ? { ...p, name: cleanName, slug: clean } : p)); setRedirectUrl(target); setMessage(`Version ${next} enregistrée.`) }
-    setBusy(false)
-  }
-
-  async function publish() {
-    if (!selected || !version) return
-    setBusy(true); setMessage(''); const { error } = await createClient().rpc('publish_funnel_page', { target_page: selected.id, target_version: version.id })
-    if (error) setMessage(error.message)
-    else { setFunnel(f => f ? { ...f, status: 'published' } : f); setPages(ps => ps.map(p => p.id === selected.id ? { ...p, published_version_id: version.id } : p)); setSelected(p => p ? { ...p, published_version_id: version.id } : p); setMessage('Page publiée avec succès.') }
-    setBusy(false)
-  }
-
-  async function deletePage() {
-    if (!selected || pages.length <= 1) { setMessage('Un tunnel doit conserver au moins une page.'); return }
-    if (!window.confirm(`Supprimer « ${selected.name} » ? Ses versions seront définitivement supprimées.`)) return
-    setBusy(true); setMessage(''); const { error } = await createClient().from('funnel_pages').delete().eq('id', selected.id)
-    if (error) setMessage(error.message)
-    else { const remaining = pages.filter(p => p.id !== selected.id); setPages(remaining); await selectPage(remaining[0]); setMessage('Page supprimée.') }
-    setBusy(false)
-  }
-
-  const codeValue = activeCodeTab === 'html' ? html : activeCodeTab === 'css' ? css : js
-  const setCodeValue = activeCodeTab === 'html' ? setHtml : activeCodeTab === 'css' ? setCss : setJs
-  const preview = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`
-  if (!funnel) return <div className="page"><p>{message || 'Chargement de l’éditeur de tunnel…'}</p></div>
-
-  return <div className="page">
-    <Link href={`/funnels/${funnelId}`} className="back"><ArrowLeft size={15}/>Tunnel</Link>
-    <div className="head"><div><small>ÉDITEUR DE TUNNEL</small><h1>{funnel.name}</h1><p>/{funnel.slug} · {funnel.status}</p></div><div className="button-row"><a className="outline" href={`/funnels/${funnelId}/editor`}><Eye size={15}/>Éditeur</a>{funnel.status === 'published' && <a className="outline" href={`/${funnel.slug}`} target="_blank" rel="noreferrer"><Globe2 size={15}/>Ouvrir le tunnel</a>}<button className="primary" onClick={saveVersion} disabled={busy || !selected}><Save size={15}/>{busy ? 'Enregistrement…' : 'Enregistrer la version'}</button><button className="primary" onClick={publish} disabled={busy || !version}><Globe2 size={15}/>Publier</button></div></div>
-    {message && <div className="notice">{message}</div>}
-
-    <div className="page-tabs" aria-label="Pages du tunnel"><div className="page-tabs-scroll">{pages.map(p => { const isSelected = selected?.id === p.id; return <div key={p.id} className={`page-tab-wrap ${isSelected ? 'active' : ''}`}><button className="page-tab" onClick={() => void selectPage(p)}><span>Page {p.position + 1}</span><small>/{p.slug}</small></button><button className="page-visibility" onClick={(e) => { e.stopPropagation(); if (isSelected) setShowCode(v => !v); else void selectPage(p).then(() => setShowCode(false)) }} title="Afficher/masquer le code">{isSelected && showCode ? <EyeOff size={14}/> : <Eye size={14}/>}</button></div> })}</div><button className="page-add page-add-right" onClick={createPage} disabled={busy} title="Ajouter une page"><Plus size={18}/></button></div>
-
-    <div className={`editor-grid ${showCode ? '' : 'editor-grid-preview-only'}`}>
-      {showCode && <section className="panel code-panel">
-        <div className="section-head"><h3>Page : {selected ? `Page ${selected.position + 1}` : '—'}</h3><div className="button-row editor-actions">
-          <label className="outline upload-label import-button" title="Importer un fichier HTML ou ZIP"><UploadCloud size={16}/>Importer HTML / ZIP<input ref={htmlInputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" hidden onChange={e => { const f=e.target.files?.[0]; if(f) void importHtmlOrZip(f); e.currentTarget.value='' }}/></label>
-          <label className="outline upload-label import-button" title="Importer un fichier CSS"><FileType2 size={16}/>Importer CSS<input ref={cssInputRef} type="file" accept=".css,text/css" hidden onChange={e => { const f=e.target.files?.[0]; if(f) void importTextFile(f,'css'); e.currentTarget.value='' }}/></label>
-          <label className="outline upload-label import-button" title="Importer un fichier JavaScript"><FileCode2 size={16}/>Importer JavaScript<input ref={jsInputRef} type="file" accept=".js,.mjs,text/javascript,application/javascript" hidden onChange={e => { const f=e.target.files?.[0]; if(f) void importTextFile(f,'js'); e.currentTarget.value='' }}/></label>
-          <button className="danger-button page-delete-button" onClick={() => void deletePage()} disabled={busy || !selected} title="Supprimer la page"><Trash2 size={16}/>Supprimer</button>
-        </div></div>
-        {selected && <>
-          <div className="form-grid"><label className="form-label">Nom<input className="form-input" value={name} onChange={e => setName(e.target.value)}/></label><label className="form-label">Slug<input className="form-input" value={slug} onChange={e => setSlug(cleanSlug(e.target.value))}/></label></div>
-          <label className="form-label">Lien de redirection de cette page / CTA<input className="form-input" value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://exemple.com/merci ou /page-2"/><small className="muted">Chaque page possède son propre lien de redirection.</small></label>
-          <div className="code-tabs" role="tablist" aria-label="Type de code"><button className={activeCodeTab==='html'?'active':''} onClick={() => setActiveCodeTab('html')}>HTML</button><button className={activeCodeTab==='css'?'active':''} onClick={() => setActiveCodeTab('css')}>CSS</button><button className={activeCodeTab==='js'?'active':''} onClick={() => setActiveCodeTab('js')}>JavaScript</button></div>
-          <textarea className="code-input" value={codeValue} onChange={e => setCodeValue(e.target.value)} spellCheck={false} aria-label={`Code ${activeCodeTab.toUpperCase()}`}/>
-        </>}
-      </section>}
-      <section className="panel preview-panel"><div className="section-head"><h3>Aperçu</h3><button className="outline" onClick={() => setShowCode(v => !v)}>{showCode ? 'Aperçu seul' : 'Afficher le code'}</button></div><iframe title="Aperçu de la page" className="preview-frame" srcDoc={preview} sandbox="allow-forms allow-modals allow-popups"/></section>
-    </div>
-  </div>
+  const [funnelId,setFunnelId]=useState(''); const [funnel,setFunnel]=useState<{name:string;slug:string;status:string}|null>(null); const [pages,setPages]=useState<Page[]>([]); const [selected,setSelected]=useState<Page|null>(null); const [version,setVersion]=useState<Version|null>(null); const [name,setName]=useState('Home'); const [slug,setSlug]=useState('home'); const [html,setHtml]=useState(DEFAULT_HTML); const [css,setCss]=useState(DEFAULT_CSS); const [js,setJs]=useState(''); const [redirectControls,setRedirectControls]=useState<RedirectControl[]>([]); const [message,setMessage]=useState(''); const [busy,setBusy]=useState(false); const [showCode,setShowCode]=useState(true); const [activeCodeTab,setActiveCodeTab]=useState<CodeTab>('html'); const htmlInputRef=useRef<HTMLInputElement>(null); const cssInputRef=useRef<HTMLInputElement>(null); const jsInputRef=useRef<HTMLInputElement>(null)
+  useEffect(()=>{params.then(p=>setFunnelId(p.id))},[params])
+  async function load(){if(!funnelId)return;const supabase=createClient();const {data:f,error:funnelError}=await supabase.from('funnels').select('name,slug,status').eq('id',funnelId).single();if(funnelError||!f){setMessage('Tunnel introuvable ou accès refusé.');return}setFunnel(f);const {data:ps,error:pagesError}=await supabase.from('funnel_pages').select('id,name,slug,page_type,position,published_version_id').eq('funnel_id',funnelId).order('position');if(pagesError){setMessage(pagesError.message);return}const list=ps||[];setPages(list);if(!list.length){setSelected(null);return}const first=(selected?.id&&list.find(p=>p.id===selected.id))||list[0];await selectPage(first)}
+  useEffect(()=>{void load()},[funnelId])
+  async function selectPage(page:Page){setSelected(page);setName(page.name);setSlug(page.slug);setMessage('');setShowCode(true);setActiveCodeTab('html');const supabase=createClient();const {data:v,error}=await supabase.from('funnel_versions').select('id,version_number,html,css,js,metadata').eq('page_id',page.id).order('version_number',{ascending:false}).limit(1).maybeSingle();if(error){setMessage(error.message);return}setVersion(v);if(v){setHtml(v.html);setCss(v.css);setJs(v.js);const stored=Array.isArray(v.metadata?.redirects)?v.metadata.redirects as RedirectControl[]:[];const detected=detectRedirectControls(v.html);setRedirectControls(detected.map((d,i)=>({...d,target:stored[i]?.target||''})))}else{setHtml(DEFAULT_HTML);setCss(DEFAULT_CSS);setJs('');setRedirectControls(detectRedirectControls(DEFAULT_HTML))}}
+  async function createPage(){if(!funnelId)return;setBusy(true);setMessage('');const supabase=createClient();const pageNumber=pages.length+1;const base=pages.length===0?'home':`page-${pageNumber}`;const pageName=`Page ${pageNumber}`;let clean=base;let suffix=2;while(pages.some(p=>p.slug===clean))clean=pages.length===0?`home-${suffix++}`:`${base}-${suffix++}`;const {data,error}=await supabase.from('funnel_pages').insert({funnel_id:funnelId,name:pageName,title:pageName,slug:clean,page_type:'landing',position:pages.length,html_content:DEFAULT_HTML}).select('id,name,slug,page_type,position,published_version_id').single();if(error){setMessage(error.message);setBusy(false);return}const {data:v,error:versionError}=await supabase.from('funnel_versions').insert({page_id:data.id,version_number:1,html:DEFAULT_HTML,css:DEFAULT_CSS,js:'',metadata:{editor:'conik',redirects:[]}}).select('id,version_number,html,css,js,metadata').single();if(versionError||!v){setMessage(versionError?.message||'Impossible de créer la première version.');setBusy(false);return}setPages(p=>[...p,data]);setVersion(v);setHtml(DEFAULT_HTML);setCss(DEFAULT_CSS);setJs('');setRedirectControls(detectRedirectControls(DEFAULT_HTML));setSelected(data);setName(data.name);setSlug(data.slug);setShowCode(true);setActiveCodeTab('html');setMessage(`Page ${pageNumber} créée.`);setBusy(false)}
+  async function importHtmlOrZip(file:File){if(!selected)return;setBusy(true);setMessage('Import HTML/ZIP en cours…');try{const body=new FormData();body.append('file',file);body.append('pageId',selected.id);const response=await fetch('/api/funnels/pages/import',{method:'POST',body});const data=await response.json();if(!response.ok)throw new Error(data.error||'Import impossible.');setVersion(data.version);setHtml(data.version.html);setCss(data.version.css);setJs(data.version.js);setName(data.page.name);setRedirectControls(detectRedirectControls(data.version.html));setActiveCodeTab('html');setShowCode(true);setMessage(`HTML/ZIP importé avec succès · ${data.assets} asset(s). ${detectRedirectControls(data.version.html).length} bouton(s)/lien(s) détecté(s).`)}catch(err){setMessage(err instanceof Error?err.message:'Import impossible.')}finally{setBusy(false)}}
+  async function importTextFile(file:File,kind:'css'|'js'){if(!selected)return;setBusy(true);setMessage(`Import ${kind.toUpperCase()} en cours…`);try{const text=await file.text();if(!text.trim())throw new Error(`Le fichier ${kind.toUpperCase()} est vide.`);if(kind==='css'){setCss(text);setActiveCodeTab('css')}else{setJs(text);setActiveCodeTab('js')}setShowCode(true);setMessage(`${kind.toUpperCase()} importé. Cliquez sur « Enregistrer la version » pour le conserver.`)}catch(err){setMessage(err instanceof Error?err.message:`Import ${kind.toUpperCase()} impossible.`)}finally{setBusy(false)}}
+  async function saveVersion(){if(!selected)return;const cleanName=name.trim();const clean=cleanSlug(slug);if(!cleanName||!clean){setMessage('Le nom et le slug de la page sont obligatoires.');return}if(pages.some(p=>p.id!==selected.id&&p.slug===clean)){setMessage('Cet identifiant de page est déjà utilisé dans ce tunnel.');return}const targets=redirectControls.map(c=>safeRedirect(c.target));if(redirectControls.some((c,i)=>c.target.trim()&&!targets[i])){setMessage('Chaque lien de redirection doit être une URL http(s) ou un chemin interne commençant par /.');return}setBusy(true);setMessage('');const finalHtml=applyButtonRedirects(html,redirectControls.map((c,i)=>({...c,target:targets[i]})));const supabase=createClient();const {error:pageError}=await supabase.from('funnel_pages').update({name:cleanName,title:cleanName,slug:clean,html_content:finalHtml}).eq('id',selected.id);if(pageError){setMessage(pageError.message);setBusy(false);return}const {data:latest,error:latestError}=await supabase.from('funnel_versions').select('version_number').eq('page_id',selected.id).order('version_number',{ascending:false}).limit(1).maybeSingle();if(latestError){setMessage(latestError.message);setBusy(false);return}const next=(latest?.version_number||0)+1;const savedRedirects=redirectControls.map((c,i)=>({...c,target:targets[i]}));const {data:v,error}=await supabase.from('funnel_versions').insert({page_id:selected.id,version_number:next,html:finalHtml,css,js,metadata:{editor:'conik',redirects:savedRedirects}}).select('id,version_number,html,css,js,metadata').single();if(error)setMessage(error.message);else{setVersion(v);setHtml(finalHtml);setRedirectControls(detectRedirectControls(finalHtml).map((d,i)=>({...d,target:savedRedirects[i]?.target||''})));setSelected(p=>p?{...p,name:cleanName,slug:clean}:p);setPages(ps=>ps.map(p=>p.id===selected.id?{...p,name:cleanName,slug:clean}:p));setMessage(`Version ${next} enregistrée.`)}setBusy(false)}
+  async function publish(){if(!selected||!version)return;setBusy(true);setMessage('');const {error}=await createClient().rpc('publish_funnel_page',{target_page:selected.id,target_version:version.id});if(error)setMessage(error.message);else{setFunnel(f=>f?{...f,status:'published'}:f);setPages(ps=>ps.map(p=>p.id===selected.id?{...p,published_version_id:version.id}:p));setSelected(p=>p?{...p,published_version_id:version.id}:p);setMessage('Page publiée avec succès.')}setBusy(false)}
+  async function deletePage(){if(!selected||pages.length<=1){setMessage('Un tunnel doit conserver au moins une page.');return}if(!window.confirm(`Supprimer « ${selected.name} » ? Ses versions seront définitivement supprimées.`))return;setBusy(true);setMessage('');const {error}=await createClient().from('funnel_pages').delete().eq('id',selected.id);if(error)setMessage(error.message);else{const remaining=pages.filter(p=>p.id!==selected.id);setPages(remaining);await selectPage(remaining[0]);setMessage('Page supprimée.')}setBusy(false)}
+  const codeValue=activeCodeTab==='html'?html:activeCodeTab==='css'?css:js;const setCodeValue=activeCodeTab==='html'?setHtml:activeCodeTab==='css'?setCss:setJs;const preview=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`;if(!funnel)return <div className="page"><p>{message||'Chargement de l’éditeur de tunnel…'}</p></div>
+  return <div className="page"><Link href={`/funnels/${funnelId}`} className="back"><ArrowLeft size={15}/>Tunnel</Link><div className="head"><div><small>ÉDITEUR DE TUNNEL</small><h1>{funnel.name}</h1><p>/{funnel.slug} · {funnel.status}</p></div><div className="button-row"><a className="outline" href={`/funnels/${funnelId}/editor`}><Eye size={15}/>Éditeur</a>{funnel.status==='published'&&<a className="outline" href={`/${funnel.slug}`} target="_blank" rel="noreferrer"><Globe2 size={15}/>Ouvrir le tunnel</a>}<button className="primary" onClick={saveVersion} disabled={busy||!selected}><Save size={15}/>{busy?'Enregistrement…':'Enregistrer la version'}</button><button className="primary" onClick={publish} disabled={busy||!version}><Globe2 size={15}/>Publier</button></div></div>{message&&<div className="notice">{message}</div>}<div className="page-tabs" aria-label="Pages du tunnel"><div className="page-tabs-scroll">{pages.map(p=>{const isSelected=selected?.id===p.id;return <div key={p.id} className={`page-tab-wrap ${isSelected?'active':''}`}><button className="page-tab" onClick={()=>void selectPage(p)}><span>Page {p.position+1}</span><small>/{p.slug}</small></button><button className="page-visibility" onClick={e=>{e.stopPropagation();if(isSelected)setShowCode(v=>!v);else void selectPage(p).then(()=>setShowCode(false))}} title="Afficher/masquer le code">{isSelected&&showCode?<EyeOff size={14}/>:<Eye size={14}/>}</button></div>})}</div><button className="page-add page-add-right" onClick={createPage} disabled={busy} title="Ajouter une page"><Plus size={18}/></button></div><div className={`editor-grid ${showCode?'':'editor-grid-preview-only'}`}>{showCode&&<section className="panel code-panel"><div className="section-head"><h3>Page : {selected?`Page ${selected.position+1}`:'—'}</h3><div className="button-row editor-actions"><label className="outline upload-label import-button" title="Importer un fichier HTML ou ZIP"><UploadCloud size={16}/>Importer HTML / ZIP<input ref={htmlInputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" hidden onChange={e=>{const f=e.target.files?.[0];if(f)void importHtmlOrZip(f);e.currentTarget.value='' }}/></label><label className="outline upload-label import-button" title="Importer un fichier CSS"><FileType2 size={16}/>Importer CSS<input ref={cssInputRef} type="file" accept=".css,text/css" hidden onChange={e=>{const f=e.target.files?.[0];if(f)void importTextFile(f,'css');e.currentTarget.value='' }}/></label><label className="outline upload-label import-button" title="Importer un fichier JavaScript"><FileCode2 size={16}/>Importer JavaScript<input ref={jsInputRef} type="file" accept=".js,.mjs,text/javascript,application/javascript" hidden onChange={e=>{const f=e.target.files?.[0];if(f)void importTextFile(f,'js');e.currentTarget.value='' }}/></label><button className="danger-button page-delete-button" onClick={()=>void deletePage()} disabled={busy||!selected} title="Supprimer la page"><Trash2 size={15}/>Supprimer</button></div></div><div className="redirect-fields"><div className="section-head"><div><h4>Redirections des boutons</h4><span className="muted">Un champ est créé pour chaque bouton ou lien détecté dans le HTML importé.</span></div><span className="muted">{redirectControls.length} élément(s)</span></div>{redirectControls.length?redirectControls.map((c,i)=><label className="field redirect-field" key={c.key}><span>{c.label} <small>({c.tag})</small></span><input value={c.target} onChange={e=>setRedirectControls(cs=>cs.map((x,n)=>n===i?{...x,target:e.target.value}:x))} placeholder="https://exemple.com ou /page-suivante"/></label>):<div className="muted">Aucun bouton ou lien détecté dans cette page.</div>}</div><div className="code-tabs"><button className={activeCodeTab==='html'?'active':''} onClick={()=>setActiveCodeTab('html')}>HTML</button><button className={activeCodeTab==='css'?'active':''} onClick={()=>setActiveCodeTab('css')}>CSS</button><button className={activeCodeTab==='js'?'active':''} onClick={()=>setActiveCodeTab('js')}>JavaScript</button></div><textarea className="code-editor" value={codeValue} onChange={e=>{setCodeValue(e.target.value);if(activeCodeTab==='html')setRedirectControls(detectRedirectControls(e.target.value))}} spellCheck={false}/></section>}<section className="panel preview-panel"><div className="section-head"><h3>Aperçu</h3><span className="muted">Page {selected?selected.position+1:'—'}</span></div><iframe title="Aperçu de la page" sandbox="allow-scripts allow-forms" srcDoc={preview} style={{width:'100%',minHeight:650,border:'1px solid #e5e7eb',borderRadius:12,background:'#fff'}}/></section></div></div>
 }
