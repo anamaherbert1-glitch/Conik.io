@@ -15,7 +15,7 @@ async function getFunnel(request: NextRequest) {
   if (!/^[0-9a-f-]{36}$/i.test(funnelId)) throw new Error('Tunnel invalide.')
   const { data: funnel, error } = await supabase.from('funnels').select('id,name,slug,capture_enabled,capture_delay_ms,capture_html,capture_css,capture_js').eq('id', funnelId).eq('organization_id', organization.id).single()
   if (error || !funnel) throw new Error('Tunnel introuvable ou accès refusé.')
-  return { supabase, funnel }
+  return { supabase, organization, funnel }
 }
 
 function extractInlineScripts(html: string) {
@@ -29,8 +29,19 @@ function extractInlineScripts(html: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { funnel } = await getFunnel(request)
-    return NextResponse.json({ capture: funnel })
+    const { supabase, funnel } = await getFunnel(request)
+    const { data: pages, error: pagesError } = await supabase
+      .from('funnel_pages')
+      .select('id,name,slug,page_type,position,published_version_id')
+      .eq('funnel_id', funnel.id)
+      .order('position', { ascending: true })
+
+    if (pagesError) return NextResponse.json({ error: pagesError.message }, { status: 400 })
+
+    return NextResponse.json({
+      capture: funnel,
+      pages: pages || [],
+    })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Impossible de charger la page de capture.' }, { status: 400 })
   }
@@ -66,11 +77,33 @@ export async function POST(request: NextRequest) {
     const delayRaw = Number(form.get('delayMs') || 5000)
     const delayMs = Number.isFinite(delayRaw) ? Math.min(MAX_DELAY_MS, Math.max(MIN_DELAY_MS, Math.round(delayRaw))) : 5000
     const update: Record<string, unknown> = { capture_enabled: enabled, capture_delay_ms: delayMs }
-    if (captureHtml !== undefined) { update.capture_html = captureHtml; update.capture_css = captureCss || ''; update.capture_js = captureJs || '' }
+    if (captureHtml !== undefined) {
+      update.capture_html = captureHtml
+      update.capture_css = captureCss || ''
+      update.capture_js = captureJs || ''
+    }
     const { data, error } = await supabase.from('funnels').update(update).eq('id', funnel.id).select('id,name,slug,capture_enabled,capture_delay_ms,capture_html,capture_css,capture_js').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true, capture: data })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Enregistrement impossible.' }, { status: 400 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { supabase, funnel } = await getFunnel(request)
+    const { data, error } = await supabase.from('funnels').update({
+      capture_enabled: false,
+      capture_delay_ms: 5000,
+      capture_html: null,
+      capture_css: null,
+      capture_js: null,
+    }).eq('id', funnel.id).select('id,name,slug,capture_enabled,capture_delay_ms,capture_html,capture_css,capture_js').single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true, capture: data })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Suppression impossible.' }, { status: 400 })
   }
 }
