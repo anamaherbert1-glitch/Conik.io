@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Check,
   CheckCircle2,
   Clock3,
   Eye,
