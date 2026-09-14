@@ -1,18 +1,24 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { LocalVideoTrack, Room, RoomEvent, Track } from 'livekit-client'
+import { Room, RoomEvent, Track } from 'livekit-client'
 
 type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean }
 type MediaStatus = 'idle' | 'ready' | 'denied' | 'error'
 
 function mediaErrorMessage(error: unknown, device: 'camera' | 'microphone' | 'screen') {
   const name = error instanceof DOMException ? error.name : ''
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return device === 'screen' ? 'Le partage d’écran a été refusé. Choisissez un écran, une fenêtre ou un onglet dans la fenêtre du navigateur.' : `Accès ${device === 'camera' ? 'à la caméra' : 'au microphone'} refusé. Autorisez ${device === 'camera' ? 'la caméra' : 'le microphone'} pour Conik dans les réglages du navigateur.`
-  if (name === 'NotFoundError') return device === 'screen' ? 'Aucun écran ou fenêtre disponible.' : `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n’a été trouvé.`
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return device === 'screen' ? 'Le navigateur a refusé le partage d’écran. Autorisez le partage d’écran pour Conik et réessayez.' : `Accès ${device === 'camera' ? 'à la caméra' : 'au microphone'} refusé. Autorisez ${device === 'camera' ? 'la caméra' : 'le microphone'} pour Conik dans les réglages du navigateur.`
+  if (name === 'NotFoundError') return device === 'screen' ? 'Aucun écran, fenêtre ou onglet partageable n’est disponible.' : `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n’a été trouvé.`
   if (name === 'NotReadableError' || name === 'TrackStartError') return `Le ${device === 'camera' ? 'caméra' : 'microphone'} est déjà utilisé par une autre application.`
-  if (name === 'SecurityError') return 'Le navigateur bloque cette fonction. Ouvrez Conik avec HTTPS.'
-  return device === 'screen' ? 'Impossible de démarrer le partage d’écran.' : `Impossible d’accéder à ${device === 'camera' ? 'la caméra' : 'au microphone'}.`
+  if (name === 'SecurityError') return 'Le navigateur bloque le partage d’écran. Ouvrez Conik directement avec HTTPS, et non dans un navigateur intégré à une autre application.'
+  return device === 'screen' ? 'Le partage d’écran n’a pas pu démarrer. Utilisez Chrome, Edge ou Firefox dans un onglet HTTPS normal.' : `Impossible d’accéder à ${device === 'camera' ? 'la caméra' : 'au microphone'}.`
+}
+
+function screenShareSupportMessage() {
+  if (!window.isSecureContext) return 'Le partage d’écran nécessite HTTPS. Ouvrez le lien Conik directement dans Chrome, Edge ou Firefox.'
+  if (!navigator.mediaDevices?.getDisplayMedia) return 'Le partage d’écran n’est pas pris en charge par ce navigateur. Ouvrez Conik dans Chrome, Edge ou Firefox sur un navigateur normal, pas dans le navigateur intégré de WhatsApp, Facebook ou une autre application.'
+  return ''
 }
 
 export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
@@ -29,7 +35,6 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const screenRef = useRef<HTMLDivElement>(null)
   const remoteRef = useRef<HTMLDivElement>(null)
   const roomRef = useRef<Room | null>(null)
-  const screenTrackRef = useRef<LocalVideoTrack | null>(null)
 
   async function requestMediaPermissions() {
     if (!host) return true
@@ -75,30 +80,45 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
         }
       } catch (error) { if (!cancelled) { setState('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') } }
     })()
-    return () => { cancelled = true; screenTrackRef.current?.stop(); screenTrackRef.current = null; room.disconnect() }
+    return () => { cancelled = true; room.disconnect() }
   }, [tokenUrl, JSON.stringify(tokenBody), host])
 
   async function toggleMic() {
     const room = roomRef.current; if (!room || !host) return; const next = !mic
     try { if (next && !(await requestMediaPermissions())) return; await room.localParticipant.setMicrophoneEnabled(next); setMic(next); setMicStatus(next ? 'ready' : 'idle'); if (next) setMediaMessage('') } catch (error) { setMic(false); setMicStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'microphone')) }
   }
+
   async function toggleCamera() {
     const room = roomRef.current; if (!room || !host) return; const next = !camera
     try { if (next && !(await requestMediaPermissions())) return; await room.localParticipant.setCameraEnabled(next); setCamera(next); setCameraStatus(next ? 'ready' : 'idle'); if (next) setMediaMessage('') } catch (error) { setCamera(false); setCameraStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'camera')) }
   }
+
   async function toggleScreenShare() {
     const room = roomRef.current; if (!room || !host) return
-    if (screenShare) { try { await room.localParticipant.setScreenShareEnabled(false); screenTrackRef.current?.stop(); screenTrackRef.current = null; setScreenShare(false); setMediaMessage('') } catch (error) { setMediaMessage(mediaErrorMessage(error, 'screen')) }; return }
+    if (screenShare) {
+      try { await room.localParticipant.setScreenShareEnabled(false); setScreenShare(false); setMediaMessage('') }
+      catch (error) { setMediaMessage(mediaErrorMessage(error, 'screen')) }
+      return
+    }
+
+    const supportError = screenShareSupportMessage()
+    if (supportError) { setMediaMessage(supportError); return }
+
     try {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia) throw new Error('DISPLAY_CAPTURE_UNSUPPORTED')
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
-      const mediaStreamTrack = stream.getVideoTracks()[0]; if (!mediaStreamTrack) throw new Error('DISPLAY_CAPTURE_UNAVAILABLE')
-      const localTrack = new LocalVideoTrack(mediaStreamTrack)
-      await room.localParticipant.publishTrack(localTrack, { source: Track.Source.ScreenShare, name: 'Conik screen share' })
-      screenTrackRef.current = localTrack
-      mediaStreamTrack.addEventListener('ended', () => { void room.localParticipant.unpublishTrack(localTrack); localTrack.stop(); screenTrackRef.current = null; setScreenShare(false) })
-      setScreenShare(true); setMediaMessage('')
-    } catch (error) { setScreenShare(false); setMediaMessage(error instanceof Error && error.message.startsWith('DISPLAY_CAPTURE') ? 'Le partage d’écran n’est pas disponible dans ce navigateur. Utilisez un navigateur compatible et HTTPS.' : mediaErrorMessage(error, 'screen')) }
+      // Let LiveKit create and publish the browser-native screen track.
+      // This keeps the capture lifecycle synchronized with the LiveKit publication.
+      await room.localParticipant.setScreenShareEnabled(true, {
+        audio: false,
+        video: true,
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+      })
+      setScreenShare(true)
+      setMediaMessage('')
+    } catch (error) {
+      setScreenShare(false)
+      setMediaMessage(mediaErrorMessage(error, 'screen'))
+    }
   }
 
   return <div style={{ display: 'grid', gap: 12 }}>
