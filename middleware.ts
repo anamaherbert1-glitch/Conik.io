@@ -20,7 +20,7 @@ function isPublicPath(pathname:string){
   return (segments.length===1||segments.length===2)&&!PUBLIC_FUNNEL_RESERVED.has(segments[0].toLowerCase())
 }
 function addSecurityHeaders(response:NextResponse){
-  response.headers.set('X-Content-Type-Options','nosniff');response.headers.set('Referrer-Policy','strict-origin-when-cross-origin');response.headers.set('X-Frame-Options','SAMEORIGIN');response.headers.set('Permissions-Policy','camera=(), microphone=(), geolocation=()');if(process.env.NODE_ENV==='production')response.headers.set('Strict-Transport-Security','max-age=31536000; includeSubDomains');return response
+  response.headers.set('X-Content-Type-Options','nosniff');response.headers.set('Referrer-Policy','strict-origin-when-cross-origin');response.headers.set('X-Frame-Options','SAMEORIGIN');response.headers.set('Permissions-Policy','camera=(self), microphone=(self), display-capture=(self), geolocation=()');if(process.env.NODE_ENV==='production')response.headers.set('Strict-Transport-Security','max-age=31536000; includeSubDomains');return response
 }
 export async function middleware(request:NextRequest){
   let response=NextResponse.next({request});const{url,key}=getSupabaseConfig();const supabase=createServerClient(url,key,{cookies:{getAll:()=>request.cookies.getAll(),setAll(cookiesToSet){cookiesToSet.forEach(({name,value})=>request.cookies.set(name,value));response=NextResponse.next({request});cookiesToSet.forEach(({name,value,options})=>response.cookies.set(name,value,options))}}})
