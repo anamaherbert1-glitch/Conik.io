@@ -16,7 +16,7 @@ function labelFor(attrs: string, body: string, tag: string, index: number) {
   const id = attr(attrs, 'id')
   const aria = attr(attrs, 'aria-label')
   const value = attr(attrs, 'value')
-  const text = body.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim()
+  const text = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   if (id) return `#${id}`
   return aria || value || text || `${tag === 'button' ? 'Bouton' : 'Élément'} ${index}`
 }
@@ -31,7 +31,7 @@ function actionFrom(tag: string, attrs: string) {
   if (redirect) return { existingAction: redirect, actionType: 'redirect' as const }
   if (href) return { existingAction: href, actionType: 'link' as const }
   if (onclick) {
-    const match = onclick.match(/(?:window\\.location(?:\\.href)?|location(?:\\.href)?)\\s*=\\s*[\"']([^\"']+)[\"']/i)
+    const match = onclick.match(/(?:window\.location(?:\.href)?|location(?:\.href)?)\s*=\s*[\"']([^\"']+)[\"']/i)
     return { existingAction: match?.[1] || onclick, actionType: 'javascript' as const }
   }
   return { existingAction: '', actionType: 'none' as const }
@@ -41,7 +41,7 @@ export function detectInteractiveElements(source: string): InteractiveElement[] 
   const found: InteractiveElement[] = []
   let index = 0
 
-  const pairRe = /<(a|button|div|span|p|li)\\b([^>]*)>([\\s\\S]*?)<\\/\\1>/gi
+  const pairRe = /<(a|button|div|span|p|li)\b([^>]*)>([\s\S]*?)<\/\1>/gi
   let match: RegExpExecArray | null
   while ((match = pairRe.exec(source))) {
     const tag = match[1].toLowerCase()
@@ -56,14 +56,14 @@ export function detectInteractiveElements(source: string): InteractiveElement[] 
       key: `${tag}-${index}-${id || index}`,
       tag,
       label: labelFor(attrs, body, tag, index),
-      selector: id ? `#${id}` : `${tag}[data-conik-index=\"${index}\"]`,
+      selector: id ? `#${id}` : `${tag}[data-conik-index="${index}"]`,
       existingAction: action.existingAction,
       actionType: action.actionType,
       configurable: action.actionType === 'none',
     })
   }
 
-  const inputRe = /<input\\b([^>]*\\btype=[\"'](?:button|submit|reset)[\"'][^>]*)\\/?\\s*>/gi
+  const inputRe = /<input\b([^>]*\btype=[\"'](?:button|submit|reset)[\"'][^>]*)\/?\s*>/gi
   while ((match = inputRe.exec(source))) {
     const attrs = match[1] || ''
     index += 1
@@ -73,7 +73,7 @@ export function detectInteractiveElements(source: string): InteractiveElement[] 
       key: `input-${index}-${id || index}`,
       tag: 'input',
       label: labelFor(attrs, '', 'input', index),
-      selector: id ? `#${id}` : `input[data-conik-index=\"${index}\"]`,
+      selector: id ? `#${id}` : `input[data-conik-index="${index}"]`,
       existingAction: action.existingAction,
       actionType: action.actionType,
       configurable: action.actionType === 'none',
