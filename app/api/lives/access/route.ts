@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+const ACCESS_MAX_AGE = 60 * 60 * 24 * 7
+
 export async function POST(request: NextRequest){
   const body=await request.json().catch(()=>null) as {slug?:string;email?:string}|null
   const slug=String(body?.slug||'').trim().toLowerCase()
@@ -12,7 +14,7 @@ export async function POST(request: NextRequest){
   const access=data?.[0]
   if(!access)return NextResponse.json({error:'Accès refusé. Cette adresse e-mail n’est pas autorisée pour ce Live.'},{status:403})
   const response=NextResponse.json({live:{id:access.live_id,title:access.title,description:access.description,scheduled_at:access.scheduled_at,timezone:access.timezone,stream_provider:access.stream_provider,stream_id:access.stream_id}})
-  response.cookies.set(`conik_live_${slug}`,access.access_token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:60*60*12})
+  response.cookies.set(`conik_live_${slug}`,access.access_token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:ACCESS_MAX_AGE})
   return response
 }
 
