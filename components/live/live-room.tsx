@@ -33,48 +33,20 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
 
   async function requestMediaPermissions() {
     if (!host) return true
-    if (!window.isSecureContext) {
-      setMediaMessage('La caméra et le microphone nécessitent une connexion HTTPS.')
-      return false
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setMediaMessage('Ce navigateur ne permet pas l’accès à la caméra et au microphone. Utilisez Chrome, Edge, Safari ou Firefox récent.')
-      return false
-    }
-    setRequestingPermissions(true)
-    setMediaMessage('')
-    let audioGranted = false
-    let videoGranted = false
+    if (!window.isSecureContext) { setMediaMessage('La caméra et le microphone nécessitent une connexion HTTPS.'); return false }
+    if (!navigator.mediaDevices?.getUserMedia) { setMediaMessage('Ce navigateur ne permet pas l’accès à la caméra et au microphone. Utilisez un navigateur récent.'); return false }
+    setRequestingPermissions(true); setMediaMessage('')
+    let audioGranted = false, videoGranted = false
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      audioGranted = stream.getAudioTracks().length > 0
-      videoGranted = stream.getVideoTracks().length > 0
+      audioGranted = stream.getAudioTracks().length > 0; videoGranted = stream.getVideoTracks().length > 0
       stream.getTracks().forEach(track => track.stop())
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        setMediaMessage('Autorisation caméra/micro refusée. Appuyez sur l’icône de réglages du site dans le navigateur et mettez Caméra et Microphone sur « Autoriser », puis réessayez.')
-      }
-      try {
-        const audio = await navigator.mediaDevices.getUserMedia({ audio: true })
-        audioGranted = audio.getAudioTracks().length > 0
-        audio.getTracks().forEach(track => track.stop())
-      } catch (error) {
-        setMicStatus('denied')
-        setMediaMessage(current => current || mediaErrorMessage(error, 'microphone'))
-      }
-      try {
-        const video = await navigator.mediaDevices.getUserMedia({ video: true })
-        videoGranted = video.getVideoTracks().length > 0
-        video.getTracks().forEach(track => track.stop())
-      } catch (error) {
-        setCameraStatus('denied')
-        setMediaMessage(current => current || mediaErrorMessage(error, 'camera'))
-      }
-    } finally {
-      setRequestingPermissions(false)
-    }
-    if (audioGranted) setMicStatus('ready')
-    if (videoGranted) setCameraStatus('ready')
+      if (error instanceof DOMException && error.name === 'NotAllowedError') setMediaMessage('Autorisation caméra/micro refusée. Autorisez Caméra et Microphone pour Conik dans les réglages du navigateur, puis réessayez.')
+      try { const audio = await navigator.mediaDevices.getUserMedia({ audio: true }); audioGranted = audio.getAudioTracks().length > 0; audio.getTracks().forEach(track => track.stop()) } catch (error) { setMicStatus('denied'); setMediaMessage(current => current || mediaErrorMessage(error, 'microphone')) }
+      try { const video = await navigator.mediaDevices.getUserMedia({ video: true }); videoGranted = video.getVideoTracks().length > 0; video.getTracks().forEach(track => track.stop()) } catch (error) { setCameraStatus('denied'); setMediaMessage(current => current || mediaErrorMessage(error, 'camera')) }
+    } finally { setRequestingPermissions(false) }
+    if (audioGranted) setMicStatus('ready'); if (videoGranted) setCameraStatus('ready')
     return audioGranted || videoGranted
   }
 
@@ -84,135 +56,49 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     roomRef.current = room
     const attach = (track: any, container: HTMLDivElement | null) => {
       if (!container || !track || track.kind !== Track.Kind.Video) return
-      const element = track.attach()
-      element.style.width = '100%'
-      element.style.height = '100%'
-      element.style.objectFit = 'contain'
-      element.style.borderRadius = '12px'
-      container.appendChild(element)
+      const element = track.attach(); element.style.width = '100%'; element.style.height = '100%'; element.style.objectFit = 'contain'; element.style.borderRadius = '12px'; container.appendChild(element)
     }
     const getContainer = (source: Track.Source, local = false) => source === Track.Source.ScreenShare ? screenRef.current : local ? localRef.current : remoteRef.current
     room.on(RoomEvent.TrackSubscribed, (track, publication) => attach(track, getContainer(publication.source)))
     room.on(RoomEvent.TrackUnsubscribed, track => track.detach().forEach(el => el.remove()))
-    room.on(RoomEvent.LocalTrackPublished, publication => {
-      if (publication.track && host) attach(publication.track, getContainer(publication.source, true))
-    })
-    room.on(RoomEvent.LocalTrackUnpublished, publication => {
-      if (publication.track) publication.track.detach().forEach(el => el.remove())
-    })
-
+    room.on(RoomEvent.LocalTrackPublished, publication => { if (publication.track && host) attach(publication.track, getContainer(publication.source, true)) })
+    room.on(RoomEvent.LocalTrackUnpublished, publication => { if (publication.track) publication.track.detach().forEach(el => el.remove()) })
     ;(async () => {
       try {
         const response = await fetch(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tokenBody) })
-        const data = await response.json().catch(() => ({}))
-        if (!response.ok) throw new Error(data.error || 'Impossible de préparer la connexion.')
-        await room.connect(data.url, data.token)
-        if (cancelled) return
-        setState('connected')
-        setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
-
+        const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || 'Impossible de préparer la connexion.')
+        await room.connect(data.url, data.token); if (cancelled) return
+        setState('connected'); setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
         if (host) {
-          try {
-            await room.localParticipant.setMicrophoneEnabled(true)
-            if (!cancelled) { setMic(true); setMicStatus('ready') }
-          } catch (error) {
-            if (!cancelled) { setMic(false); setMicStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'microphone')) }
-          }
-          try {
-            await room.localParticipant.setCameraEnabled(true)
-            if (!cancelled) { setCamera(true); setCameraStatus('ready') }
-          } catch (error) {
-            if (!cancelled) { setCamera(false); setCameraStatus('denied'); setMediaMessage(current => current || mediaErrorMessage(error, 'camera')) }
-          }
+          try { await room.localParticipant.setMicrophoneEnabled(true); if (!cancelled) { setMic(true); setMicStatus('ready') } } catch (error) { if (!cancelled) { setMic(false); setMicStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'microphone')) } }
+          try { await room.localParticipant.setCameraEnabled(true); if (!cancelled) { setCamera(true); setCameraStatus('ready') } } catch (error) { if (!cancelled) { setCamera(false); setCameraStatus('denied'); setMediaMessage(current => current || mediaErrorMessage(error, 'camera')) } }
         }
-      } catch (error) {
-        if (!cancelled) { setState('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') }
-      }
+      } catch (error) { if (!cancelled) { setState('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') } }
     })()
-
-    return () => {
-      cancelled = true
-      screenTrackRef.current?.stop()
-      screenTrackRef.current = null
-      room.disconnect()
-    }
+    return () => { cancelled = true; screenTrackRef.current?.stop(); screenTrackRef.current = null; room.disconnect() }
   }, [tokenUrl, JSON.stringify(tokenBody), host])
 
   async function toggleMic() {
-    const room = roomRef.current
-    if (!room || !host) return
-    const next = !mic
-    try {
-      if (next) {
-        const permitted = await requestMediaPermissions()
-        if (!permitted) return
-      }
-      await room.localParticipant.setMicrophoneEnabled(next)
-      setMic(next)
-      setMicStatus(next ? 'ready' : 'idle')
-      if (next) setMediaMessage('')
-    } catch (error) {
-      setMic(false)
-      setMicStatus('denied')
-      setMediaMessage(mediaErrorMessage(error, 'microphone'))
-    }
+    const room = roomRef.current; if (!room || !host) return; const next = !mic
+    try { if (next && !(await requestMediaPermissions())) return; await room.localParticipant.setMicrophoneEnabled(next); setMic(next); setMicStatus(next ? 'ready' : 'idle'); if (next) setMediaMessage('') } catch (error) { setMic(false); setMicStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'microphone')) }
   }
-
   async function toggleCamera() {
-    const room = roomRef.current
-    if (!room || !host) return
-    const next = !camera
-    try {
-      if (next) {
-        const permitted = await requestMediaPermissions()
-        if (!permitted) return
-      }
-      await room.localParticipant.setCameraEnabled(next)
-      setCamera(next)
-      setCameraStatus(next ? 'ready' : 'idle')
-      if (next) setMediaMessage('')
-    } catch (error) {
-      setCamera(false)
-      setCameraStatus('denied')
-      setMediaMessage(mediaErrorMessage(error, 'camera'))
-    }
+    const room = roomRef.current; if (!room || !host) return; const next = !camera
+    try { if (next && !(await requestMediaPermissions())) return; await room.localParticipant.setCameraEnabled(next); setCamera(next); setCameraStatus(next ? 'ready' : 'idle'); if (next) setMediaMessage('') } catch (error) { setCamera(false); setCameraStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'camera')) }
   }
-
   async function toggleScreenShare() {
-    const room = roomRef.current
-    if (!room || !host) return
-    if (screenShare) {
-      try {
-        await room.localParticipant.setScreenShareEnabled(false)
-        screenTrackRef.current?.stop()
-        screenTrackRef.current = null
-        setScreenShare(false)
-        setMediaMessage('')
-      } catch (error) {
-        setMediaMessage(mediaErrorMessage(error, 'screen'))
-      }
-      return
-    }
+    const room = roomRef.current; if (!room || !host) return
+    if (screenShare) { try { await room.localParticipant.setScreenShareEnabled(false); screenTrackRef.current?.stop(); screenTrackRef.current = null; setScreenShare(false); setMediaMessage('') } catch (error) { setMediaMessage(mediaErrorMessage(error, 'screen')) }; return }
     try {
       if (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia) throw new Error('DISPLAY_CAPTURE_UNSUPPORTED')
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
-      const mediaStreamTrack = stream.getVideoTracks()[0]
-      if (!mediaStreamTrack) throw new Error('DISPLAY_CAPTURE_UNAVAILABLE')
-      const localTrack = new LocalVideoTrack(mediaStreamTrack, true)
+      const mediaStreamTrack = stream.getVideoTracks()[0]; if (!mediaStreamTrack) throw new Error('DISPLAY_CAPTURE_UNAVAILABLE')
+      const localTrack = new LocalVideoTrack(mediaStreamTrack)
       await room.localParticipant.publishTrack(localTrack, { source: Track.Source.ScreenShare, name: 'Conik screen share' })
       screenTrackRef.current = localTrack
-      mediaStreamTrack.addEventListener('ended', () => {
-        void room.localParticipant.unpublishTrack(mediaStreamTrack, true)
-        localTrack.stop()
-        screenTrackRef.current = null
-        setScreenShare(false)
-      })
-      setScreenShare(true)
-      setMediaMessage('')
-    } catch (error) {
-      setScreenShare(false)
-      setMediaMessage(error instanceof Error && error.message.startsWith('DISPLAY_CAPTURE') ? 'Le partage d’écran n’est pas disponible dans ce navigateur. Utilisez un navigateur compatible et HTTPS.' : mediaErrorMessage(error, 'screen'))
-    }
+      mediaStreamTrack.addEventListener('ended', () => { void room.localParticipant.unpublishTrack(localTrack); localTrack.stop(); screenTrackRef.current = null; setScreenShare(false) })
+      setScreenShare(true); setMediaMessage('')
+    } catch (error) { setScreenShare(false); setMediaMessage(error instanceof Error && error.message.startsWith('DISPLAY_CAPTURE') ? 'Le partage d’écran n’est pas disponible dans ce navigateur. Utilisez un navigateur compatible et HTTPS.' : mediaErrorMessage(error, 'screen')) }
   }
 
   return <div style={{ display: 'grid', gap: 12 }}>
