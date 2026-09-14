@@ -10,9 +10,9 @@ export async function POST(request: NextRequest){
   const {data,error}=await supabase.rpc('request_live_access',{p_slug:slug,p_email:email})
   if(error){console.error('live access error',error);return NextResponse.json({error:'Impossible de vérifier l’accès.'},{status:500})}
   const access=data?.[0]
-  if(!access) return NextResponse.json({error:'Accès refusé. Cette adresse e-mail n’est pas autorisée pour ce Live.'},{status:403})
+  if(!access)return NextResponse.json({error:'Accès refusé. Cette adresse e-mail n’est pas autorisée pour ce Live.'},{status:403})
   const response=NextResponse.json({live:{id:access.live_id,title:access.title,description:access.description,scheduled_at:access.scheduled_at,timezone:access.timezone,stream_provider:access.stream_provider,stream_id:access.stream_id}})
-  response.cookies.set(`conik_live_${slug}`,access.access_token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:`/live/${slug}`,maxAge:60*60*12})
+  response.cookies.set(`conik_live_${slug}`,access.access_token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:60*60*12})
   return response
 }
 
