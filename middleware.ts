@@ -5,7 +5,7 @@ import { getSupabaseConfig } from './lib/supabase/config'
 const PUBLIC_EXACT_PATHS = new Set(['/','/login','/signup'])
 const PUBLIC_PREFIXES = [
   '/auth/','/api/funnels/public','/api/funnels/capture','/api/events/','/api/whatsapp/webhook',
-  '/api/lives/access','/api/lives/token','/r/','/live/',
+  '/api/lives/access','/api/lives/token','/api/lives/chat','/r/','/live/',
 ]
 const PUBLIC_FUNNEL_RESERVED = new Set([
   'dashboard','login','signup','auth','onboarding','funnels','contacts','campaigns','automations','whatsapp','emails','links','analytics','domains','settings','integrations','api','_next','r','segments','lives','live',
