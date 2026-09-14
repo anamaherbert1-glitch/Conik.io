@@ -1,0 +1,3 @@
+interface Boolean {
+  id?: string
+}
