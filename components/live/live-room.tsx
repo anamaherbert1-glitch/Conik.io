@@ -7,14 +7,16 @@ type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boole
 
 type MediaStatus = 'idle' | 'ready' | 'denied' | 'error'
 
-function mediaErrorMessage(error: unknown, device: 'camera' | 'microphone') {
+function mediaErrorMessage(error: unknown, device: 'camera' | 'microphone' | 'screen') {
   const name = error instanceof DOMException ? error.name : ''
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    if (device === 'screen') return 'Le partage d’écran a été refusé. Autorisez le partage dans la fenêtre du navigateur puis réessayez.'
     return `${device === 'camera' ? 'La caméra' : 'Le microphone'} est refusé. Autorisez ${device === 'camera' ? 'la caméra' : 'le microphone'} pour Conik dans votre navigateur, puis appuyez sur « Réessayer ».`
   }
-  if (name === 'NotFoundError') return `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n'a été trouvé sur cet appareil.`
-  if (name === 'NotReadableError') return `Le ${device === 'camera' ? 'caméra' : 'microphone'} est déjà utilisé par une autre application.`
+  if (name === 'NotFoundError') return device === 'screen' ? 'Aucun écran ou fenêtre disponible pour le partage.' : `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n'a été trouvé sur cet appareil.`
+  if (name === 'NotReadableError') return device === 'screen' ? 'Le partage d’écran ne peut pas démarrer actuellement.' : `Le ${device === 'camera' ? 'caméra' : 'microphone'} est déjà utilisé par une autre application.`
   if (name === 'SecurityError') return 'Le navigateur bloque les périphériques. Ouvrez Conik avec HTTPS.'
+  if (device === 'screen') return 'Impossible de démarrer le partage d’écran. Vérifiez les autorisations du navigateur puis réessayez.'
   return `Impossible d'accéder à ${device === 'camera' ? 'la caméra' : 'le microphone'}. Vérifiez les autorisations puis réessayez.`
 }
 
@@ -24,10 +26,12 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const [mediaMessage, setMediaMessage] = useState('')
   const [mic, setMic] = useState(false)
   const [camera, setCamera] = useState(false)
+  const [screenShare, setScreenShare] = useState(false)
   const [micStatus, setMicStatus] = useState<MediaStatus>('idle')
   const [cameraStatus, setCameraStatus] = useState<MediaStatus>('idle')
   const [requestingPermissions, setRequestingPermissions] = useState(false)
   const localRef = useRef<HTMLDivElement>(null)
+  const screenRef = useRef<HTMLDivElement>(null)
   const remoteRef = useRef<HTMLDivElement>(null)
   const roomRef = useRef<Room | null>(null)
 
@@ -47,7 +51,6 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
       videoGranted = stream.getVideoTracks().length > 0
       stream.getTracks().forEach((track) => track.stop())
     } catch (error) {
-      // Request each device independently so a denied camera does not block the microphone and vice versa.
       try {
         const audio = await navigator.mediaDevices.getUserMedia({ audio: true })
         audioGranted = audio.getAudioTracks().length > 0
@@ -64,7 +67,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
         setCameraStatus('denied')
         setMediaMessage((current) => current || mediaErrorMessage(videoError, 'camera'))
       }
-      if (!audioGranted && !videoGranted && !mediaMessage) setMediaMessage(mediaErrorMessage(error, 'microphone'))
+      if (!audioGranted && !videoGranted) setMediaMessage((current) => current || mediaErrorMessage(error, 'microphone'))
     } finally {
       setRequestingPermissions(false)
     }
@@ -84,15 +87,23 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
       const element = track.attach()
       element.style.width = '100%'
       element.style.height = '100%'
-      element.style.objectFit = 'cover'
+      element.style.objectFit = 'contain'
       element.style.borderRadius = '12px'
       container.appendChild(element)
     }
 
-    room.on(RoomEvent.TrackSubscribed, (track) => attach(track, remoteRef.current))
+    const getContainer = (source: Track.Source, local = false) => {
+      if (source === Track.Source.ScreenShare) return screenRef.current
+      return local ? localRef.current : remoteRef.current
+    }
+
+    room.on(RoomEvent.TrackSubscribed, (track, publication) => attach(track, getContainer(publication.source)))
     room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach((el) => el.remove()))
     room.on(RoomEvent.LocalTrackPublished, (publication) => {
-      if (publication.track && host) attach(publication.track, localRef.current)
+      if (publication.track && host) attach(publication.track, getContainer(publication.source, true))
+    })
+    room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
+      if (publication.track) publication.track.detach().forEach((el) => el.remove())
     })
 
     const enableHostMedia = async () => {
@@ -121,7 +132,6 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
 
     ;(async () => {
       try {
-        // Ask before connecting so the browser permission prompt appears as soon as the studio opens.
         if (host) await requestMediaPermissions()
 
         const response = await fetch(tokenUrl, {
@@ -181,6 +191,26 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     }
   }
 
+  async function toggleScreenShare() {
+    const room = roomRef.current
+    if (!room || !host) return
+    const next = !screenShare
+    try {
+      await room.localParticipant.setScreenShareEnabled(next, {
+        audio: false,
+        contentHint: 'detail',
+        video: { displaySurface: 'monitor' },
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+      })
+      setScreenShare(next)
+      setMediaMessage('')
+    } catch (error) {
+      setScreenShare(false)
+      setMediaMessage(mediaErrorMessage(error, 'screen'))
+    }
+  }
+
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ position: 'relative', minHeight: 480, borderRadius: 14, overflow: 'hidden', background: '#090a0f', border: '1px solid var(--line)' }}>
@@ -189,6 +219,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
           {state === 'connected' && !host && <div style={{ color: '#fff', textAlign: 'center', padding: 24, opacity: 0.75 }}>En attente de la vidéo du créateur…</div>}
         </div>
         {host && <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: 220, height: 130, zIndex: 2, background: '#171922', borderRadius: 12, overflow: 'hidden' }} />}
+        {host && <div ref={screenRef} style={{ position: 'absolute', left: 16, top: 16, right: 16, bottom: 16, zIndex: 1, pointerEvents: 'none' }} />}
       </div>
 
       {state === 'connected' && host && (
@@ -197,6 +228,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="outline" onClick={toggleMic}>{mic ? 'Couper le micro' : 'Activer le micro'}</button>
             <button className="outline" onClick={toggleCamera}>{camera ? 'Couper la caméra' : 'Activer la caméra'}</button>
+            <button className="outline" onClick={toggleScreenShare}>{screenShare ? 'Arrêter le partage' : 'Partager mon écran'}</button>
             <button className="outline" onClick={() => void requestMediaPermissions()} disabled={requestingPermissions}>
               {requestingPermissions ? 'Demande en cours…' : 'Autoriser caméra + micro'}
             </button>
@@ -206,6 +238,9 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
               Si vous avez déjà refusé, ouvrez les autorisations du site dans le navigateur et mettez Caméra et Microphone sur « Autoriser », puis réessayez.
             </div>
           )}
+          <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.7 }}>
+            Le bouton « Partager mon écran » permet de choisir un écran, une fenêtre ou un onglet lorsque le navigateur le propose. La caméra peut rester active en même temps.
+          </div>
         </div>
       )}
 
