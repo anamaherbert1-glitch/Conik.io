@@ -16,11 +16,11 @@ const schema = z.object({ pageId: z.string().uuid() })
 
 function extractInlineScripts(html: string) {
   const scripts: string[] = []
-  const clean = html.replace(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi, (_whole, body: string) => {
+  const clean = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, (_whole, body: string) => {
     if (body.trim()) scripts.push(body.trim())
     return ''
   })
-  return { html: clean, js: scripts.join('\\n\\n') }
+  return { html: clean, js: scripts.join('\n\n') }
 }
 
 async function getAuthorizedPage(request: NextRequest) {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const { data: funnel, error: funnelError } = await supabase.from('funnels').select('id,organization_id,slug').eq('id', page.funnel_id).single()
     if (funnelError || !funnel || funnel.organization_id !== organization.id) return NextResponse.json({ error: 'Tunnel introuvable ou accès refusé.' }, { status: 403 })
 
-    const isZip = /\\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed'
+    const isZip = /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed'
     let rawHtml = ''
     let css = ''
     let js = ''
@@ -77,24 +77,24 @@ export async function POST(request: NextRequest) {
 
     if (isZip) {
       const entries = await parseZip(Buffer.from(await file.arrayBuffer()))
-      const htmlEntry = entries.find(e => /\\.html?$/i.test(e.name))
+      const htmlEntry = entries.find(e => /\.html?$/i.test(e.name))
       if (!htmlEntry) return NextResponse.json({ error: 'Aucun fichier HTML trouvé dans le ZIP.' }, { status: 400 })
       if (htmlEntry.data.length > MAX_HTML_BYTES) return NextResponse.json({ error: 'Le fichier HTML dépasse 5 Mo.' }, { status: 413 })
       const cssByPath = new Map<string, string>()
       const jsByPath: string[] = []
       for (const entry of entries) {
-        if (/\\.css$/i.test(entry.name)) {
+        if (/\.css$/i.test(entry.name)) {
           try { cssByPath.set(entry.name, textFrom(entry.data, MAX_HTML_BYTES)) } catch {}
         }
-        if (/\\.js$/i.test(entry.name)) {
-          try { jsByPath.push(`/* ${entry.name} */\\n${textFrom(entry.data, MAX_HTML_BYTES)}`) } catch {}
+        if (/\.js$/i.test(entry.name)) {
+          try { jsByPath.push(`/* ${entry.name} */\n${textFrom(entry.data, MAX_HTML_BYTES)}`) } catch {}
         }
       }
       const assets = entries.filter(e => e.name !== htmlEntry.name && assetMime(e.name)).slice(0, MAX_ASSETS)
       const { url: supabaseUrl } = getSupabaseConfig()
       for (const entry of assets) {
         const mime = assetMime(entry.name)!
-        const safeName = entry.name.replace(/[^a-zA-Z0-9._/-]/g, '-').replace(/\\/{2,}/g, '/').replace(/^\\/+/, '')
+        const safeName = entry.name.replace(/[^a-zA-Z0-9._/-]/g, '-').replace(/\/{2,}/g, '/').replace(/^\/+/, '')
         if (!safeName || safeName.includes('..')) throw new Error(`Chemin d'asset non sûr : ${entry.name}`)
         const path = `${organization.id}/${funnel.id}/${page.id}/${safeName}`
         const upload = await supabase.storage.from('funnel-assets').upload(path, Buffer.from(entry.data), { contentType: mime, upsert: true })
@@ -109,10 +109,10 @@ export async function POST(request: NextRequest) {
       const withStyles = extractStyles(raw, htmlEntry.name, cssPath => { const body = cssByPath.get(cssPath); return body === undefined ? null : rewriteCssUrls(body, cssPath, p => assetUrls.get(p) || null) })
       rawHtml = rewriteHtmlRefs(extractBody(withStyles.html), htmlEntry.name, p => assetUrls.get(p) || null, p => `/${funnel.slug}/${page.slug}`)
       css = rewriteCssUrls(withStyles.css, htmlEntry.name, p => assetUrls.get(p) || null)
-      js = [extractedScript.js, ...jsByPath].filter(Boolean).join('\\n\\n')
+      js = [extractedScript.js, ...jsByPath].filter(Boolean).join('\n\n')
       sourceName = htmlEntry.name
     } else {
-      if (!/\\.html?$/i.test(file.name) && file.type !== 'text/html') return NextResponse.json({ error: 'Envoyez un fichier .html ou un fichier .zip contenant un HTML.' }, { status: 400 })
+      if (!/\.html?$/i.test(file.name) && file.type !== 'text/html') return NextResponse.json({ error: 'Envoyez un fichier .html ou un fichier .zip contenant un HTML.' }, { status: 400 })
       if (file.size > MAX_HTML_BYTES) return NextResponse.json({ error: 'Le fichier HTML dépasse 5 Mo.' }, { status: 413 })
       const source = textFrom(Buffer.from(await file.arrayBuffer()), MAX_HTML_BYTES)
       const extractedScript = extractInlineScripts(source)
