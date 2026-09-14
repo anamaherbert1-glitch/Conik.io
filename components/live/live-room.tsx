@@ -6,18 +6,34 @@ import { Room, RoomEvent, Track } from 'livekit-client'
 type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean }
 type MediaStatus = 'idle' | 'ready' | 'denied' | 'error'
 
+function isEmbeddedBrowser() {
+  const ua = navigator.userAgent || ''
+  return /FBAN|FBAV|Instagram|Line\/|Twitter|TikTok|wv\)|; wv\)|WhatsApp/i.test(ua) ||
+    (/(Android)/i.test(ua) && /; wv\)/i.test(ua))
+}
+
 function mediaErrorMessage(error: unknown, device: 'camera' | 'microphone' | 'screen') {
   const name = error instanceof DOMException ? error.name : ''
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return device === 'screen' ? 'Le navigateur a refusé le partage d’écran. Autorisez le partage d’écran pour Conik et réessayez.' : `Accès ${device === 'camera' ? 'à la caméra' : 'au microphone'} refusé. Autorisez ${device === 'camera' ? 'la caméra' : 'le microphone'} pour Conik dans les réglages du navigateur.`
-  if (name === 'NotFoundError') return device === 'screen' ? 'Aucun écran, fenêtre ou onglet partageable n’est disponible.' : `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n’a été trouvé.`
+  if (device === 'screen') {
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return 'Le partage d’écran a été refusé ou annulé. Autorisez le partage lorsque le navigateur affiche sa fenêtre de sélection, puis réessayez.'
+    if (name === 'AbortError') return 'La fenêtre de partage d’écran a été fermée. Appuyez de nouveau sur « Partager mon écran » et sélectionnez un écran, une fenêtre ou un onglet.'
+    if (name === 'InvalidStateError') return 'Le partage d’écran doit être lancé directement depuis le bouton du Live. Réessayez depuis « Partager mon écran ».'
+    if (name === 'NotSupportedError' || name === 'TypeError') return 'Ce navigateur ne permet pas le partage d’écran dans cette page. Ouvrez le Live directement dans Chrome, Edge ou Firefox, de préférence sur ordinateur.'
+    if (name === 'SecurityError') return 'Le navigateur bloque le partage d’écran. Vérifiez que vous utilisez l’adresse HTTPS de Conik directement, et non une page intégrée dans une autre application.'
+    return 'Le partage d’écran n’a pas pu démarrer. Vérifiez le navigateur et les autorisations, puis réessayez.'
+  }
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return `Accès ${device === 'camera' ? 'à la caméra' : 'au microphone'} refusé. Autorisez ${device === 'camera' ? 'la caméra' : 'le microphone'} pour Conik dans les réglages du navigateur.`
+  if (name === 'NotFoundError') return `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n’a été trouvé.`
   if (name === 'NotReadableError' || name === 'TrackStartError') return `Le ${device === 'camera' ? 'caméra' : 'microphone'} est déjà utilisé par une autre application.`
-  if (name === 'SecurityError') return 'Le navigateur bloque le partage d’écran. Ouvrez Conik directement avec HTTPS, et non dans un navigateur intégré à une autre application.'
-  return device === 'screen' ? 'Le partage d’écran n’a pas pu démarrer. Utilisez Chrome, Edge ou Firefox dans un onglet HTTPS normal.' : `Impossible d’accéder à ${device === 'camera' ? 'la caméra' : 'au microphone'}.`
+  if (name === 'SecurityError') return 'Le navigateur bloque l’accès aux appareils. Ouvrez Conik directement avec HTTPS.'
+  return `Impossible d’accéder à ${device === 'camera' ? 'la caméra' : 'au microphone'}.`
 }
 
 function screenShareSupportMessage() {
-  if (!window.isSecureContext) return 'Le partage d’écran nécessite HTTPS. Ouvrez le lien Conik directement dans Chrome, Edge ou Firefox.'
-  if (!navigator.mediaDevices?.getDisplayMedia) return 'Le partage d’écran n’est pas pris en charge par ce navigateur. Ouvrez Conik dans Chrome, Edge ou Firefox sur un navigateur normal, pas dans le navigateur intégré de WhatsApp, Facebook ou une autre application.'
+  if (!window.isSecureContext) return 'Partage d’écran indisponible : cette page n’est pas en HTTPS. Ouvrez le lien Conik HTTPS directement.'
+  if (window.top !== window.self) return 'Partage d’écran indisponible : le Live est ouvert dans une page intégrée. Ouvrez le lien Conik directement dans votre navigateur.'
+  if (isEmbeddedBrowser()) return 'Partage d’écran indisponible dans ce navigateur intégré. Ouvrez le lien du Live directement dans Chrome, Edge ou Firefox.'
+  if (!navigator.mediaDevices?.getDisplayMedia) return 'Partage d’écran indisponible sur ce navigateur. Utilisez une version récente de Chrome, Edge ou Firefox.'
   return ''
 }
 
@@ -28,6 +44,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const [mic, setMic] = useState(false)
   const [camera, setCamera] = useState(false)
   const [screenShare, setScreenShare] = useState(false)
+  const [screenShareAvailable, setScreenShareAvailable] = useState(true)
   const [micStatus, setMicStatus] = useState<MediaStatus>('idle')
   const [cameraStatus, setCameraStatus] = useState<MediaStatus>('idle')
   const [requestingPermissions, setRequestingPermissions] = useState(false)
@@ -35,6 +52,13 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const screenRef = useRef<HTMLDivElement>(null)
   const remoteRef = useRef<HTMLDivElement>(null)
   const roomRef = useRef<Room | null>(null)
+
+  useEffect(() => {
+    if (!host) return
+    const supportError = screenShareSupportMessage()
+    setScreenShareAvailable(!supportError)
+    if (supportError) setMediaMessage(supportError)
+  }, [host])
 
   async function requestMediaPermissions() {
     if (!host) return true
@@ -102,11 +126,9 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     }
 
     const supportError = screenShareSupportMessage()
-    if (supportError) { setMediaMessage(supportError); return }
+    if (supportError) { setScreenShareAvailable(false); setMediaMessage(supportError); return }
 
     try {
-      // Let LiveKit create and publish the browser-native screen track.
-      // This keeps the capture lifecycle synchronized with the LiveKit publication.
       await room.localParticipant.setScreenShareEnabled(true, {
         audio: false,
         video: true,
@@ -114,6 +136,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
         surfaceSwitching: 'include',
       })
       setScreenShare(true)
+      setScreenShareAvailable(true)
       setMediaMessage('')
     } catch (error) {
       setScreenShare(false)
@@ -135,7 +158,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
         <button className="outline" onClick={toggleMic}>{mic ? 'Couper le micro' : 'Activer le micro'}</button>
         <button className="outline" onClick={toggleCamera}>{camera ? 'Couper la caméra' : 'Activer la caméra'}</button>
-        <button className="outline" onClick={toggleScreenShare}>{screenShare ? 'Arrêter le partage' : 'Partager mon écran'}</button>
+        <button className="outline" onClick={toggleScreenShare} disabled={!screenShareAvailable && !screenShare}>{screenShare ? 'Arrêter le partage' : 'Partager mon écran'}</button>
         <button className="outline" onClick={() => void requestMediaPermissions()} disabled={requestingPermissions}>{requestingPermissions ? 'Demande en cours…' : 'Autoriser caméra + micro'}</button>
       </div>
       {(micStatus === 'denied' || cameraStatus === 'denied') && <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.75 }}>Si vous avez déjà refusé l’accès, ouvrez les autorisations du site dans le navigateur, mettez Caméra et Microphone sur « Autoriser », puis appuyez sur « Autoriser caméra + micro ».</div>}
