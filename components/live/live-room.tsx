@@ -7,6 +7,17 @@ type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boole
 
 type MediaStatus = 'idle' | 'ready' | 'denied' | 'error'
 
+function mediaErrorMessage(error: unknown, device: 'camera' | 'microphone') {
+  const name = error instanceof DOMException ? error.name : ''
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return `${device === 'camera' ? 'La caméra' : 'Le microphone'} est refusé. Autorisez ${device === 'camera' ? 'la caméra' : 'le microphone'} pour Conik dans votre navigateur, puis appuyez sur « Réessayer ».`
+  }
+  if (name === 'NotFoundError') return `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n'a été trouvé sur cet appareil.`
+  if (name === 'NotReadableError') return `Le ${device === 'camera' ? 'caméra' : 'microphone'} est déjà utilisé par une autre application.`
+  if (name === 'SecurityError') return 'Le navigateur bloque les périphériques. Ouvrez Conik avec HTTPS.'
+  return `Impossible d'accéder à ${device === 'camera' ? 'la caméra' : 'le microphone'}. Vérifiez les autorisations puis réessayez.`
+}
+
 export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const [state, setState] = useState<'loading' | 'connected' | 'error'>('loading')
   const [message, setMessage] = useState('Connexion au Live…')
@@ -15,9 +26,53 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const [camera, setCamera] = useState(false)
   const [micStatus, setMicStatus] = useState<MediaStatus>('idle')
   const [cameraStatus, setCameraStatus] = useState<MediaStatus>('idle')
+  const [requestingPermissions, setRequestingPermissions] = useState(false)
   const localRef = useRef<HTMLDivElement>(null)
   const remoteRef = useRef<HTMLDivElement>(null)
   const roomRef = useRef<Room | null>(null)
+
+  // Explicitly ask the browser for camera + microphone permission when the creator opens the studio.
+  // The browser owns the final decision; the application cannot silently grant device access.
+  async function requestMediaPermissions() {
+    if (!host || !navigator.mediaDevices?.getUserMedia) return true
+
+    setRequestingPermissions(true)
+    setMediaMessage('')
+    let audioGranted = false
+    let videoGranted = false
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      audioGranted = stream.getAudioTracks().length > 0
+      videoGranted = stream.getVideoTracks().length > 0
+      stream.getTracks().forEach((track) => track.stop())
+    } catch (error) {
+      // Request each device independently so a denied camera does not block the microphone and vice versa.
+      try {
+        const audio = await navigator.mediaDevices.getUserMedia({ audio: true })
+        audioGranted = audio.getAudioTracks().length > 0
+        audio.getTracks().forEach((track) => track.stop())
+      } catch (audioError) {
+        setMicStatus('denied')
+        setMediaMessage(mediaErrorMessage(audioError, 'microphone'))
+      }
+      try {
+        const video = await navigator.mediaDevices.getUserMedia({ video: true })
+        videoGranted = video.getVideoTracks().length > 0
+        video.getTracks().forEach((track) => track.stop())
+      } catch (videoError) {
+        setCameraStatus('denied')
+        setMediaMessage((current) => current || mediaErrorMessage(videoError, 'camera'))
+      }
+      if (!audioGranted && !videoGranted && !mediaMessage) setMediaMessage(mediaErrorMessage(error, 'microphone'))
+    } finally {
+      setRequestingPermissions(false)
+    }
+
+    if (audioGranted) setMicStatus('ready')
+    if (videoGranted) setCameraStatus('ready')
+    return audioGranted || videoGranted
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -34,50 +89,41 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
       container.appendChild(element)
     }
 
-    room.on(RoomEvent.TrackSubscribed, (track) => {
-      attach(track, track.kind === Track.Kind.Video ? remoteRef.current : remoteRef.current)
-    })
-    room.on(RoomEvent.TrackUnsubscribed, (track) => {
-      track.detach().forEach((el) => el.remove())
-    })
+    room.on(RoomEvent.TrackSubscribed, (track) => attach(track, remoteRef.current))
+    room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach((el) => el.remove()))
     room.on(RoomEvent.LocalTrackPublished, (publication) => {
       if (publication.track && host) attach(publication.track, localRef.current)
     })
 
     const enableHostMedia = async () => {
       if (!host) return
-
       try {
         await room.localParticipant.setMicrophoneEnabled(true)
-        if (!cancelled) {
-          setMic(true)
-          setMicStatus('ready')
-        }
+        if (!cancelled) { setMic(true); setMicStatus('ready') }
       } catch (error) {
         if (!cancelled) {
           setMic(false)
           setMicStatus('denied')
-          setMediaMessage('Microphone refusé. Vous pouvez autoriser le microphone dans les permissions du navigateur puis réessayer.')
+          setMediaMessage(mediaErrorMessage(error, 'microphone'))
         }
       }
-
       try {
         await room.localParticipant.setCameraEnabled(true)
-        if (!cancelled) {
-          setCamera(true)
-          setCameraStatus('ready')
-        }
+        if (!cancelled) { setCamera(true); setCameraStatus('ready') }
       } catch (error) {
         if (!cancelled) {
           setCamera(false)
           setCameraStatus('denied')
-          setMediaMessage((current) => current || 'Caméra refusée. Vous pouvez autoriser la caméra dans les permissions du navigateur puis réessayer.')
+          setMediaMessage((current) => current || mediaErrorMessage(error, 'camera'))
         }
       }
     }
 
     ;(async () => {
       try {
+        // Ask before connecting so the browser permission prompt appears as soon as the studio opens.
+        if (host) await requestMediaPermissions()
+
         const response = await fetch(tokenUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -88,7 +134,6 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
 
         await room.connect(data.url, data.token)
         if (cancelled) return
-
         setState('connected')
         setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
         await enableHostMedia()
@@ -111,14 +156,13 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     if (!room) return
     const next = !mic
     try {
+      if (next) await requestMediaPermissions()
       await room.localParticipant.setMicrophoneEnabled(next)
       setMic(next)
       setMicStatus(next ? 'ready' : 'idle')
       if (next) setMediaMessage('')
-    } catch {
-      setMic(false)
-      setMicStatus('denied')
-      setMediaMessage('Microphone refusé. Vérifiez l’autorisation du microphone dans votre navigateur.')
+    } catch (error) {
+      setMic(false); setMicStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'microphone'))
     }
   }
 
@@ -127,14 +171,13 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     if (!room) return
     const next = !camera
     try {
+      if (next) await requestMediaPermissions()
       await room.localParticipant.setCameraEnabled(next)
       setCamera(next)
       setCameraStatus(next ? 'ready' : 'idle')
       if (next) setMediaMessage('')
-    } catch {
-      setCamera(false)
-      setCameraStatus('denied')
-      setMediaMessage('Caméra refusée. Vérifiez l’autorisation de la caméra dans votre navigateur.')
+    } catch (error) {
+      setCamera(false); setCameraStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'camera'))
     }
   }
 
@@ -142,7 +185,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ position: 'relative', minHeight: 480, borderRadius: 14, overflow: 'hidden', background: '#090a0f', border: '1px solid var(--line)' }}>
         <div ref={remoteRef} style={{ width: '100%', height: '100%', minHeight: 480, display: 'grid', placeItems: 'center' }}>
-          {state !== 'connected' && <div style={{ color: '#fff', textAlign: 'center', padding: 24 }}><b>{message}</b></div>}
+          {state !== 'connected' && <div style={{ color: '#fff', textAlign: 'center', padding: 24 }}><b>{requestingPermissions ? 'Demande d’autorisation caméra et microphone…' : message}</b></div>}
           {state === 'connected' && !host && <div style={{ color: '#fff', textAlign: 'center', padding: 24, opacity: 0.75 }}>En attente de la vidéo du créateur…</div>}
         </div>
         {host && <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: 220, height: 130, zIndex: 2, background: '#171922', borderRadius: 12, overflow: 'hidden' }} />}
@@ -154,10 +197,13 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="outline" onClick={toggleMic}>{mic ? 'Couper le micro' : 'Activer le micro'}</button>
             <button className="outline" onClick={toggleCamera}>{camera ? 'Couper la caméra' : 'Activer la caméra'}</button>
+            <button className="outline" onClick={() => void requestMediaPermissions()} disabled={requestingPermissions}>
+              {requestingPermissions ? 'Demande en cours…' : 'Autoriser caméra + micro'}
+            </button>
           </div>
           {(micStatus === 'denied' || cameraStatus === 'denied') && (
             <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.75 }}>
-              Le studio reste accessible même si la caméra ou le microphone sont refusés.
+              Si vous avez déjà refusé, ouvrez les autorisations du site dans le navigateur et mettez Caméra et Microphone sur « Autoriser », puis réessayez.
             </div>
           )}
         </div>
