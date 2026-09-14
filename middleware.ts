@@ -2,10 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseConfig } from './lib/supabase/config'
 
-const PUBLIC_EXACT_PATHS = new Set(['/', '/login', '/signup'])
+const PUBLIC_EXACT_PATHS = new Set(['/','/login','/signup'])
 const PUBLIC_PREFIXES = [
-  '/auth/', '/api/funnels/public', '/api/funnels/capture', '/api/events/', '/api/whatsapp/webhook',
-  '/api/lives/access', '/r/', '/live/',
+  '/auth/','/api/funnels/public','/api/funnels/capture','/api/events/','/api/whatsapp/webhook',
+  '/api/lives/access','/api/lives/token','/r/','/live/',
 ]
 const PUBLIC_FUNNEL_RESERVED = new Set([
   'dashboard','login','signup','auth','onboarding','funnels','contacts','campaigns','automations','whatsapp','emails','links','analytics','domains','settings','integrations','api','_next','r','segments','lives','live',
@@ -13,7 +13,6 @@ const PUBLIC_FUNNEL_RESERVED = new Set([
 const PLATFORM_HOSTS = new Set([
   'conik-io.vercel.app','conik-io-anamaherbert1-glitchs-projects.vercel.app','conik-io-git-main-anamaherbert1-glitchs-projects.vercel.app','conik.io','www.conik.io',
 ])
-
 function isPublicPath(pathname:string){
   if(PUBLIC_EXACT_PATHS.has(pathname))return true
   if(PUBLIC_PREFIXES.some(prefix=>pathname.startsWith(prefix)))return true
