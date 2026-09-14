@@ -14,10 +14,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!live) return NextResponse.json({ error: 'Live introuvable.' }, { status: 404 })
   if (live.status === 'cancelled') return NextResponse.json({ error: 'Ce Live est annulé.' }, { status: 409 })
   const room = live.stream_id || `conik-live-${live.id}`
-  if (!live.stream_id) {
-    const { error: updateError } = await supabase.from('live_events').update({ stream_provider: 'livekit', stream_id: room }).eq('id', live.id).eq('organization_id', membership.organizationId)
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
-  }
+  const updates:any={stream_provider:'livekit',stream_id:room,status:'live'}
+  const { error: updateError } = await supabase.from('live_events').update(updates).eq('id', live.id).eq('organization_id', membership.organizationId)
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
   const token = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity: `host-${crypto.randomUUID()}`, ttl: '4h' })
   token.addGrant({ roomJoin: true, room, canPublish: true, canSubscribe: true })
   return NextResponse.json({ token: await token.toJwt(), url: process.env.LIVEKIT_URL, room, title: live.title })
