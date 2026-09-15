@@ -30,11 +30,19 @@ export default function PublicLive({params}:{params:Promise<{slug:string}>}){
 .conik-follower-shell.is-fullscreen .conik-follower-chat{height:100%;padding:0;border-top:0;border-left:1px solid var(--line);overflow:hidden}
 .conik-follower-shell.is-fullscreen .conik-follower-chat :global(.panel){min-height:0;height:100%;border:0;border-radius:0}
 @media (max-width: 820px){
+  .conik-public-live-page{padding:12px !important}
+  .conik-public-live-header{padding:8px 0 12px !important}
+  .conik-public-live-header h1{font-size:1.35rem !important;margin-bottom:6px}
+  .conik-public-live-header p{font-size:12px;margin:4px 0}
   .conik-follower-layout{grid-template-columns:1fr !important;gap:0 !important}
-  .conik-follower-chat{order:2}
+  .conik-follower-chat{order:2;padding:8px;background:var(--surface-2);border-top:1px solid var(--line);height:calc(100vh - 56.25vw);min-height:420px;overflow:hidden}
+  .conik-follower-chat :global(.panel){height:100%;min-height:0;margin:0}
   .conik-follower-video{order:1;width:100% !important;aspect-ratio:16/9 !important}
   .conik-follower-video :global(.conik-live-studio-stage){width:100% !important;height:auto !important;min-height:0 !important;aspect-ratio:16/9 !important}
-  .conik-follower-shell.is-fullscreen .conik-follower-layout{grid-template-columns:minmax(0,1fr) 320px !important;grid-template-rows:1fr !important}
+  .conik-follower-shell:not(.is-fullscreen) .conik-follower-layout{min-height:100vh}
+  .conik-follower-shell:not(.is-fullscreen) .conik-follower-chat form{position:sticky;bottom:0;background:var(--surface-2);padding-top:8px}
+  .conik-follower-shell.is-fullscreen .conik-follower-chat{height:100%;min-height:0;padding:0}
+  .conik-follower-shell.is-fullscreen .conik-follower-layout{grid-template-columns:minmax(0,1fr) 320px !important;grid-template-rows:1fr !important;min-height:0}
   .conik-follower-shell.is-fullscreen .conik-follower-video{width:100% !important;height:100% !important;aspect-ratio:auto !important}
   .conik-follower-shell.is-fullscreen .conik-follower-video :global(.conik-live-studio-stage){width:100% !important;height:100% !important;min-height:0 !important;aspect-ratio:auto !important;border-radius:0 !important}
 }
