@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Loader2, MessageCircle, QrCode, RefreshCw, Smartphone, Wifi, WifiOff } from 'lucide-react'
+import { CheckCircle2, Loader2, QrCode, RefreshCw, Smartphone, Wifi, WifiOff } from 'lucide-react'
 
 type GreenInstance = {
   id: string
@@ -35,6 +35,11 @@ export function WhatsAppGreenApi() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showConnect, setShowConnect] = useState(false)
+  const [idInstance, setIdInstance] = useState('')
+  const [apiTokenInstance, setApiTokenInstance] = useState('')
+  const [apiUrl, setApiUrl] = useState('https://api.green-api.com')
+  const [instanceName, setInstanceName] = useState('')
   const qrBusy = useRef(false)
 
   const loadStatus = useCallback(async () => {
@@ -94,36 +99,61 @@ export function WhatsAppGreenApi() {
     return () => window.clearInterval(timer)
   }, [instance, loadQr])
 
-  async function createInstance() {
-    setBusy(true); setError(''); setQr(null); setQrMessage('Création de votre instance GREEN-API…')
+  async function connectInstance() {
+    setBusy(true)
+    setError('')
+    setQr(null)
+    setQrMessage('Vérification de l’instance GREEN-API…')
     try {
-      const response = await fetch('/api/whatsapp/green/create', { method: 'POST' })
+      const response = await fetch('/api/whatsapp/green/connect', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idInstance, apiTokenInstance, apiUrl, instanceName }),
+      })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Impossible de créer l’instance GREEN-API.')
+      if (!response.ok) throw new Error(data.error || 'Impossible de connecter l’instance GREEN-API.')
       setInstance({
         id: data.instance.id,
         idInstance: String(data.instance.idInstance),
         status: data.instance.status,
         instanceName: data.instance.instanceName,
       })
-    } catch (e) { setError(e instanceof Error ? e.message : 'Impossible de créer l’instance GREEN-API.') }
-    finally { setBusy(false) }
+      setShowConnect(false)
+      setApiTokenInstance('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de connecter l’instance GREEN-API.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const status = instance?.status || ''
 
   return <section className="panel" style={{ display: 'grid', gap: 18 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-      <div><small>GREEN-API</small><h2 style={{ margin: '6px 0' }}>Connecter WhatsApp par QR code</h2><p className="muted">CONIK crée et gère l’instance GREEN-API. Vous scannez ensuite le QR code avec WhatsApp Business.</p></div>
+      <div>
+        <small>GREEN-API</small>
+        <h2 style={{ margin: '6px 0' }}>Connecter WhatsApp par QR code</h2>
+        <p className="muted">Utilisez une instance GREEN-API créée dans votre console. CONIK ne crée pas d’instance Partner tant que votre compte n’est pas Partner.</p>
+      </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="button" onClick={refresh} disabled={busy || loading}><RefreshCw size={15}/> Actualiser</button>
-        {!instance && <button className="button primary" onClick={createInstance} disabled={busy}>{busy ? <Loader2 size={15} className="spin"/> : <MessageCircle size={15}/>} Créer la connexion</button>}
+        {!instance && <button className="button primary" onClick={() => setShowConnect((value) => !value)} disabled={busy}><Smartphone size={15}/> Connecter une instance</button>}
       </div>
     </div>
 
     {error && <div className="panel" style={{ borderColor: 'var(--danger, #dc2626)' }}>{error}</div>}
 
-    {loading ? <div className="empty"><Loader2 size={24} className="spin"/><span>Chargement de la connexion GREEN-API…</span></div> : !instance ? <div className="empty"><Smartphone size={28}/><b>Aucune instance GREEN-API</b><span>Cliquez sur « Créer la connexion » pour démarrer.</span></div> : <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(260px,340px)', gap: 20, alignItems: 'center' }}>
+    {!instance && showConnect && <div className="panel" style={{ display: 'grid', gap: 12 }}>
+      <div><b>Paramètres de votre instance GREEN-API</b><div className="muted">Créez d’abord l’instance dans la console GREEN-API, puis copiez ces trois paramètres.</div></div>
+      <input className="input" placeholder="ID Instance" value={idInstance} onChange={(event) => setIdInstance(event.target.value)} inputMode="numeric" />
+      <input className="input" placeholder="API URL" value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} />
+      <input className="input" placeholder="API Token Instance" value={apiTokenInstance} onChange={(event) => setApiTokenInstance(event.target.value)} type="password" autoComplete="off" />
+      <input className="input" placeholder="Nom de l’instance (facultatif)" value={instanceName} onChange={(event) => setInstanceName(event.target.value)} />
+      <button className="button primary" onClick={connectInstance} disabled={busy || !idInstance.trim() || !apiTokenInstance.trim() || !apiUrl.trim()}>{busy ? <Loader2 size={15} className="spin"/> : <Wifi size={15}/>} {busy ? 'Connexion…' : 'Enregistrer et connecter'}</button>
+    </div>}
+
+    {loading ? <div className="empty"><Loader2 size={24} className="spin"/><span>Chargement de la connexion GREEN-API…</span></div> : !instance ? <div className="empty"><Smartphone size={28}/><b>Aucune instance GREEN-API</b><span>Créez une instance Developer ou Business dans GREEN-API, puis connectez-la ici.</span></div> : <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(260px,340px)', gap: 20, alignItems: 'center' }}>
       <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{status === 'authorized' ? <CheckCircle2 size={24}/> : status === 'notAuthorized' ? <QrCode size={24}/> : status === 'unknown' ? <WifiOff size={24}/> : <Wifi size={24}/>}<div><b>{statusLabel[status] || status}</b><div className="muted">Instance {instance.idInstance}{instance.wid ? ` · ${instance.wid}` : ''}</div></div></div>
         {status === 'notAuthorized' && <div className="muted">{qrMessage || 'Préparation du QR code…'}</div>}
