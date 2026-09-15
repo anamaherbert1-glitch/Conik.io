@@ -43,6 +43,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const [mic, setMic] = useState(false)
   const [camera, setCamera] = useState(false)
   const [screenShare, setScreenShare] = useState(false)
+  const [screenShareChanging, setScreenShareChanging] = useState(false)
   const [screenShareAvailable, setScreenShareAvailable] = useState(true)
   const [audioBlocked, setAudioBlocked] = useState(false)
   const [micStatus, setMicStatus] = useState<MediaStatus>('idle')
@@ -152,18 +153,49 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     try { if (next && !(await requestMediaPermissions())) return; await room.localParticipant.setCameraEnabled(next); setCamera(next); setCameraStatus(next ? 'ready' : 'idle'); if (next) setMediaMessage('') } catch (error) { setCamera(false); setCameraStatus('denied'); setMediaMessage(mediaErrorMessage(error, 'camera')) }
   }
 
-  async function toggleScreenShare() {
-    const room = roomRef.current; if (!room || !host) return
-    if (screenShare) {
-      try { await room.localParticipant.setScreenShareEnabled(false); setScreenShare(false); setMediaMessage('') } catch (error) { setMediaMessage(mediaErrorMessage(error, 'screen')) }
-      return
-    }
+  async function startOrChangeScreenShare() {
+    const room = roomRef.current
+    if (!room || !host || screenShareChanging) return
     const supportError = screenShareSupportMessage()
     if (supportError) { setScreenShareAvailable(false); setMediaMessage(supportError); return }
+
+    setScreenShareChanging(true)
+    setMediaMessage('Sélectionnez maintenant l’écran, la fenêtre ou l’onglet à partager.')
     try {
-      await room.localParticipant.setScreenShareEnabled(true, { audio: false, video: true, selfBrowserSurface: 'exclude', surfaceSwitching: 'include' })
-      setScreenShare(true); setScreenShareAvailable(true); setMediaMessage('')
-    } catch (error) { setScreenShare(false); setMediaMessage(mediaErrorMessage(error, 'screen')) }
+      if (screenShare) {
+        await room.localParticipant.setScreenShareEnabled(false)
+        setScreenShare(false)
+      }
+      await room.localParticipant.setScreenShareEnabled(true, {
+        audio: false,
+        video: true,
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+      })
+      setScreenShare(true)
+      setScreenShareAvailable(true)
+      setMediaMessage('')
+    } catch (error) {
+      setScreenShare(false)
+      setMediaMessage(mediaErrorMessage(error, 'screen'))
+    } finally {
+      setScreenShareChanging(false)
+    }
+  }
+
+  async function stopScreenShare() {
+    const room = roomRef.current
+    if (!room || !host || screenShareChanging) return
+    setScreenShareChanging(true)
+    try {
+      await room.localParticipant.setScreenShareEnabled(false)
+      setScreenShare(false)
+      setMediaMessage('')
+    } catch (error) {
+      setMediaMessage(mediaErrorMessage(error, 'screen'))
+    } finally {
+      setScreenShareChanging(false)
+    }
   }
 
   return <div style={{ display: 'grid', gap: 12 }}>
@@ -174,6 +206,13 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
       </div>
       <div ref={screenRef} style={{ position: 'absolute', left: 16, top: 16, right: 16, bottom: 16, zIndex: 1, pointerEvents: 'none' }} />
       <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: host ? 220 : 200, height: host ? 130 : 120, zIndex: 2, background: '#171922', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)' }} />
+
+      {host && screenShare && state === 'connected' && <div style={{ position: 'absolute', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 5, display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderRadius: 14, background: 'rgba(15,17,24,.94)', border: '1px solid rgba(255,255,255,.16)', boxShadow: '0 12px 36px rgba(0,0,0,.35)', backdropFilter: 'blur(12px)', maxWidth: 'calc(100% - 24px)', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, padding: '6px 8px', whiteSpace: 'nowrap' }}>🖥️ Écran partagé</span>
+        <button className="outline" onClick={() => void startOrChangeScreenShare()} disabled={screenShareChanging} style={{ whiteSpace: 'nowrap' }}>{screenShareChanging ? 'Ouverture…' : 'Changer de source'}</button>
+        <button className="outline" onClick={() => void stopScreenShare()} disabled={screenShareChanging} style={{ whiteSpace: 'nowrap' }}>Arrêter</button>
+      </div>}
+
       {!host && audioBlocked && state === 'connected' && <button onClick={() => void enableAudio()} style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 4, padding: '12px 18px', borderRadius: 10, border: 0, fontWeight: 700, cursor: 'pointer' }}>Activer le son</button>}
     </div>
     {state === 'connected' && host && <div style={{ display: 'grid', gap: 8 }}>
@@ -181,7 +220,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
         <button className="outline" onClick={toggleMic}>{mic ? 'Couper le micro' : 'Activer le micro'}</button>
         <button className="outline" onClick={toggleCamera}>{camera ? 'Couper la caméra' : 'Activer la caméra'}</button>
-        <button className="outline" onClick={toggleScreenShare} disabled={!screenShareAvailable && !screenShare}>{screenShare ? 'Arrêter le partage' : 'Partager mon écran'}</button>
+        {!screenShare && <button className="outline" onClick={() => void startOrChangeScreenShare()} disabled={!screenShareAvailable || screenShareChanging}>{screenShareChanging ? 'Ouverture…' : 'Partager mon écran'}</button>}
         <button className="outline" onClick={() => void requestMediaPermissions()} disabled={requestingPermissions}>{requestingPermissions ? 'Demande en cours…' : 'Autoriser caméra + micro'}</button>
       </div>
       {(micStatus === 'denied' || cameraStatus === 'denied') && <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.75 }}>Si vous avez déjà refusé l’accès, ouvrez les autorisations du site dans le navigateur, mettez Caméra et Microphone sur « Autoriser », puis appuyez sur « Autoriser caméra + micro ».</div>}
