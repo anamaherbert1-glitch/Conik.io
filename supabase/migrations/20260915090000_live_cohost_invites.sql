@@ -14,9 +14,7 @@ alter table public.live_cohost_invites enable row level security;
 
 create or replace function public.create_live_cohost_invite(p_live_id uuid, p_organization_id uuid, p_token_hash text, p_expires_at timestamptz default (now() + interval '24 hours'))
 returns table(id uuid, expires_at timestamptz)
-language plpgsql
-security definer
-set search_path = public
+language plpgsql security definer set search_path = public
 as $$
 declare l public.live_events%rowtype; r public.live_cohost_invites%rowtype;
 begin
@@ -32,20 +30,19 @@ grant execute on function public.create_live_cohost_invite(uuid,uuid,text,timest
 
 create or replace function public.consume_live_cohost_invite(p_token_hash text)
 returns table(live_id uuid, organization_id uuid, title text, room_name text, stream_provider text, stream_id text)
-language plpgsql
-security definer
-set search_path = public
+language plpgsql security definer set search_path = public
 as $$
 declare r public.live_cohost_invites%rowtype; l public.live_events%rowtype;
 begin
   select * into r from public.live_cohost_invites where token_hash = p_token_hash for update;
   if not found then raise exception 'INVALID_INVITE'; end if;
-  if r.used_at is not null or r.expires_at <= now() then raise exception 'INVITE_EXPIRED'; end if;
+  if r.used_at is not null then raise exception 'INVITE_EXPIRED'; end if;
+  if r.expires_at <= now() then raise exception 'INVITE_EXPIRED'; end if;
   select * into l from public.live_events where id = r.live_id for update;
   if not found then raise exception 'LIVE_NOT_FOUND'; end if;
   if l.status not in ('live','scheduled') then raise exception 'LIVE_NOT_AVAILABLE'; end if;
   update public.live_cohost_invites set used_at = now() where id = r.id;
-  return query select l.id, l.organization_id, l.title, coalesce(l.stream_id, l.id::text), l.stream_provider, l.stream_id;
+  return query select l.id,l.organization_id,l.title,coalesce(l.stream_id,l.id::text),l.stream_provider,l.stream_id;
 end; $$;
 revoke all on function public.consume_live_cohost_invite(text) from public;
 grant execute on function public.consume_live_cohost_invite(text) to anon, authenticated;
