@@ -6,9 +6,9 @@ import { Room, RoomEvent, Track } from 'livekit-client'
 
 type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean; label?: string }
 type VideoItem = { id: string; label: string; track: any; local: boolean }
-type StageState = { featured: string | null; movable: boolean; x: number; y: number }
+type StageState = { featured: string | null; movable: boolean; front: boolean; x: number; y: number }
 
-const DEFAULT_STAGE: StageState = { featured: null, movable: false, x: 8, y: 8 }
+const DEFAULT_STAGE: StageState = { featured: null, movable: false, front: false, x: 8, y: 8 }
 
 export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label }: Props) {
   const [status, setStatus] = useState<'loading'|'connected'|'error'>('loading')
@@ -25,7 +25,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   const screenRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
 
-  const publishStage = (next: StageState) => {
+  const sendStage = (next: StageState) => {
     setStage(next)
     if (!host) return
     const room = roomRef.current
@@ -33,7 +33,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     try {
       void room.localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({ type: 'conik-stage-state', stage: next })),
-        { reliable: true }
+        { reliable: true, topic: 'conik-stage-state' }
       )
     } catch {}
   }
@@ -47,10 +47,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     const attachAudio = (track: any) => {
       if (!track || track.kind !== Track.Kind.Audio) return
       const el = track.attach() as HTMLMediaElement
-      el.autoplay = true
-      el.muted = false
-      el.volume = 1
-      el.style.display = 'none'
+      el.autoplay = true; el.muted = false; el.volume = 1; el.style.display = 'none'
       document.body.appendChild(el)
       void el.play().catch(() => { if (!cancelled) setAudioBlocked(true) })
     }
@@ -59,16 +56,17 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
       if (topic !== 'conik-stage-state') return
       try {
-        const decoded = new TextDecoder().decode(payload)
-        const data = JSON.parse(decoded)
+        const data = JSON.parse(new TextDecoder().decode(payload))
         if (data?.type !== 'conik-stage-state' || !data.stage) return
         const next = data.stage as StageState
         setStage({
           featured: typeof next.featured === 'string' ? next.featured : null,
           movable: Boolean(next.movable),
+          front: Boolean(next.front),
           x: Number.isFinite(next.x) ? Math.max(0, Math.min(100, next.x)) : DEFAULT_STAGE.x,
           y: Number.isFinite(next.y) ? Math.max(0, Math.min(100, next.y)) : DEFAULT_STAGE.y,
         })
+        if (!host) setMoveMode(false)
       } catch {}
     })
 
@@ -108,13 +106,8 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           try { await room.localParticipant.setMicrophoneEnabled(true); if (!cancelled) setMic(true) } catch { setMessage('Microphone non disponible. Autorisez le micro pour continuer.') }
           try { await room.localParticipant.setCameraEnabled(true); if (!cancelled) setCamera(true) } catch { setMessage('Caméra non disponible. Autorisez la caméra pour apparaître dans le Live.') }
           setTimeout(() => {
-            try {
-              void room.localParticipant.publishData(
-                new TextEncoder().encode(JSON.stringify({ type: 'conik-stage-state', stage: DEFAULT_STAGE })),
-                { reliable: true }
-              )
-            } catch {}
-          }, 250)
+            try { void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type:'conik-stage-state', stage:DEFAULT_STAGE })), { reliable:true, topic:'conik-stage-state' }) } catch {}
+          }, 300)
         }
       } catch (error) { if (!cancelled) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') } }
     })()
@@ -127,21 +120,18 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       if (!container) return
       container.querySelectorAll('video').forEach(v => v.remove())
       const el = item.track.attach() as HTMLVideoElement
-      el.autoplay = true
-      el.playsInline = true
-      el.muted = item.local || host
-      el.style.width='100%'; el.style.height='100%'; el.style.objectFit='cover'; el.style.display='block'; el.style.borderRadius='10px'
+      el.autoplay=true; el.playsInline=true; el.muted=item.local||host; el.style.width='100%'; el.style.height='100%'; el.style.objectFit='cover'; el.style.display='block'; el.style.borderRadius='10px'
       container.appendChild(el)
     })
   }, [items, host])
 
   useEffect(() => {
-    const container = screenRef.current
+    const container=screenRef.current
     if (!container || !screenTrack) return
-    container.querySelectorAll('video').forEach(v => v.remove())
-    const el = screenTrack.attach() as HTMLVideoElement
+    container.querySelectorAll('video').forEach(v=>v.remove())
+    const el=screenTrack.attach() as HTMLVideoElement
     el.autoplay=true; el.playsInline=true; el.muted=true; el.style.width='100%'; el.style.height='100%'; el.style.objectFit='contain'; el.style.display='block'; container.appendChild(el)
-    return () => { screenTrack.detach().forEach((node:any) => node.remove()) }
+    return ()=>{screenTrack.detach().forEach((node:any)=>node.remove())}
   }, [screenTrack])
 
   async function toggleMic(){const room=roomRef.current;if(!room||!host)return;try{const next=!mic;await room.localParticipant.setMicrophoneEnabled(next);setMic(next)}catch{}}
@@ -149,52 +139,40 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   async function toggleScreen(){const room=roomRef.current;if(!room||!host)return;try{if(screenTrack){await room.localParticipant.setScreenShareEnabled(false);setScreenTrack(null);return}if(!window.isSecureContext||!navigator.mediaDevices?.getDisplayMedia)throw new Error('Le partage d’écran nécessite HTTPS et un navigateur compatible.');await room.localParticipant.setScreenShareEnabled(true,{audio:false,video:true,selfBrowserSurface:'exclude',surfaceSwitching:'include'})}catch(e){setMessage(e instanceof Error?e.message:'Impossible de partager l’écran.')}}
   async function fullscreen(id:string){const el=videoRefs.current[id];if(!el)return;try{if(document.fullscreenElement)await document.exitFullscreen();else await el.requestFullscreen()}catch{}}
 
-  function selectCamera(id: string) {
-    if (!host) return
-    publishStage({ ...stage, featured: id })
+  function toggleBringToFront(id:string){
+    if(!host)return
+    const same=stage.featured===id
+    sendStage({...stage,featured:same?null:id,front:!same,movable:false})
+    setMoveMode(false)
   }
 
-  function toggleBringToFront(id: string) {
-    if (!host) return
-    const isFeatured = stage.featured === id
-    publishStage({ ...stage, featured: isFeatured ? null : id, movable: isFeatured ? false : stage.movable })
-  }
-
-  function toggleMove(id: string) {
-    if (!host) return
-    if (stage.featured !== id) {
-      publishStage({ ...stage, featured: id, movable: true })
-      setMoveMode(true)
-      return
-    }
-    const next = !moveMode
+  function toggleMove(id:string){
+    if(!host)return
+    if(stage.featured!==id){sendStage({...stage,featured:id,front:false,movable:true});setMoveMode(true);return}
+    const next=!moveMode
     setMoveMode(next)
-    publishStage({ ...stage, movable: next })
+    sendStage({...stage,movable:next})
   }
 
-  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!host || !moveMode || !stage.featured || !stageRef.current) return
-    const rect = stageRef.current.getBoundingClientRect()
-    const cameraWidth = Math.min(180, rect.width * 0.24)
-    const cameraHeight = Math.min(105, rect.height * 0.24)
-    const xPx = event.clientX - rect.left - cameraWidth / 2
-    const yPx = event.clientY - rect.top - cameraHeight / 2
-    const x = Math.max(1, Math.min(99, (xPx / Math.max(1, rect.width)) * 100))
-    const y = Math.max(1, Math.min(99, (yPx / Math.max(1, rect.height)) * 100))
-    publishStage({ ...stage, x, y })
+  function handlePointerMove(event:React.PointerEvent<HTMLDivElement>){
+    if(!host||!moveMode||!stage.featured||!screenTrack||!stageRef.current)return
+    const rect=stageRef.current.getBoundingClientRect()
+    const x=Math.max(8,Math.min(92,((event.clientX-rect.left)/rect.width)*100))
+    const y=Math.max(8,Math.min(92,((event.clientY-rect.top)/rect.height)*100))
+    sendStage({...stage,x,y})
   }
 
   const count=items.length
   const columns=count<=1?'1fr':count===2?'repeat(2,minmax(0,1fr))':count<=4?'repeat(2,minmax(0,1fr))':'repeat(3,minmax(0,1fr))'
-  const featuredItem = useMemo(() => items.find(item => item.id === stage.featured) || null, [items, stage.featured])
-  const normalItems = useMemo(() => items.filter(item => item.id !== stage.featured), [items, stage.featured])
+  const featuredItem=useMemo(()=>items.find(item=>item.id===stage.featured)||null,[items,stage.featured])
+  const normalItems=useMemo(()=>items.filter(item=>item.id!==stage.featured),[items,stage.featured])
 
-  const renderTile = (item: VideoItem, floating = false) => (
-    <div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} onClick={()=>selectCamera(item.id)} style={{position:'relative',width:'100%',height:'100%',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:10,background:'#171922',border:stage.featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',cursor:host?'pointer':'default',boxShadow:floating?'0 12px 28px rgba(0,0,0,.42)':'0 8px 24px rgba(0,0,0,.22)'}}>
+  const renderTile=(item:VideoItem,floating=false)=>(
+    <div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} style={{position:'relative',width:'100%',height:'100%',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:10,background:'#171922',border:stage.featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',cursor:host?'pointer':'default',boxShadow:floating?'0 12px 28px rgba(0,0,0,.42)':'0 8px 24px rgba(0,0,0,.22)'}}>
       <div style={{position:'absolute',left:6,bottom:6,zIndex:3,padding:'4px 7px',borderRadius:7,background:'rgba(0,0,0,.68)',color:'#fff',fontSize:10,fontWeight:800}}>{item.label}</div>
-      {host && floating && <div style={{position:'absolute',right:6,top:6,zIndex:5,display:'flex',gap:4}}>
+      {host&&floating&&<div style={{position:'absolute',right:6,top:6,zIndex:5,display:'flex',gap:4}}>
         <button type="button" onClick={e=>{e.stopPropagation();toggleMove(item.id)}} title="Déplacer" style={{width:30,height:30,border:0,borderRadius:7,background:moveMode&&stage.featured===item.id?'rgba(255,255,255,.92)':'rgba(0,0,0,.68)',color:moveMode&&stage.featured===item.id?'#111':'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Move size={14}/></button>
-        <button type="button" onClick={e=>{e.stopPropagation();toggleBringToFront(item.id)}} title="Mettre la caméra en avant" style={{width:30,height:30,border:0,borderRadius:7,background:'rgba(0,0,0,.68)',color:'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><BringToFront size={14}/></button>
+        <button type="button" onClick={e=>{e.stopPropagation();toggleBringToFront(item.id)}} title="Mettre la caméra en avant" style={{width:30,height:30,border:0,borderRadius:7,background:stage.front&&stage.featured===item.id?'rgba(255,255,255,.92)':'rgba(0,0,0,.68)',color:stage.front&&stage.featured===item.id?'#111':'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><BringToFront size={14}/></button>
       </div>}
       <button type="button" onClick={e=>{e.stopPropagation();void fullscreen(item.id)}} title="Agrandir" style={{position:'absolute',right:6,bottom:6,zIndex:4,width:30,height:30,border:0,borderRadius:7,background:'rgba(0,0,0,.68)',color:'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Maximize2 size={14}/></button>
     </div>
@@ -207,20 +185,18 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         {status==='connected'&&items.length===0&&!screenTrack&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',opacity:.75}}>En attente des caméras…</div>}
         {screenTrack&&<div ref={screenRef} style={{position:'absolute',inset:0,zIndex:1,borderRadius:12,overflow:'hidden',background:'#000',padding:4}}/>}
 
-        {normalItems.length>0 && <div style={{position:'absolute',inset:screenTrack?'auto 8px 8px 8px':8,display:'grid',gridTemplateColumns:screenTrack?columns:columns,gridAutoRows:screenTrack?'minmax(70px,100px)':undefined,gap:6,zIndex:2,maxHeight:screenTrack?'105px':'none'}}>
-          {normalItems.map(item=>renderTile(item))}
-        </div>}
+        {!screenTrack&&<div style={{position:'absolute',inset:8,display:'grid',gridTemplateColumns:columns,gap:6,zIndex:2}}>{items.map(item=>renderTile(item))}</div>}
 
-        {featuredItem && <div style={{position:'absolute',left:`${stage.x}%`,top:`${stage.y}%`,width:'clamp(105px, 15vw, 155px)',height:'clamp(62px, 8.5vw, 88px)',zIndex:10,transform:'translate(-50%,-50%)',touchAction:moveMode&&host?'none':'auto'}}>
-          {renderTile(featuredItem, true)}
-        </div>}
+        {screenTrack&&normalItems.length>0&&<div style={{position:'absolute',left:8,right:8,bottom:8,display:'grid',gridTemplateColumns:columns,gap:5,zIndex:2,maxHeight:82,gridAutoRows:'72px'}}>{normalItems.map(item=>renderTile(item))}</div>}
+
+        {screenTrack&&featuredItem&&<div style={{position:'absolute',left:`${stage.x}%`,top:`${stage.y}%`,width:stage.front?'clamp(210px,32vw,390px)':'clamp(92px,12vw,125px)',height:stage.front?'clamp(118px,18vw,220px)':'clamp(55px,7.2vw,72px)',zIndex:10,transform:'translate(-50%,-50%)',touchAction:moveMode&&host?'none':'auto',transition:moveMode?'none':'width .18s ease,height .18s ease'}}>{renderTile(featuredItem,true)}</div>}
       </div>
       <div data-conik-screen-canvas aria-hidden="true" style={{display:'none'}} />
       <div data-conik-camera-canvas aria-hidden="true" style={{display:'none'}} />
     </div>
     {host&&status==='connected'&&<div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}><button className="outline" onClick={()=>void toggleMic()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{mic?<Mic size={17}/>:<MicOff size={17}/>} {mic?'Couper le micro':'Activer le micro'}</button><button className="outline" onClick={()=>void toggleCamera()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{camera?<Camera size={17}/>:<CameraOff size={17}/>} {camera?'Couper la caméra':'Activer la caméra'}</button><button className="outline" onClick={()=>void toggleScreen()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{screenTrack?<MonitorStop size={17}/>:<MonitorUp size={17}/>} {screenTrack?'Arrêter le partage':'Partager mon écran'}</button></div>}
     {!host&&audioBlocked&&status==='connected'&&<button onClick={()=>void roomRef.current?.startAudio().then(()=>setAudioBlocked(false)).catch(()=>{})} style={{minHeight:44,border:0,borderRadius:10,fontWeight:800,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><Volume2 size={17}/>Activer le son</button>}
-    {host&&<div className="muted" style={{textAlign:'center',fontSize:11}}>La caméra sélectionnée reste petite dans un coin. « Déplacer » autorise son déplacement. « Mettre la caméra en avant » la place au premier plan. La position et la mise en avant sont envoyées aux followers, tandis que le partage d’écran reste visible derrière.</div>}
-    <style>{`@media(max-width:700px){.conik-multi-live-stage{aspect-ratio:16/10!important}.conik-multi-live-stage>div[data-conik-remote-canvas]{inset:3px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(3){gap:4px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(3){max-height:82px!important;grid-auto-rows:72px!important}}`}</style>
+    {host&&<div className="muted" style={{textAlign:'center',fontSize:11}}>Avec le partage d’écran, les caméras restent petites. « Déplacer » autorise le déplacement de la caméra sélectionnée. « Mettre la caméra en avant » est la seule action qui l’agrandit. La position et la mise en avant sont synchronisées avec les followers.</div>}
+    <style>{`@media(max-width:700px){.conik-multi-live-stage{aspect-ratio:16/10!important}.conik-multi-live-stage>div[data-conik-remote-canvas]{inset:3px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(4){left:4px!important;right:4px!important;bottom:4px!important;max-height:68px!important;grid-auto-rows:58px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(5){width:clamp(82px,24vw,112px)!important;height:clamp(50px,14vw,65px)!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(5)[style*="z-index: 10"]{z-index:10}}`}</style>
   </div>
 }
