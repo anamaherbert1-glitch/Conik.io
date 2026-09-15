@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { ConikDialog } from '@/components/conik-dialog'
 import LiveRoom from '@/components/live/live-room'
+import LiveStudioLayout from '@/components/live/live-studio-layout'
 import LiveChat from '@/components/live/live-chat'
 
 type Participant={id:string;contact_id:string;email:string;status:string;invited_at:string}
@@ -32,7 +33,7 @@ export default function LiveDetail({params}:{params:Promise<{id:string}>}){
         <div><div style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:11,fontWeight:700,letterSpacing:'.08em',opacity:.65,marginBottom:7}}><Radio size={14}/>LIVE PRIVÉ</div><h1 style={{marginBottom:6}}>{live.title}</h1>{live.description&&<p className="muted" style={{margin:0,maxWidth:650}}>{live.description}</p>}</div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}>{live.status!=='ended'&&<><button className="primary" onClick={startStudio} disabled={studio}><Radio size={15}/>{studio?'Studio ouvert':'Démarrer le studio'}</button><button className="outline" onClick={()=>setEndConfirmOpen(true)} disabled={ending}><Square size={15}/>{ending?'Arrêt…':'Couper le Live'}</button></>}<button className="outline" onClick={copy}><Copy size={15}/>Copier le lien</button></div>
       </header>
-      {studio&&live.status!=='ended'&&<section className="panel" style={{marginBottom:18}}><div style={{display:'flex',alignItems:'center',gap:9,marginBottom:14}}><Radio size={18}/><h3 style={{margin:0}}>Studio</h3></div><LiveRoom tokenUrl={`/api/lives/${live.id}/token`} tokenBody={{}} host/></section>}
+      {studio&&live.status!=='ended'&&<section className="panel" style={{marginBottom:18}}><div style={{display:'flex',alignItems:'center',gap:9,marginBottom:14}}><Radio size={18}/><h3 style={{margin:0}}>Studio</h3></div><LiveStudioLayout host><LiveRoom tokenUrl={`/api/lives/${live.id}/token`} tokenBody={{}} host/></LiveStudioLayout></section>}
       {studio&&live.status!=='ended'&&<div style={{display:'flex',justifyContent:'center',margin:'-2px 0 18px'}}><button type="button" onClick={()=>setEndConfirmOpen(true)} disabled={ending} style={{minHeight:46,padding:'0 20px',borderRadius:12,border:'1px solid rgba(239,68,68,.5)',background:'rgba(127,29,29,.16)',color:'#f87171',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:9,fontWeight:800,cursor:ending?'wait':'pointer',boxShadow:'0 8px 24px rgba(127,29,29,.12)'}}><Square size={18} fill="currentColor" />{ending?'Arrêt du Live…':'Couper le Live'}</button></div>}
       {live.status!=='ended'&&<section style={{marginBottom:18}}><LiveChat liveId={live.id} host/></section>}
       <section className="panel" style={{marginTop:18}}>
