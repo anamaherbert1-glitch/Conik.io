@@ -7,7 +7,6 @@ import {
   Radio,
   Trash2,
   Users,
-  Square,
   CircleCheck,
   Clock3,
   Send,
@@ -437,13 +436,17 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
     </div>
   )
 
+  const inStudio = studio && live.status !== 'ended'
+
   return (
-    <AppShell active="Live Events">
-      <div className="page" style={{ maxWidth: 1180 }}>
-        <Link href="/lives" className="back">
-          <ArrowLeft size={16} />
-          Live Events
-        </Link>
+    <AppShell active="Live Events" compact={inStudio}>
+      <div className="page" style={{ maxWidth: inStudio ? 'none' : 1180, width: '100%', margin: inStudio ? 0 : undefined, padding: inStudio ? 0 : undefined }}>
+        {!inStudio && (
+          <Link href="/lives" className="back">
+            <ArrowLeft size={16} />
+            Live Events
+          </Link>
+        )}
         {error && (
           <div className="error" style={{ marginBottom: 16 }}>
             {error}
@@ -454,107 +457,144 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
             {notice}
           </div>
         )}
+
         {live.status === 'loading' ? (
           <div className="emptybox big">Chargement…</div>
         ) : (
           <>
-            <header className="head" style={{ marginBottom: 22, alignItems: 'flex-start' }}>
-              <div>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 7,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '.08em',
-                    opacity: 0.65,
-                    marginBottom: 7,
-                  }}
-                >
-                  <Radio size={14} />
-                  LIVE PRIVÉ
+            {!inStudio && (
+              <header className="head" style={{ marginBottom: 22, alignItems: 'flex-start' }}>
+                <div>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '.08em',
+                      opacity: 0.65,
+                      marginBottom: 7,
+                    }}
+                  >
+                    <Radio size={14} />
+                    LIVE PRIVÉ
+                  </div>
+                  <h1 style={{ marginBottom: 6 }}>{live.title}</h1>
+                  {live.description && (
+                    <p className="muted" style={{ margin: 0, maxWidth: 650 }}>
+                      {live.description}
+                    </p>
+                  )}
                 </div>
-                <h1 style={{ marginBottom: 6 }}>{live.title}</h1>
-                {live.description && (
-                  <p className="muted" style={{ margin: 0, maxWidth: 650 }}>
-                    {live.description}
-                  </p>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {live.status !== 'ended' && (
-                  <button className="primary" onClick={startStudio} disabled={studio}>
-                    <Radio size={15} />
-                    {studio ? 'Studio ouvert' : 'Démarrer le studio'}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {live.status !== 'ended' && (
+                    <button className="primary" onClick={startStudio} disabled={studio}>
+                      <Radio size={15} />
+                      {studio ? 'Studio ouvert' : 'Démarrer le studio'}
+                    </button>
+                  )}
+                  <button className="outline" onClick={copy}>
+                    <Copy size={15} />
+                    Copier le lien
                   </button>
-                )}
-                <button className="outline" onClick={copy}>
-                  <Copy size={15} />
-                  Copier le lien
-                </button>
-              </div>
-            </header>
-
-            {studio && live.status !== 'ended' && (
-              <section className="panel" style={{ marginBottom: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-                  <Radio size={18} />
-                  <h3 style={{ margin: 0 }}>Studio multi-organisateurs</h3>
                 </div>
-                <LiveStudioLayout host sidebarContent={inviteSidebar}>
-                  <MultiLiveRoom
-                    tokenUrl={`/api/lives/${live.id}/token`}
-                    tokenBody={{}}
-                    host
-                    onEndLive={() => setEndConfirmOpen(true)}
-                    endingLive={ending}
-                  />
-                </LiveStudioLayout>
-              </section>
+              </header>
             )}
 
-            {live.status !== 'ended' && (
+            {inStudio && (
+              <div className="live-studio-workspace">
+                <div className="live-studio-main">
+                  <section className="panel" style={{ marginBottom: 0 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 9,
+                        marginBottom: 12,
+                        flexWrap: 'wrap',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <Radio size={18} />
+                        <h3 style={{ margin: 0 }}>{live.title}</h3>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="outline" onClick={copy} style={{ minHeight: 36 }}>
+                          <Copy size={14} />
+                          Lien
+                        </button>
+                        <Link href="/lives" className="outline" style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px' }}>
+                          <ArrowLeft size={14} />
+                          Quitter
+                        </Link>
+                      </div>
+                    </div>
+                    <LiveStudioLayout host sidebarContent={inviteSidebar}>
+                      <MultiLiveRoom
+                        tokenUrl={`/api/lives/${live.id}/token`}
+                        tokenBody={{}}
+                        host
+                        onEndLive={() => setEndConfirmOpen(true)}
+                        endingLive={ending}
+                      />
+                    </LiveStudioLayout>
+                  </section>
+                </div>
+
+                {/* Chat = colonne droite séparée du bloc studio */}
+                <aside className="live-studio-chat">
+                  <LiveChat liveId={live.id} host chatEnabled={live.chat_enabled} />
+                </aside>
+              </div>
+            )}
+
+            {!inStudio && live.status !== 'ended' && (
               <section style={{ marginBottom: 18 }}>
                 <LiveChat liveId={live.id} host chatEnabled={live.chat_enabled} />
               </section>
             )}
 
-            <section className="panel" style={{ marginTop: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 5 }}>
-                <Smartphone size={18} />
-                <h3 style={{ margin: 0 }}>WhatsApp</h3>
-                <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
-                  {waEligible}/{waInvited} éligibles
-                </span>
-              </div>
-              <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
-                Préparez le message d’invitation. Le lien de ce Live sera utilisé automatiquement.
-              </p>
-              <textarea
-                className="form-input"
-                rows={4}
-                value={waMessage}
-                onChange={(e) => setWaMessage(e.target.value)}
-                placeholder="Message d’invitation…"
-              />
-              <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-                <button className="primary" onClick={saveWhatsApp} disabled={waSaving || !waMessage.trim()}>
-                  <Send size={15} />
-                  {waSaving ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-              </div>
-            </section>
+            {!inStudio && (
+              <>
+                <section className="panel" style={{ marginTop: 18 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 5 }}>
+                    <Smartphone size={18} />
+                    <h3 style={{ margin: 0 }}>WhatsApp</h3>
+                    <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
+                      {waEligible}/{waInvited} éligibles
+                    </span>
+                  </div>
+                  <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
+                    Préparez le message d’invitation. Le lien de ce Live sera utilisé automatiquement.
+                  </p>
+                  <textarea
+                    className="form-input"
+                    rows={4}
+                    value={waMessage}
+                    onChange={(e) => setWaMessage(e.target.value)}
+                    placeholder="Message d’invitation…"
+                  />
+                  <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+                    <button className="primary" onClick={saveWhatsApp} disabled={waSaving || !waMessage.trim()}>
+                      <Send size={15} />
+                      {waSaving ? 'Enregistrement…' : 'Enregistrer'}
+                    </button>
+                  </div>
+                </section>
 
-            <section className="panel" style={{ marginTop: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-                <Link2 size={18} />
-                <h3 style={{ margin: 0 }}>Lien du Live</h3>
-              </div>
-              <div className="choice" style={{ fontSize: 13, wordBreak: 'break-all' }}>
-                {typeof window !== 'undefined' ? window.location.origin : ''}/live/{live.slug}
-              </div>
-            </section>
+                <section className="panel" style={{ marginTop: 18 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+                    <Link2 size={18} />
+                    <h3 style={{ margin: 0 }}>Lien du Live</h3>
+                  </div>
+                  <div className="choice" style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/live/{live.slug}
+                  </div>
+                </section>
+              </>
+            )}
           </>
         )}
 
