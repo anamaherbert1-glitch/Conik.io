@@ -28,14 +28,20 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     const remove = (id: string) => setItems(current => current.filter(x => x.id !== id))
     const attachAudio = (track: any) => {
       if (!track || track.kind !== Track.Kind.Audio) return
-      const el = track.attach(); el.autoplay = true; el.muted = false; el.volume = 1; el.style.display = 'none'; document.body.appendChild(el)
+      const el = track.attach() as HTMLMediaElement
+      el.autoplay = true
+      el.muted = false
+      el.volume = 1
+      el.style.display = 'none'
+      document.body.appendChild(el)
       void el.play().catch(() => { if (!cancelled) setAudioBlocked(true) })
     }
+    const onParticipant = (participant: any) => participant.name || (participant.identity.startsWith('cohost-') ? 'Co-organisateur' : 'Organisateur')
     room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       if (track.kind === Track.Kind.Audio) { attachAudio(track); return }
       if (publication.source === Track.Source.ScreenShare) { setScreenTrack(track); return }
       if (publication.source !== Track.Source.Camera) return
-      upsert({ id: participant.identity, label: participant.name || (participant.identity.startsWith('cohost-') ? 'Co-organisateur' : 'Organisateur'), track, local: false })
+      upsert({ id: participant.identity, label: onParticipant(participant), track, local: false })
     })
     room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
       track.detach().forEach(el => el.remove())
@@ -59,9 +65,13 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         if (!response.ok) throw new Error(data.error || 'Impossible de préparer la connexion.')
         await room.connect(data.url, data.token)
         if (cancelled) return
-        setStatus('connected'); setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
+        setStatus('connected')
+        setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
         if (!host) { try { await room.startAudio(); setAudioBlocked(false) } catch { setAudioBlocked(true) } }
-        else { try { await room.localParticipant.setMicrophoneEnabled(true); if (!cancelled) setMic(true) } catch {} ; try { await room.localParticipant.setCameraEnabled(true); if (!cancelled) setCamera(true) } catch {} }
+        else {
+          try { await room.localParticipant.setMicrophoneEnabled(true); if (!cancelled) setMic(true) } catch { setMessage('Microphone non disponible. Autorisez le micro pour continuer.') }
+          try { await room.localParticipant.setCameraEnabled(true); if (!cancelled) setCamera(true) } catch { setMessage('Caméra non disponible. Autorisez la caméra pour apparaître dans le Live.') }
+        }
       } catch (error) { if (!cancelled) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') } }
     })()
     return () => { cancelled = true; room.disconnect() }
@@ -72,7 +82,12 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       const container = videoRefs.current[item.id]
       if (!container) return
       container.querySelectorAll('video').forEach(v => v.remove())
-      const el = item.track.attach(); el.autoplay = true; el.playsInline = true; el.muted = item.local || host; el.style.width='100%'; el.style.height='100%'; el.style.objectFit='cover'; el.style.display='block'; el.style.borderRadius='12px'; container.appendChild(el)
+      const el = item.track.attach() as HTMLVideoElement
+      el.autoplay = true
+      el.playsInline = true
+      el.muted = item.local || host
+      el.style.width='100%'; el.style.height='100%'; el.style.objectFit='cover'; el.style.display='block'; el.style.borderRadius='12px'
+      container.appendChild(el)
     })
   }, [items, host])
 
@@ -80,7 +95,8 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     const container = screenRef.current
     if (!container || !screenTrack) return
     container.querySelectorAll('video').forEach(v => v.remove())
-    const el = screenTrack.attach(); el.autoplay=true; el.playsInline=true; el.muted=true; el.style.width='100%'; el.style.height='100%'; el.style.objectFit='contain'; container.appendChild(el)
+    const el = screenTrack.attach() as HTMLVideoElement
+    el.autoplay=true; el.playsInline=true; el.muted=true; el.style.width='100%'; el.style.height='100%'; el.style.objectFit='contain'; container.appendChild(el)
     return () => { screenTrack.detach().forEach((node:any) => node.remove()) }
   }, [screenTrack])
 
@@ -98,7 +114,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         {status==='connected'&&items.length===0&&!screenTrack&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',opacity:.75}}>En attente des caméras…</div>}
         {screenTrack&&<div ref={screenRef} style={{position:'absolute',inset:8,zIndex:2,borderRadius:12,overflow:'hidden',background:'#000'}}/>}
         <div style={{position:'absolute',inset:8,display:'grid',gridTemplateColumns:columns,gap:8,zIndex:screenTrack?3:4}}>
-          {items.map(item=><div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} onDoubleClick={()=>setFeatured(v=>v===item.id?null:item.id)} style={{position:'relative',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:12,background:'#171922',border:featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',gridColumn:featured===item.id?'1 / -1':undefined,gridRow:featured===item.id?'1 / -1':undefined,zIndex:featured===item.id?10:1,cursor:'pointer',boxShadow:'0 10px 30px rgba(0,0,0,.28)'}}><div style={{position:'absolute',left:8,bottom:8,zIndex:3,padding:'5px 8px',borderRadius:8,background:'rgba(0,0,0,.65)',color:'#fff',fontSize:11,fontWeight:800}}>{item.label}</div><button type="button" onClick={()=>void fullscreen(item.id)} title="Agrandir" style={{position:'absolute',right:8,top:8,zIndex:4,width:34,height:34,border:0,borderRadius:9,background:'rgba(0,0,0,.65)',color:'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Maximize2 size={16}/></button></div>)}
+          {items.map(item=><div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} onDoubleClick={()=>setFeatured(v=>v===item.id?null:item.id)} style={{position:'relative',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:12,background:'#171922',border:featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',gridColumn:featured===item.id?'1 / -1':undefined,gridRow:featured===item.id?'1 / -1':undefined,zIndex:featured===item.id?10:1,cursor:'pointer',boxShadow:'0 10px 30px rgba(0,0,0,.28)'}}><div style={{position:'absolute',left:8,bottom:8,zIndex:3,padding:'5px 8px',borderRadius:8,background:'rgba(0,0,0,.65)',color:'#fff',fontSize:11,fontWeight:800}}>{item.label}</div><button type="button" onClick={e=>{e.stopPropagation();void fullscreen(item.id)}} title="Agrandir" style={{position:'absolute',right:8,top:8,zIndex:4,width:34,height:34,border:0,borderRadius:9,background:'rgba(0,0,0,.65)',color:'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Maximize2 size={16}/></button></div>)}
         </div>
       </div>
       <div data-conik-screen-canvas aria-hidden="true" style={{display:'none'}} />
