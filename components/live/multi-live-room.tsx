@@ -1,14 +1,67 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, CameraOff, Maximize2, Minimize2, Mic, MicOff, MonitorUp, MonitorStop, Move, Volume2, BringToFront } from 'lucide-react'
+import {
+  Camera,
+  CameraOff,
+  Maximize2,
+  Minimize2,
+  Mic,
+  MicOff,
+  MonitorUp,
+  MonitorStop,
+  Move,
+  Volume2,
+  BringToFront,
+  Palette,
+} from 'lucide-react'
 import { Room, RoomEvent, Track } from 'livekit-client'
 
 type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean; label?: string }
 type VideoItem = { id: string; label: string; track: any; local: boolean }
-type StageState = { featured: string | null; movable: boolean; front: boolean; x: number; y: number; minimized: boolean }
 
-const DEFAULT_STAGE: StageState = { featured: null, movable: false, front: false, x: 88, y: 82, minimized: true }
+type StageState = {
+  featured: string | null
+  movable: boolean
+  front: boolean
+  x: number
+  y: number
+  minimized: boolean
+  backgroundId: string
+}
+
+const BACKGROUNDS: Record<string, { label: string; value: string }> = {
+  white: { label: 'Blanc', value: 'linear-gradient(135deg,#ffffff 0%,#f1f5f9 55%,#e2e8f0 100%)' },
+  blue: { label: 'Bleu', value: 'linear-gradient(135deg,#071a3d 0%,#0b5cff 55%,#48b8ff 100%)' },
+  violet: { label: 'Violet', value: 'linear-gradient(135deg,#160a35 0%,#6d28d9 55%,#b56cff 100%)' },
+  cyan: { label: 'Cyan', value: 'linear-gradient(135deg,#062a35 0%,#087f9b 55%,#54e0ff 100%)' },
+  dark: { label: 'Sombre', value: 'linear-gradient(135deg,#05060a 0%,#111827 55%,#273449 100%)' },
+}
+
+const DEFAULT_STAGE: StageState = {
+  featured: null,
+  movable: false,
+  front: false,
+  x: 88,
+  y: 82,
+  minimized: true,
+  backgroundId: 'blue',
+}
+
+function normalizeStage(next: Partial<StageState> | null | undefined): StageState {
+  return {
+    featured: typeof next?.featured === 'string' ? next.featured : null,
+    movable: Boolean(next?.movable),
+    front: Boolean(next?.front),
+    minimized: next?.minimized !== false,
+    x: Number.isFinite(next?.x) ? Math.max(3, Math.min(97, Number(next?.x))) : DEFAULT_STAGE.x,
+    y: Number.isFinite(next?.y) ? Math.max(3, Math.min(97, Number(next?.y))) : DEFAULT_STAGE.y,
+    backgroundId:
+      typeof next?.backgroundId === 'string' && BACKGROUNDS[next.backgroundId]
+        ? next.backgroundId
+        : DEFAULT_STAGE.backgroundId,
+  }
+}
 
 export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label }: Props) {
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading')
@@ -28,12 +81,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   const draggingRef = useRef(false)
 
   const sendStage = (next: StageState) => {
-    const safe = {
-      ...next,
-      x: Math.max(3, Math.min(97, next.x)),
-      y: Math.max(3, Math.min(97, next.y)),
-      minimized: Boolean(next.minimized),
-    }
+    const safe = normalizeStage(next)
     stageRefState.current = safe
     setStage(safe)
     if (!host) return
@@ -53,6 +101,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     roomRef.current = room
     const upsert = (item: VideoItem) => setItems((current) => [...current.filter((x) => x.id !== item.id), item])
     const remove = (id: string) => setItems((current) => current.filter((x) => x.id !== id))
+
     const attachAudio = (track: any) => {
       if (!track || track.kind !== Track.Kind.Audio) return
       const el = track.attach() as HTMLMediaElement
@@ -65,23 +114,17 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         if (!cancelled) setAudioBlocked(true)
       })
     }
+
     const onParticipant = (participant: any) =>
       participant.name || (participant.identity.startsWith('cohost-') ? 'Co-organisateur' : 'Organisateur')
 
+    // Sync scène organisateur → tous les participants (followers inclus)
     room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
       if (topic !== 'conik-stage-state') return
       try {
         const data = JSON.parse(new TextDecoder().decode(payload))
         if (data?.type !== 'conik-stage-state' || !data.stage) return
-        const next = data.stage as StageState
-        const safe: StageState = {
-          featured: typeof next.featured === 'string' ? next.featured : null,
-          movable: Boolean(next.movable),
-          front: Boolean(next.front),
-          minimized: Boolean(next.minimized),
-          x: Number.isFinite(next.x) ? Math.max(3, Math.min(97, next.x)) : DEFAULT_STAGE.x,
-          y: Number.isFinite(next.y) ? Math.max(3, Math.min(97, next.y)) : DEFAULT_STAGE.y,
-        }
+        const safe = normalizeStage(data.stage)
         stageRefState.current = safe
         setStage(safe)
         if (!host) setMoveMode(false)
@@ -100,11 +143,13 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       if (publication.source !== Track.Source.Camera) return
       upsert({ id: participant.identity, label: onParticipant(participant), track, local: false })
     })
+
     room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
       track.detach().forEach((el) => el.remove())
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(null)
       if (publication.source === Track.Source.Camera) remove(participant.identity)
     })
+
     room.on(RoomEvent.LocalTrackPublished, (publication) => {
       if (!host || !publication.track) return
       if (publication.source === Track.Source.Camera) {
@@ -114,7 +159,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           track: publication.track,
           local: true,
         })
-        // Par défaut : caméra en petit (indépendant du partage d’écran)
         if (!stageRefState.current.featured) {
           sendStage({
             ...stageRefState.current,
@@ -127,6 +171,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       }
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(publication.track)
     })
+
     room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
       if (publication.source === Track.Source.Camera) remove(room.localParticipant.identity)
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(null)
@@ -146,6 +191,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         if (cancelled) return
         setStatus('connected')
         setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
+
         if (!host) {
           try {
             await room.startAudio()
@@ -166,14 +212,9 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           } catch {
             setMessage('Caméra non disponible.')
           }
-          setTimeout(() => {
-            try {
-              void room.localParticipant.publishData(
-                new TextEncoder().encode(JSON.stringify({ type: 'conik-stage-state', stage: stageRefState.current })),
-                { reliable: true, topic: 'conik-stage-state' },
-              )
-            } catch {}
-          }, 300)
+          // Envoyer l’état de scène dès la connexion
+          setTimeout(() => sendStage(stageRefState.current), 250)
+          setTimeout(() => sendStage(stageRefState.current), 1200)
         }
       } catch (error) {
         if (!cancelled) {
@@ -183,15 +224,18 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       }
     })()
 
+    // Resync périodique pour les followers qui rejoignent en retard
     const syncTimer = host
       ? window.setInterval(() => {
           try {
             void room.localParticipant.publishData(
-              new TextEncoder().encode(JSON.stringify({ type: 'conik-stage-state', stage: stageRefState.current })),
+              new TextEncoder().encode(
+                JSON.stringify({ type: 'conik-stage-state', stage: stageRefState.current }),
+              ),
               { reliable: true, topic: 'conik-stage-state' },
             )
           } catch {}
-        }, 2000)
+        }, 1500)
       : undefined
 
     return () => {
@@ -201,6 +245,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     }
   }, [tokenUrl, JSON.stringify(tokenBody), host, label])
 
+  // Attacher les vidéos caméra
   useEffect(() => {
     items.forEach((item) => {
       const container = videoRefs.current[item.id]
@@ -219,6 +264,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     })
   }, [items, host])
 
+  // Attacher le partage d’écran (visible organisateur ET followers)
   useEffect(() => {
     const container = screenRef.current
     if (!container || !screenTrack) return
@@ -246,6 +292,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       setMic(next)
     } catch {}
   }
+
   async function toggleCamera() {
     const room = roomRef.current
     if (!room || !host) return
@@ -255,6 +302,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       setCamera(next)
     } catch {}
   }
+
   async function toggleScreen() {
     const room = roomRef.current
     if (!room || !host) return
@@ -278,9 +326,13 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     }
   }
 
+  function setBackground(id: string) {
+    if (!host || !BACKGROUNDS[id]) return
+    sendStage({ ...stage, backgroundId: id })
+  }
+
   function toggleMinimize(id: string) {
     if (!host) return
-    // Caméra petite / grande — indépendant du partage d’écran
     if (stage.featured !== id) {
       sendStage({ ...stage, featured: id, minimized: true, front: false, movable: false })
       setMoveMode(false)
@@ -341,9 +393,25 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
 
   const count = items.length
   const columns =
-    count <= 1 ? '1fr' : count === 2 ? 'repeat(2,minmax(0,1fr))' : count <= 4 ? 'repeat(2,minmax(0,1fr))' : 'repeat(3,minmax(0,1fr))'
-  const featuredItem = useMemo(() => items.find((item) => item.id === stage.featured) || null, [items, stage.featured])
-  const normalItems = useMemo(() => items.filter((item) => item.id !== stage.featured), [items, stage.featured])
+    count <= 1
+      ? '1fr'
+      : count === 2
+        ? 'repeat(2,minmax(0,1fr))'
+        : count <= 4
+          ? 'repeat(2,minmax(0,1fr))'
+          : 'repeat(3,minmax(0,1fr))'
+
+  const featuredItem = useMemo(
+    () => items.find((item) => item.id === stage.featured) || null,
+    [items, stage.featured],
+  )
+  const normalItems = useMemo(
+    () => items.filter((item) => item.id !== stage.featured),
+    [items, stage.featured],
+  )
+
+  const bg = BACKGROUNDS[stage.backgroundId] || BACKGROUNDS.blue
+  const showWatermark = !screenTrack // filigrane seulement sans partage d’écran
 
   const renderTile = (item: VideoItem, floating = false) => (
     <div
@@ -391,17 +459,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
               toggleMinimize(item.id)
             }}
             title={stage.minimized ? 'Agrandir la caméra' : 'Réduire la caméra'}
-            style={{
-              width: 30,
-              height: 30,
-              border: 0,
-              borderRadius: 7,
-              background: 'rgba(0,0,0,.68)',
-              color: '#fff',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
-            }}
+            style={btnStyle}
           >
             {stage.minimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
           </button>
@@ -413,15 +471,9 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             }}
             title="Déplacer"
             style={{
-              width: 30,
-              height: 30,
-              border: 0,
-              borderRadius: 7,
+              ...btnStyle,
               background: moveMode && stage.featured === item.id ? 'rgba(255,255,255,.92)' : 'rgba(0,0,0,.68)',
               color: moveMode && stage.featured === item.id ? '#111' : '#fff',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
             }}
           >
             <Move size={14} />
@@ -434,15 +486,13 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             }}
             title="Mettre en avant"
             style={{
-              width: 30,
-              height: 30,
-              border: 0,
-              borderRadius: 7,
-              background: stage.front && stage.featured === item.id && !stage.minimized ? 'rgba(255,255,255,.92)' : 'rgba(0,0,0,.68)',
-              color: stage.front && stage.featured === item.id && !stage.minimized ? '#111' : '#fff',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
+              ...btnStyle,
+              background:
+                stage.front && stage.featured === item.id && !stage.minimized
+                  ? 'rgba(255,255,255,.92)'
+                  : 'rgba(0,0,0,.68)',
+              color:
+                stage.front && stage.featured === item.id && !stage.minimized ? '#111' : '#fff',
             }}
           >
             <BringToFront size={14} />
@@ -452,7 +502,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     </div>
   )
 
-  // Taille de la caméra flottante : petite ou grande (pas lié au partage d’écran)
   const pipW = stage.minimized ? 'clamp(78px,10vw,108px)' : 'clamp(210px,32vw,390px)'
   const pipH = stage.minimized ? 'clamp(46px,6.2vw,62px)' : 'clamp(118px,18vw,220px)'
 
@@ -473,32 +522,125 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           minHeight: 0,
           overflow: 'hidden',
           borderRadius: 14,
-          background: '#090a0f',
+          background: screenTrack ? '#000' : bg.value,
           border: '1px solid var(--line)',
         }}
       >
-        <div data-conik-remote-canvas style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0 }}>
+        {/* Arrière-plan + filigrane Conik.io (sync organisateur → followers) */}
+        {!screenTrack && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              background: bg.value,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {showWatermark && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: 'none',
+              overflow: 'hidden',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3,1fr)',
+              gridTemplateRows: 'repeat(4,1fr)',
+              placeItems: 'center',
+              opacity: 0.14,
+            }}
+          >
+            {Array.from({ length: 12 }).map((_, i) => (
+              <span
+                key={i}
+                style={{
+                  color: '#fff',
+                  fontSize: 'clamp(16px,2.8vw,30px)',
+                  fontWeight: 900,
+                  letterSpacing: '.08em',
+                  transform: 'rotate(-24deg)',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Conik.io
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div data-conik-remote-canvas style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0, zIndex: 1 }}>
           {status !== 'connected' && (
-            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', padding: 24, textAlign: 'center', zIndex: 20 }}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff',
+                padding: 24,
+                textAlign: 'center',
+                zIndex: 20,
+              }}
+            >
               <b>{message}</b>
             </div>
           )}
+
           {status === 'connected' && items.length === 0 && !screenTrack && (
-            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', opacity: 0.75 }}>En attente des caméras…</div>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff',
+                opacity: 0.75,
+                zIndex: 2,
+              }}
+            >
+              En attente des caméras…
+            </div>
           )}
 
-          {/* Fond : partage d’écran OU grille des caméras non flottantes */}
+          {/* Partage d’écran plein cadre — visible pour tous */}
           {screenTrack && (
-            <div ref={screenRef} style={{ position: 'absolute', inset: 0, zIndex: 1, borderRadius: 12, overflow: 'hidden', background: '#000', padding: 4 }} />
+            <div
+              ref={screenRef}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                borderRadius: 12,
+                overflow: 'hidden',
+                background: '#000',
+                padding: 4,
+              }}
+            />
           )}
 
+          {/* Grille caméras (sans partage d’écran) */}
           {!screenTrack && normalItems.length > 0 && (
-            <div style={{ position: 'absolute', inset: 8, display: 'grid', gridTemplateColumns: columns, gap: 6, zIndex: 2 }}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 8,
+                display: 'grid',
+                gridTemplateColumns: columns,
+                gap: 6,
+                zIndex: 2,
+              }}
+            >
               {normalItems.map((item) => renderTile(item))}
             </div>
           )}
 
-          {/* Caméra flottante (petite/grande) — indépendante du partage d’écran */}
+          {/* Caméra PiP (petite/grande) — même position/taille côté followers */}
           {featuredItem && (
             <div
               style={{
@@ -517,7 +659,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             </div>
           )}
 
-          {/* Si partage d’écran + d’autres caméras non featured : petites pastilles en bas */}
+          {/* Autres caméras en pastilles pendant le partage d’écran */}
           {screenTrack && normalItems.length > 0 && (
             <div
               style={{
@@ -542,17 +684,40 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       </div>
 
       {host && status === 'connected' && (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="outline" onClick={() => void toggleMic()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button className="outline" onClick={() => void toggleMic()} style={ctrlBtn}>
             {mic ? <Mic size={17} /> : <MicOff size={17} />} {mic ? 'Couper le micro' : 'Activer le micro'}
           </button>
-          <button className="outline" onClick={() => void toggleCamera()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            {camera ? <Camera size={17} /> : <CameraOff size={17} />} {camera ? 'Couper la caméra' : 'Activer la caméra'}
+          <button className="outline" onClick={() => void toggleCamera()} style={ctrlBtn}>
+            {camera ? <Camera size={17} /> : <CameraOff size={17} />}{' '}
+            {camera ? 'Couper la caméra' : 'Activer la caméra'}
           </button>
-          <button className="outline" onClick={() => void toggleScreen()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          <button className="outline" onClick={() => void toggleScreen()} style={ctrlBtn}>
             {screenTrack ? <MonitorStop size={17} /> : <MonitorUp size={17} />}{' '}
             {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}
           </button>
+
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+            <Palette size={15} style={{ opacity: 0.7 }} />
+            {Object.entries(BACKGROUNDS).map(([id, item]) => (
+              <button
+                key={id}
+                type="button"
+                title={item.label}
+                aria-label={item.label}
+                onClick={() => setBackground(id)}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  border: stage.backgroundId === id ? '2px solid var(--text)' : '1px solid var(--line)',
+                  background: item.value,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -581,4 +746,23 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       )}
     </div>
   )
+}
+
+const btnStyle: React.CSSProperties = {
+  width: 30,
+  height: 30,
+  border: 0,
+  borderRadius: 7,
+  background: 'rgba(0,0,0,.68)',
+  color: '#fff',
+  display: 'grid',
+  placeItems: 'center',
+  cursor: 'pointer',
+}
+
+const ctrlBtn: React.CSSProperties = {
+  minHeight: 44,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
 }
