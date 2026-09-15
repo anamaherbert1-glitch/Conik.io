@@ -36,6 +36,28 @@ export function hashGreenWebhookToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }
 
+export function greenApiInstanceUrl(apiUrl: string, idInstance: string, apiTokenInstance: string, method: string) {
+  return `${apiUrl.replace(/\/$/, '')}/waInstance${encodeURIComponent(idInstance)}/${method}/${encodeURIComponent(apiTokenInstance)}`
+}
+
+async function greenApiRequest<T>(url: string, init?: RequestInit) {
+  const response = await fetch(url, { ...init, cache: 'no-store' })
+  const data = await response.json().catch(() => ({})) as T & { code?: unknown; description?: unknown }
+  if (!response.ok || data.code) {
+    const description = typeof data.description === 'string' ? data.description : `GREEN-API request failed (${response.status})`
+    throw new Error(description)
+  }
+  return data
+}
+
+export async function getInstanceState(input: { apiUrl: string; idInstance: string; apiTokenInstance: string }) {
+  return greenApiRequest<{ stateInstance?: string | null }>(greenApiInstanceUrl(input.apiUrl, input.idInstance, input.apiTokenInstance, 'getStateInstance'))
+}
+
+export async function getInstanceQr(input: { apiUrl: string; idInstance: string; apiTokenInstance: string }) {
+  return greenApiRequest<{ type?: string; message?: string }>(greenApiInstanceUrl(input.apiUrl, input.idInstance, input.apiTokenInstance, 'qr'))
+}
+
 export async function createPartnerInstance(input: { name: string; webhookUrl: string; webhookUrlToken: string }) {
   const response = await fetch(greenApiPartnerUrl('createInstance'), {
     method: 'POST',
