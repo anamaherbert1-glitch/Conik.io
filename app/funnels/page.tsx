@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { Plus, UploadCloud, ExternalLink } from 'lucide-react'
+import { Plus, UploadCloud } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppShell } from '@/components/app-shell'
+import { FunnelActionsMenu } from '@/components/funnel-actions-menu'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,11 @@ export default async function FunnelsPage() {
       <div className="choice"><div className="ico"><UploadCloud/></div><h2>Importer un tunnel</h2><p>Téléversez un ZIP contenant HTML, CSS et ressources. Conik valide, nettoie et héberge le contenu avant publication.</p><Link className="outline" href="/funnels/new?mode=import"><UploadCloud size={15}/>Choisir un ZIP</Link></div>
     </div>
     <section className="panel funnel-list"><div className="section-head"><h3>Tunnels de l’espace de travail</h3><span>{funnels?.length ?? 0} au total</span></div>
-      {funnels && funnels.length > 0 ? <div className="funnel-table">{funnels.map((funnel) => <div className="funnel-row" key={funnel.id}><div><b>{funnel.name}</b><span>/{funnel.slug} · {SOURCE_FR[funnel.source] ?? funnel.source}</span></div><span className={`status ${funnel.status}`}>{STATUS_FR[funnel.status] ?? funnel.status}</span>{funnel.status === 'published' && <a className="outline" href={`/${funnel.slug}`} target="_blank" rel="noopener noreferrer">Voir en ligne <ExternalLink size={14}/></a>}<Link className="outline" href={`/funnels/${funnel.id}`}>Ouvrir <ExternalLink size={14}/></Link></div>)}</div> : <div className="emptybox"><b>Aucun tunnel pour le moment</b><p>Créez votre premier tunnel ci-dessus. Il sera enregistré dans votre espace de travail.</p></div>}
+      {funnels && funnels.length > 0 ? <div className="funnel-table">{funnels.map((funnel) => <div className="funnel-row" key={funnel.id}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}><b>{funnel.name}</b><span>/{funnel.slug} · {SOURCE_FR[funnel.source] ?? funnel.source}</span></div>
+        <span className={`status ${funnel.status}`}>{STATUS_FR[funnel.status] ?? funnel.status}</span>
+        <FunnelActionsMenu funnelId={funnel.id} slug={funnel.slug} published={funnel.status === 'published'} />
+      </div>)}</div> : <div className="emptybox"><b>Aucun tunnel pour le moment</b><p>Créez votre premier tunnel ci-dessus. Il sera enregistré dans votre espace de travail.</p></div>}
     </section>
   </AppShell>
 }
