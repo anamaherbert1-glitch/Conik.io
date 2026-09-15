@@ -6,7 +6,7 @@ set search_path = public
 as $function$
 declare
   funnel_org uuid; funnel_id_value uuid; page_id_value uuid; v_contact_id uuid; form_id_value uuid;
-  clean_email text := nullif(lower(trim(contact_email), ''));
+  clean_email text := nullif(lower(trim(contact_email)), '');
   clean_phone text := nullif(trim(contact_phone), '');
   clean_first text := nullif(trim(contact_first_name), '');
   clean_last text := nullif(trim(contact_last_name), '');
