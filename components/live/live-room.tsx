@@ -5,7 +5,6 @@ import { Camera, CameraOff, Mic, MicOff, MonitorUp, MonitorStop, Volume2 } from 
 import { Room, RoomEvent, Track } from 'livekit-client'
 
 type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean }
-
 type MediaStatus = 'idle' | 'ready' | 'denied' | 'error'
 
 function embeddedBrowser() {
@@ -25,7 +24,7 @@ function mediaError(error: unknown, device: 'camera' | 'microphone' | 'screen') 
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return `Accès ${device === 'camera' ? 'à la caméra' : 'au microphone'} refusé. Autorisez-le pour Conik dans les réglages du navigateur.`
   if (name === 'NotFoundError') return `Aucun ${device === 'camera' ? 'caméra' : 'microphone'} compatible n’a été trouvé.`
   if (name === 'NotReadableError' || name === 'TrackStartError') return `Le ${device === 'camera' ? 'caméra' : 'microphone'} est déjà utilisé par une autre application.`
-  return `Impossible d’accéder à ${device === 'camera' ? 'la caméra' : 'au microphone'}.`
+  return `Impossible d’accéder à ${device === 'camera' ? 'la caméra' : 'le microphone'}.`
 }
 
 function screenSupportError() {
@@ -320,20 +319,20 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     gap: 8,
     fontWeight: 700,
   }
-  const stageHeight = 'clamp(500px, 68vh, 720px)'
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <div
         data-conik-studio-stage="true"
-        style={{ position: 'relative', minHeight: stageHeight, borderRadius: 14, overflow: 'hidden', background: '#090a0f', border: '1px solid var(--line)' }}
+        className="conik-live-studio-stage"
+        style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', minHeight: 0, height: 'auto', borderRadius: 14, overflow: 'hidden', background: '#090a0f', border: '1px solid var(--line)' }}
       >
-        <div ref={remoteRef} style={{ width: '100%', height: '100%', minHeight: stageHeight, display: 'grid', placeItems: 'center' }}>
+        <div ref={remoteRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0, display: 'grid', placeItems: 'center' }}>
           {state !== 'connected' && <div style={{ color: '#fff', textAlign: 'center', padding: 24 }}><b>{message}</b></div>}
           {state === 'connected' && !host && <div style={{ color: '#fff', textAlign: 'center', padding: 24, opacity: 0.75 }}>En attente de la vidéo du créateur…</div>}
         </div>
-        <div ref={screenRef} style={{ position: 'absolute', left: 16, top: 16, right: 16, bottom: 16, zIndex: 1, pointerEvents: 'none' }} />
-        <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: host ? 220 : 200, height: host ? 130 : 120, zIndex: 2, background: '#171922', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)' }} />
+        <div ref={screenRef} style={{ position: 'absolute', left: 10, top: 10, right: 10, bottom: 10, zIndex: 1, pointerEvents: 'none', overflow: 'hidden', borderRadius: 12 }} />
+        <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: host ? 180 : 160, height: host ? 102 : 90, zIndex: 2, background: '#171922', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)' }} />
 
         {host && screenShare && state === 'connected' && (
           <div style={{ position: 'absolute', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 5, display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderRadius: 14, background: 'rgba(15,17,24,.94)', border: '1px solid rgba(255,255,255,.16)', boxShadow: '0 12px 36px rgba(0,0,0,.35)', backdropFilter: 'blur(12px)', maxWidth: 'calc(100% - 24px)', flexWrap: 'wrap', justifyContent: 'center' }}>
