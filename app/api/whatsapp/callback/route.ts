@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { debugToken, exchangeEmbeddedSignupCode, encryptAccessToken, getWaba, listPhoneNumbers, listOwnedWabas, getMetaConfig, subscribeWaba } from '@/lib/whatsapp/meta'
 
 export const runtime = 'nodejs'
@@ -53,8 +54,8 @@ export async function POST(request: Request) {
     if (!phoneNumberId) return NextResponse.json({ error: 'Aucun numéro WhatsApp Business n’a été trouvé dans ce WABA.' }, { status: 422 })
 
     const expiresAt = typeof token.expires_in === 'number' ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null
-    const supabase = await createClient()
-    const { data: connectionId, error } = await supabase.rpc('whatsapp_upsert_connection', {
+    const admin = createAdminClient()
+    const { data: connectionId, error } = await admin.rpc('whatsapp_upsert_connection', {
       p_secret: getMetaConfig().serverSecret,
       p_organization_id: membership.organizationId,
       p_created_by: user.id,
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
       console.warn('WhatsApp WABA webhook subscription failed', subscriptionError)
     }
 
+    const supabase = await createClient()
     await supabase.from('whatsapp_connections').update({ metadata: { webhookSubscribed, connectedVia: 'embedded_signup_v4' } }).eq('id', connectionId).eq('organization_id', membership.organizationId)
 
     return NextResponse.json({ ok: true, connectionId, organizationId: membership.organizationId, wabaId, phoneNumberId, displayPhoneNumber: phone?.display_phone_number || null, verifiedName: phone?.verified_name || null, webhookSubscribed })
