@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptAccessToken, getMetaConfig, sendCloudApiMessage } from '@/lib/whatsapp/meta'
 
 export const runtime = 'nodejs'
@@ -15,7 +16,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const { data: connection } = await supabase.from('whatsapp_connections').select('id,phone_number_id,status').eq('id', campaign.connection_id).eq('organization_id', membership.organizationId).maybeSingle()
   if (!connection || connection.status !== 'connected') return NextResponse.json({ error: 'Connexion WhatsApp inactive.' }, { status: 409 })
-  const { data: credential, error: credentialError } = await supabase.rpc('whatsapp_get_credential', { p_secret: getMetaConfig().serverSecret, p_connection_id: connection.id })
+  const admin = createAdminClient()
+  const { data: credential, error: credentialError } = await admin.rpc('whatsapp_get_credential', { p_secret: getMetaConfig().serverSecret, p_connection_id: connection.id })
   if (credentialError) return NextResponse.json({ error: credentialError.message }, { status: 500 })
   const row = Array.isArray(credential) ? credential[0] : credential
   if (!row?.access_token_cipher) return NextResponse.json({ error: 'Credential WhatsApp indisponible.' }, { status: 409 })
@@ -48,13 +50,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     try {
       const result = await sendCloudApiMessage(decryptAccessToken(row.access_token_cipher), connection.phone_number_id, { to: recipient.phone_number, type: 'template', template: { name: campaign.template_name, language: { code: campaign.template_language || 'fr' }, components: variables.length ? [{ type: 'body', parameters: variables }] : undefined } })
       const waMessageId = Array.isArray(result.messages) ? (result.messages[0] as Record<string, unknown>)?.id : null
-      await supabase.rpc('whatsapp_settle_outbound_system', { p_secret: getMetaConfig().serverSecret, p_message_id: messageId, p_status: 'sent', p_wa_message_id: typeof waMessageId === 'string' ? waMessageId : null, p_error_code: null, p_error_message: null })
+      await admin.rpc('whatsapp_settle_outbound_system', { p_secret: getMetaConfig().serverSecret, p_message_id: messageId, p_status: 'sent', p_wa_message_id: typeof waMessageId === 'string' ? waMessageId : null, p_error_code: null, p_error_message: null })
       await supabase.from('whatsapp_campaign_recipients').update({ status: 'sent', message_id: messageId, attempt_count: 1 }).eq('id', recipient.id).eq('organization_id', membership.organizationId)
       sent++
     } catch (error) {
       failed++
       const message = error instanceof Error ? error.message : 'Meta a refusé l’envoi.'
-      await supabase.rpc('whatsapp_settle_outbound_system', { p_secret: getMetaConfig().serverSecret, p_message_id: messageId, p_status: 'failed', p_wa_message_id: null, p_error_code: null, p_error_message: message })
+      await admin.rpc('whatsapp_settle_outbound_system', { p_secret: getMetaConfig().serverSecret, p_message_id: messageId, p_status: 'failed', p_wa_message_id: null, p_error_code: null, p_error_message: message })
       await supabase.from('whatsapp_campaign_recipients').update({ status: 'failed', message_id: messageId, attempt_count: 1, error_message: message }).eq('id', recipient.id).eq('organization_id', membership.organizationId)
     }
   }
