@@ -124,7 +124,6 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
       try {
         if (sessionStorage.getItem(captureKey) !== '1') {
           timer = window.setTimeout(() => {
-            try { sessionStorage.setItem(captureKey, '1') } catch {}
             setShowCapture(true)
           }, Math.max(1000, Math.min(60000, page.capture_delay_ms ?? 5000)))
         }
@@ -191,7 +190,11 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
           if (!response.ok) throw new Error(json.error || 'capture_failed')
           return json
         })
-        .then(() => reply(true))
+        .then(() => {
+          try { sessionStorage.setItem(captureKey, '1') } catch {}
+          setShowCapture(false)
+          reply(true)
+        })
         .catch(() => reply(false))
     }
 
@@ -218,7 +221,6 @@ export function FunnelRuntime({ funnelSlug, pageSlug }: { funnelSlug: string; pa
       {showCapture && captureSrc && (
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, zIndex: 2147483646, background: 'rgba(15,23,42,.68)', display: 'grid', placeItems: 'center', padding: 16 }}>
           <div style={{ position: 'relative', width: 'min(720px,100%)', maxHeight: 'calc(100vh - 32px)', background: '#fff', borderRadius: 16, overflow: 'hidden' }}>
-            <button type="button" aria-label="Fermer" onClick={() => setShowCapture(false)} style={{ position: 'absolute', right: 10, top: 10, zIndex: 2, width: 36, height: 36, border: 0, borderRadius: 999, background: 'rgba(17,24,39,.08)', fontSize: 22, cursor: 'pointer' }}>×</button>
             <iframe ref={captureFrame} title="Page de capture" sandbox="allow-scripts allow-forms allow-popups" srcDoc={captureSrc} style={{ width: '100%', height: 'min(760px,calc(100vh - 32px))', border: 0, display: 'block' }} />
           </div>
         </div>
