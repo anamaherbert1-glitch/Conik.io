@@ -31,17 +31,16 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false }: Pro
       const el = track.attach(); el.autoplay = true; el.muted = false; el.volume = 1; el.style.display = 'none'; document.body.appendChild(el)
       void el.play().catch(() => { if (!cancelled) setAudioBlocked(true) })
     }
-    room.on(RoomEvent.TrackSubscribed, (track, publication) => {
+    room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       if (track.kind === Track.Kind.Audio) { attachAudio(track); return }
       if (publication.source === Track.Source.ScreenShare) { setScreenTrack(track); return }
       if (publication.source !== Track.Source.Camera) return
-      const participant = publication.participant
       upsert({ id: participant.identity, label: participant.name || (participant.identity.startsWith('cohost-') ? 'Co-organisateur' : 'Organisateur'), track, local: false })
     })
-    room.on(RoomEvent.TrackUnsubscribed, (track, publication) => {
+    room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
       track.detach().forEach(el => el.remove())
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(null)
-      if (publication.source === Track.Source.Camera) remove(publication.participant.identity)
+      if (publication.source === Track.Source.Camera) remove(participant.identity)
     })
     room.on(RoomEvent.LocalTrackPublished, publication => {
       if (!host || !publication.track) return
