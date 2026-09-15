@@ -96,7 +96,8 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
 
       const selectedBackground = BACKGROUNDS.find(item => item.id === background) || BACKGROUNDS[0]
       stage.style.position = 'relative'
-      stage.style.minHeight = 'clamp(420px, 60vh, 680px)'
+      stage.style.width = '100%'
+      stage.style.minHeight = 'clamp(560px, 72vh, 820px)'
       stage.style.height = 'auto'
       stage.style.overflow = 'hidden'
       stage.style.background = 'transparent'
@@ -112,14 +113,17 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         watermark.style.zIndex = '0'
       }
 
-      if (active && primary === 'screen') {
+      const cameraIsPrimary = primary === 'camera'
+      const screenIsPrimary = active && primary === 'screen'
+
+      if (screenIsPrimary) {
         currentScreen.style.display = ''
-        currentScreen.style.width = screenPosition ? 'min(82%, 1100px)' : 'auto'
-        currentScreen.style.height = screenPosition ? 'min(78%, 620px)' : 'auto'
         currentScreen.style.left = screenPosition ? `${screenPosition.x}px` : '16px'
         currentScreen.style.top = screenPosition ? `${screenPosition.y}px` : '16px'
         currentScreen.style.right = screenPosition ? 'auto' : '16px'
         currentScreen.style.bottom = screenPosition ? 'auto' : '16px'
+        currentScreen.style.width = screenPosition ? 'min(82%, 1200px)' : 'auto'
+        currentScreen.style.height = screenPosition ? 'min(78%, 680px)' : 'auto'
         currentScreen.style.zIndex = '2'
         currentScreen.style.pointerEvents = 'auto'
         currentScreen.style.touchAction = 'none'
@@ -129,8 +133,8 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         currentScreen.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
 
         currentCamera.style.display = ''
-        currentCamera.style.width = '220px'
-        currentCamera.style.height = '130px'
+        currentCamera.style.width = '190px'
+        currentCamera.style.height = '108px'
         currentCamera.style.zIndex = '4'
         currentCamera.style.right = 'auto'
         currentCamera.style.bottom = 'auto'
@@ -144,10 +148,10 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
           currentCamera.style.left = `${cameraPosition.x}px`
           currentCamera.style.top = `${cameraPosition.y}px`
         } else {
-          currentCamera.style.left = 'calc(100% - 236px)'
-          currentCamera.style.top = 'calc(100% - 146px)'
+          currentCamera.style.left = 'calc(100% - 206px)'
+          currentCamera.style.top = 'calc(100% - 124px)'
         }
-      } else if (active && primary === 'camera') {
+      } else if (cameraIsPrimary) {
         currentCamera.style.display = ''
         currentCamera.style.left = '16px'
         currentCamera.style.top = '16px'
@@ -162,25 +166,29 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         currentCamera.style.transform = 'none'
         currentCamera.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
 
-        currentScreen.style.display = ''
-        currentScreen.style.left = screenPosition ? `${screenPosition.x}px` : 'auto'
-        currentScreen.style.top = screenPosition ? `${screenPosition.y}px` : 'auto'
-        currentScreen.style.right = screenPosition ? 'auto' : '16px'
-        currentScreen.style.bottom = screenPosition ? 'auto' : '16px'
-        currentScreen.style.width = screenPosition ? '260px' : '260px'
-        currentScreen.style.height = '150px'
-        currentScreen.style.zIndex = '4'
-        currentScreen.style.pointerEvents = 'auto'
-        currentScreen.style.touchAction = 'none'
-        currentScreen.style.cursor = dragging && dragTarget === 'screen' ? 'grabbing' : 'grab'
-        currentScreen.style.borderRadius = '12px'
-        currentScreen.style.overflow = 'hidden'
-        currentScreen.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
+        if (active) {
+          currentScreen.style.display = ''
+          currentScreen.style.left = screenPosition ? `${screenPosition.x}px` : 'auto'
+          currentScreen.style.top = screenPosition ? `${screenPosition.y}px` : 'auto'
+          currentScreen.style.right = screenPosition ? 'auto' : '18px'
+          currentScreen.style.bottom = screenPosition ? 'auto' : '18px'
+          currentScreen.style.width = screenPosition ? '280px' : '280px'
+          currentScreen.style.height = '158px'
+          currentScreen.style.zIndex = '4'
+          currentScreen.style.pointerEvents = 'auto'
+          currentScreen.style.touchAction = 'none'
+          currentScreen.style.cursor = dragging && dragTarget === 'screen' ? 'grabbing' : 'grab'
+          currentScreen.style.borderRadius = '12px'
+          currentScreen.style.overflow = 'hidden'
+          currentScreen.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
+        } else {
+          currentScreen.style.display = 'none'
+        }
       } else {
         currentScreen.style.display = 'none'
         currentCamera.style.display = ''
-        currentCamera.style.width = 'min(78vw, 520px)'
-        currentCamera.style.height = 'min(48vw, 300px)'
+        currentCamera.style.width = '190px'
+        currentCamera.style.height = '108px'
         currentCamera.style.right = 'auto'
         currentCamera.style.bottom = 'auto'
         currentCamera.style.zIndex = '3'
@@ -194,9 +202,9 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
           currentCamera.style.top = `${cameraPosition.y}px`
           currentCamera.style.transform = 'none'
         } else {
-          currentCamera.style.left = '50%'
-          currentCamera.style.top = '50%'
-          currentCamera.style.transform = 'translate(-50%,-50%)'
+          currentCamera.style.left = 'calc(100% - 206px)'
+          currentCamera.style.top = 'calc(100% - 124px)'
+          currentCamera.style.transform = 'none'
         }
       }
     }
@@ -296,50 +304,45 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
 
   return (
     <>
-      <style>{`@media (max-width: 760px){.conik-live-studio-sidebar{width:min(272px,calc(100vw - 26px))!important}.conik-live-studio-toggle{width:38px!important;height:38px!important}}`}</style>
-      <div ref={rootRef} className="conik-live-studio-layout" style={{ position: 'relative', width: '100%', minWidth: 0 }}>
+      <style>{`@media (max-width: 980px){.conik-live-studio-layout{grid-template-columns:1fr!important}.conik-live-studio-sidebar{position:relative!important;top:auto!important;right:auto!important;width:100%!important;max-height:none!important}.conik-live-studio-toggle{position:relative!important;top:auto!important;right:auto!important;margin-top:8px;width:100%!important;height:40px!important}}@media (max-width:760px){.conik-live-studio-stage{min-height:clamp(420px,60vh,620px)!important}.conik-live-studio-sidebar{width:100%!important}}`}</style>
+      <div ref={rootRef} className="conik-live-studio-layout" style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? 'minmax(0, 1fr) 248px' : 'minmax(0, 1fr)', gap: 14, width: '100%', minWidth: 0, alignItems: 'start' }}>
         <div className="conik-live-studio-main" style={{ width: '100%', minWidth: 0 }}>
           <div style={{ width: '100%', minWidth: 0 }}>{children}</div>
+          <button
+            type="button"
+            className="conik-live-studio-toggle"
+            aria-label={sidebarOpen ? 'Masquer les outils du studio' : 'Afficher les outils du studio'}
+            title={sidebarOpen ? 'Masquer les outils' : 'Afficher les outils'}
+            onClick={() => setSidebarOpen(value => !value)}
+            style={{
+              marginTop: 8, width: 42, height: 36, borderRadius: 10, border: '1px solid var(--line)',
+              background: 'var(--panel)', color: 'var(--text)', display: 'grid', placeItems: 'center',
+              boxShadow: '0 8px 22px rgba(0,0,0,.12)', cursor: 'pointer',
+            }}
+          >
+            {sidebarOpen ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+          </button>
         </div>
 
-        <button
-          type="button"
-          className="conik-live-studio-toggle"
-          aria-label={sidebarOpen ? 'Masquer les outils du studio' : 'Afficher les outils du studio'}
-          title={sidebarOpen ? 'Masquer les outils' : 'Afficher les outils'}
-          onClick={() => setSidebarOpen(value => !value)}
-          style={{
-            position: 'absolute', top: 18, right: sidebarOpen ? 258 : 8, zIndex: 30,
-            width: 40, height: 40, borderRadius: 12, border: '1px solid var(--line)',
-            background: 'var(--panel)', color: 'var(--text)', display: 'grid', placeItems: 'center',
-            boxShadow: '0 10px 30px rgba(0,0,0,.18)', cursor: 'pointer', transition: 'right .2s ease',
-          }}
-        >
-          {sidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
-
-        <aside
+        {sidebarOpen && <aside
           className="conik-live-studio-sidebar"
-          aria-hidden={!sidebarOpen}
           style={{
             ...panelStyle,
-            position: 'absolute', top: 8, right: 8, zIndex: 25,
-            width: 248, maxHeight: 'calc(100% - 16px)', overflowY: 'auto',
+            width: '100%', maxHeight: 'min(820px, calc(100vh - 120px))', overflowY: 'auto',
             display: 'grid', gap: 10, minWidth: 0,
-            transform: sidebarOpen ? 'translateX(0)' : 'translateX(calc(100% + 18px))',
-            opacity: sidebarOpen ? 1 : 0, pointerEvents: sidebarOpen ? 'auto' : 'none',
-            transition: 'transform .2s ease, opacity .2s ease', boxShadow: '0 18px 48px rgba(0,0,0,.22)',
+            position: 'sticky', top: 12,
+            boxShadow: '0 18px 48px rgba(0,0,0,.14)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
             <GripVertical size={16} />
-            <div style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>Outils du Live</b><div className="muted" style={{ fontSize: 10 }}>Sidebar masquable</div></div>
+            <div style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>Outils du Live</b><div className="muted" style={{ fontSize: 10 }}>Panneau externe au studio</div></div>
           </div>
 
           <div style={{ display: 'grid', gap: 7 }}>
             <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Élément principal</span>
-            <button type="button" className={primary === 'camera' ? 'primary' : 'outline'} onClick={() => setPrimary('camera')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><Camera size={14} /> Caméra en avant</button>
-            {hasScreen && <button type="button" className={primary === 'screen' ? 'primary' : 'outline'} onClick={() => setPrimary('screen')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><MonitorUp size={14} /> Écran en avant</button>}
+            <button type="button" className={primary === 'camera' ? 'primary' : 'outline'} onClick={() => setPrimary('camera')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><Camera size={14} /> Mettre la caméra en avant</button>
+            {hasScreen && <button type="button" className={primary === 'screen' ? 'primary' : 'outline'} onClick={() => setPrimary('screen')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><MonitorUp size={14} /> Mettre l'écran en avant</button>}
           </div>
 
           <div style={{ display: 'grid', gap: 7 }}>
@@ -360,7 +363,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
           </div>
 
           {sidebarContent && <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>{sidebarContent}</div>}
-        </aside>
+        </aside>}
       </div>
     </>
   )
