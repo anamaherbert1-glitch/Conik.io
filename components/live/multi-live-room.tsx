@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Camera, CameraOff, Maximize2, Mic, MicOff, MonitorUp, MonitorStop, Volume2 } from 'lucide-react'
 import { Room, RoomEvent, Track } from 'livekit-client'
 
-type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean }
+type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean; label?: string }
 type VideoItem = { id: string; label: string; track: any; local: boolean }
 
-export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
+export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label }: Props) {
   const [status, setStatus] = useState<'loading'|'connected'|'error'>('loading')
   const [message, setMessage] = useState('Connexion au Live…')
   const [items, setItems] = useState<VideoItem[]>([])
@@ -44,13 +44,13 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false }: Pro
     })
     room.on(RoomEvent.LocalTrackPublished, publication => {
       if (!host || !publication.track) return
-      if (publication.source === Track.Source.Camera) upsert({ id: room.localParticipant.identity, label: 'Organisateur principal', track: publication.track, local: true })
+      if (publication.source === Track.Source.Camera) upsert({ id: room.localParticipant.identity, label: label || 'Organisateur principal', track: publication.track, local: true })
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(publication.track)
     })
     room.on(RoomEvent.LocalTrackUnpublished, publication => {
       if (publication.source === Track.Source.Camera) remove(room.localParticipant.identity)
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(null)
-      publication.track?.detach().forEach(el => el.remove())
+      publication.track?.detach().forEach((el:any) => el.remove())
     })
     ;(async () => {
       try {
@@ -65,7 +65,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false }: Pro
       } catch (error) { if (!cancelled) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') } }
     })()
     return () => { cancelled = true; room.disconnect() }
-  }, [tokenUrl, JSON.stringify(tokenBody), host])
+  }, [tokenUrl, JSON.stringify(tokenBody), host, label])
 
   useEffect(() => {
     items.forEach(item => {
@@ -92,17 +92,21 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false }: Pro
   const count=items.length
   const columns=count<=1?'1fr':count===2?'repeat(2,minmax(0,1fr))':count<=4?'repeat(2,minmax(0,1fr))':'repeat(3,minmax(0,1fr))'
   return <div style={{display:'grid',gap:10}}>
-    <div className="conik-multi-live-stage" style={{position:'relative',width:'100%',aspectRatio:'16/9',minHeight:0,overflow:'hidden',borderRadius:14,background:'#090a0f',border:'1px solid var(--line)'}}>
-      {status!=='connected'&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',padding:24,textAlign:'center'}}><b>{message}</b></div>}
-      {status==='connected'&&items.length===0&&!screenTrack&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',opacity:.75}}>En attente des caméras…</div>}
-      {screenTrack&&<div ref={screenRef} style={{position:'absolute',inset:8,zIndex:2,borderRadius:12,overflow:'hidden',background:'#000'}}/>}
-      <div style={{position:'absolute',inset:8,display:'grid',gridTemplateColumns:columns,gap:8,zIndex:screenTrack?3:1}}>
-        {items.map(item=><div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} onDoubleClick={()=>setFeatured(v=>v===item.id?null:item.id)} style={{position:'relative',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:12,background:'#171922',border:featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',gridColumn:featured===item.id?'1 / -1':undefined,gridRow:featured===item.id?'1 / -1':undefined,zIndex:featured===item.id?10:1,cursor:'pointer',boxShadow:'0 10px 30px rgba(0,0,0,.28)'}}><div style={{position:'absolute',left:8,bottom:8,zIndex:3,padding:'5px 8px',borderRadius:8,background:'rgba(0,0,0,.65)',color:'#fff',fontSize:11,fontWeight:800}}>{item.label}</div><button type="button" onClick={()=>void fullscreen(item.id)} title="Agrandir" style={{position:'absolute',right:8,top:8,zIndex:4,width:34,height:34,border:0,borderRadius:9,background:'rgba(0,0,0,.65)',color:'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Maximize2 size={16}/></button></div>)}
+    <div className="conik-multi-live-stage" data-conik-studio-stage style={{position:'relative',width:'100%',aspectRatio:'16/9',minHeight:0,overflow:'hidden',borderRadius:14,background:'#090a0f',border:'1px solid var(--line)'}}>
+      <div data-conik-remote-canvas style={{position:'absolute',inset:0,width:'100%',height:'100%',minHeight:0}}>
+        {status!=='connected'&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',padding:24,textAlign:'center',zIndex:20}}><b>{message}</b></div>}
+        {status==='connected'&&items.length===0&&!screenTrack&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',opacity:.75}}>En attente des caméras…</div>}
+        {screenTrack&&<div ref={screenRef} style={{position:'absolute',inset:8,zIndex:2,borderRadius:12,overflow:'hidden',background:'#000'}}/>}
+        <div style={{position:'absolute',inset:8,display:'grid',gridTemplateColumns:columns,gap:8,zIndex:screenTrack?3:4}}>
+          {items.map(item=><div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} onDoubleClick={()=>setFeatured(v=>v===item.id?null:item.id)} style={{position:'relative',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:12,background:'#171922',border:featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',gridColumn:featured===item.id?'1 / -1':undefined,gridRow:featured===item.id?'1 / -1':undefined,zIndex:featured===item.id?10:1,cursor:'pointer',boxShadow:'0 10px 30px rgba(0,0,0,.28)'}}><div style={{position:'absolute',left:8,bottom:8,zIndex:3,padding:'5px 8px',borderRadius:8,background:'rgba(0,0,0,.65)',color:'#fff',fontSize:11,fontWeight:800}}>{item.label}</div><button type="button" onClick={()=>void fullscreen(item.id)} title="Agrandir" style={{position:'absolute',right:8,top:8,zIndex:4,width:34,height:34,border:0,borderRadius:9,background:'rgba(0,0,0,.65)',color:'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Maximize2 size={16}/></button></div>)}
+        </div>
       </div>
+      <div data-conik-screen-canvas aria-hidden="true" style={{display:'none'}} />
+      <div data-conik-camera-canvas aria-hidden="true" style={{display:'none'}} />
     </div>
     {host&&status==='connected'&&<div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}><button className="outline" onClick={()=>void toggleMic()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{mic?<Mic size={17}/>:<MicOff size={17}/>} {mic?'Couper le micro':'Activer le micro'}</button><button className="outline" onClick={()=>void toggleCamera()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{camera?<Camera size={17}/>:<CameraOff size={17}/>} {camera?'Couper la caméra':'Activer la caméra'}</button><button className="outline" onClick={()=>void toggleScreen()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{screenTrack?<MonitorStop size={17}/>:<MonitorUp size={17}/>} {screenTrack?'Arrêter le partage':'Partager mon écran'}</button></div>}
     {!host&&audioBlocked&&status==='connected'&&<button onClick={()=>void roomRef.current?.startAudio().then(()=>setAudioBlocked(false)).catch(()=>{})} style={{minHeight:44,border:0,borderRadius:10,fontWeight:800,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><Volume2 size={17}/>Activer le son</button>}
-    {host&&<div className="muted" style={{textAlign:'center',fontSize:11}}>Double-cliquez sur une caméra pour la mettre en avant. Le bouton ⛶ permet de l’agrandir.</div>}
-    <style>{`@media(max-width:700px){.conik-multi-live-stage{aspect-ratio:16/10!important}.conik-multi-live-stage>div:nth-child(3){inset:5px!important;gap:5px!important}}`}</style>
+    {host&&<div className="muted" style={{textAlign:'center',fontSize:11}}>Chaque organisateur apparaît dans une case. Double-cliquez sur une caméra pour la mettre en avant ; ⛶ l’ouvre en grand.</div>}
+    <style>{`@media(max-width:700px){.conik-multi-live-stage{aspect-ratio:16/10!important}.conik-multi-live-stage>div[data-conik-remote-canvas]{inset:5px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(3){inset:5px!important;gap:5px!important}}`}</style>
   </div>
 }
