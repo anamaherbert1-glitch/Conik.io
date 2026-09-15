@@ -16,10 +16,7 @@ type Live={id:string;title:string;description:string|null;slug:string;scheduled_
 export default function LiveDetail({params}:{params:Promise<{id:string}>}){
   const[live,setLive]=useState<Live|null>(null),[participants,setParticipants]=useState<Participant[]>([]),[attendees,setAttendees]=useState<Attendee[]>([]),[contacts,setContacts]=useState<any[]>([]),[selected,setSelected]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[studio,setStudio]=useState(false),[ending,setEnding]=useState(false),[endConfirmOpen,setEndConfirmOpen]=useState(false),[waMessage,setWaMessage]=useState(''),[waEligible,setWaEligible]=useState(0),[waInvited,setWaInvited]=useState(0),[waSaving,setWaSaving]=useState(false)
 
-  async function load(id:string){
-    const [l,p,c,a,w]=await Promise.all([fetch('/api/lives').then(r=>r.json()),fetch(`/api/lives/${id}/participants`).then(r=>r.json()),fetch('/api/contacts').then(r=>r.json()),fetch(`/api/lives/presence?live_id=${id}`,{cache:'no-store'}).then(r=>r.json()).catch(()=>({})),fetch(`/api/lives/${id}/whatsapp`,{cache:'no-store'}).then(r=>r.json()).catch(()=>({}))]);setLive((l.lives||[]).find((x:Live)=>x.id===id)||null);setParticipants(p.participants||[]);setContacts(c.contacts||[]);setAttendees(a.attendees||[]);setWaMessage(w.draft||'');setWaEligible(w.whatsapp_eligible||0);setWaInvited(w.total_invited||0)
-  }
-
+  async function load(id:string){const [l,p,c,a,w]=await Promise.all([fetch('/api/lives').then(r=>r.json()),fetch(`/api/lives/${id}/participants`).then(r=>r.json()),fetch('/api/contacts').then(r=>r.json()),fetch(`/api/lives/presence?live_id=${id}`,{cache:'no-store'}).then(r=>r.json()).catch(()=>({})),fetch(`/api/lives/${id}/whatsapp`,{cache:'no-store'}).then(r=>r.json()).catch(()=>({}))]);setLive((l.lives||[]).find((x:Live)=>x.id===id)||null);setParticipants(p.participants||[]);setContacts(c.contacts||[]);setAttendees(a.attendees||[]);setWaMessage(w.draft||'');setWaEligible(w.whatsapp_eligible||0);setWaInvited(w.total_invited||0)}
   useEffect(()=>{params.then(({id})=>{load(id).catch(()=>setError('Impossible de charger cet événement'));const timer=window.setInterval(()=>{void fetch(`/api/lives/presence?live_id=${id}`,{cache:'no-store'}).then(r=>r.json()).then(j=>setAttendees(j.attendees||[])).catch(()=>{})},5000);return()=>window.clearInterval(timer)})},[params])
   async function add(){if(!live||!selected)return;setError('');const r=await fetch(`/api/lives/${live.id}/participants`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact_ids:[selected]})});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible d’ajouter le contact');else{setSelected('');setNotice('Contact autorisé.');await load(live.id)}}
   async function remove(contactId:string){if(!live)return;const r=await fetch(`/api/lives/${live.id}/participants`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact_id:contactId})});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible de retirer le contact');else{setNotice('Contact retiré.');await load(live.id)}}
@@ -30,7 +27,6 @@ export default function LiveDetail({params}:{params:Promise<{id:string}>}){
 
   const allowed=new Set(participants.map(p=>p.contact_id)),connected=attendees.filter(a=>a.connected),notConnected=participants.filter(p=>!connected.some(a=>a.participant_id===p.id))
   const contactName=(contactId:string,email:string)=>{const c=contacts.find(x=>x.id===contactId);return c?[c.first_name,c.last_name].filter(Boolean).join(' ')||email:email}
-
   const inviteSidebar=<div style={{display:'grid',gap:9}}>
     <div style={{display:'flex',alignItems:'center',gap:7}}><Users size={15}/><b style={{fontSize:12}}>Invités</b><span className="muted" style={{fontSize:10}}>{participants.length}</span></div>
     <div style={{display:'grid',gap:6}}>
@@ -66,10 +62,6 @@ export default function LiveDetail({params}:{params:Promise<{id:string}>}){
       <section className="panel" style={{marginTop:18}}>
         <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:8}}><Link2 size={18}/><h3 style={{margin:0}}>Lien du Live</h3></div>
         <div className="choice" style={{fontSize:13,wordBreak:'break-all'}}>{window.location.origin}/live/{live.slug}</div>
-      </section>
-      <section className="panel" style={{marginTop:18}}>
-        <div style={{display:'flex',alignItems:'center',gap:9}}><Users size={18}/><h3 style={{margin:0}}>Contacts autorisés</h3><span className="muted" style={{fontSize:12}}>{participants.length}</span></div>
-        <div className="table-wrap" style={{marginTop:14}}><table><thead><tr><th>Contact</th><th>Statut</th><th>Invitation</th><th></th></tr></thead><tbody>{participants.map(p=><tr key={p.id}><td>{p.email}</td><td>{p.status}</td><td>{p.invited_at?new Date(p.invited_at).toLocaleString('fr-FR'):'—'}</td><td><button className="outline" onClick={()=>remove(p.contact_id)} aria-label="Retirer"><Trash2 size={15}/></button></td></tr>)}{participants.length===0&&<tr><td colSpan={4}>Aucun contact autorisé.</td></tr>}</tbody></table></div>
       </section>
     </>}
     <ConikDialog open={endConfirmOpen} title="Terminer ce Live ?" message="Le Live sera marqué comme terminé. Les participants ne pourront plus rejoindre la session en direct." tone="warning" confirmLabel="Terminer le Live" busy={ending} onConfirm={()=>void endLive()} onCancel={()=>!ending&&setEndConfirmOpen(false)} />
