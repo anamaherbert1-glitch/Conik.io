@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { encryptAccessToken } from '@/lib/whatsapp/meta'
-import { createPartnerInstance, createWebhookToken, getGreenApiConfig, hashGreenWebhookToken } from '@/lib/whatsapp/green-api'
+import { createPartnerInstance, createWebhookToken, hashGreenWebhookToken } from '@/lib/whatsapp/green-api'
 
 export const runtime = 'nodejs'
 
@@ -23,7 +23,6 @@ export async function POST() {
   if (existing) return NextResponse.json({ ok: true, reused: true, instance: existing })
 
   try {
-    const config = getGreenApiConfig()
     const webhookToken = createWebhookToken()
     const appUrl = clean(process.env.NEXT_PUBLIC_APP_URL, 500)
     if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL is required for GREEN-API webhooks.')
