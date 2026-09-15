@@ -30,7 +30,7 @@ function mediaErrorMessage(error: unknown, device: 'camera' | 'microphone' | 'sc
 
 function screenShareSupportMessage() {
   if (!window.isSecureContext) return 'Partage d’écran indisponible : cette page n’est pas en HTTPS. Ouvrez le lien Conik HTTPS directement.'
-  if (window.top !== window.self) return 'Partage d’écran indisponible : le Live est ouvert dans une page intégrée. Ouvrez le lien Conik directement dans votre navigateur.'
+  if (window.top !== window.self) return 'Partage d’écran indisponible : le Live est ouvert dans une page intégrée. Ouvrez le Live directement dans votre navigateur.'
   if (isEmbeddedBrowser()) return 'Partage d’écran indisponible dans ce navigateur intégré. Ouvrez le lien du Live directement dans Chrome, Edge ou Firefox.'
   if (!navigator.mediaDevices?.getDisplayMedia) return 'Partage d’écran indisponible sur ce navigateur. Utilisez une version récente de Chrome, Edge ou Firefox.'
   return ''
@@ -97,16 +97,14 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
 
     const attachAudio = (track: any) => {
       if (!track || track.kind !== Track.Kind.Audio) return
-      const elements = track.attach()
-      elements.forEach((element: HTMLMediaElement) => {
-        element.autoplay = true
-        element.muted = false
-        element.volume = 1
-        element.setAttribute('playsinline', 'true')
-        element.style.display = 'none'
-        document.body.appendChild(element)
-        void element.play().catch(() => { if (!cancelled) setAudioBlocked(true) })
-      })
+      const element = track.attach()
+      element.autoplay = true
+      element.muted = false
+      element.volume = 1
+      element.setAttribute('playsinline', 'true')
+      element.style.display = 'none'
+      document.body.appendChild(element)
+      void element.play().catch(() => { if (!cancelled) setAudioBlocked(true) })
     }
 
     const getContainer = (source: Track.Source, local = false) => source === Track.Source.ScreenShare ? screenRef.current : local ? localRef.current : remoteRef.current
