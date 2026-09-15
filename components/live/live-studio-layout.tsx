@@ -6,6 +6,7 @@ import { Camera, ChevronLeft, ChevronRight, GripVertical, MonitorUp, Move, Palet
 type Background = { id: string; label: string; value: string }
 type Position = { x: number; y: number }
 type DragTarget = 'camera' | 'screen'
+type Primary = 'none' | 'camera' | 'screen'
 
 const BACKGROUNDS: Background[] = [
   { id: 'white', label: 'Blanc', value: 'linear-gradient(135deg,#ffffff 0%,#f1f5f9 55%,#e2e8f0 100%)' },
@@ -28,12 +29,18 @@ type Props = {
   sidebarContent?: ReactNode
 }
 
+const CAMERA_W = 180
+const CAMERA_H = 102
+const OVERLAY_W = 260
+const OVERLAY_H = 146
+
 export default function LiveStudioLayout({ children, host = false, sidebarContent }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const [primary, setPrimary] = useState<'camera' | 'screen'>('camera')
+  const [primary, setPrimary] = useState<Primary>('none')
   const [background, setBackground] = useState(BACKGROUNDS[1].id)
   const [hasScreen, setHasScreen] = useState(false)
   const [dragTarget, setDragTarget] = useState<DragTarget>('camera')
+  const [moveEnabled, setMoveEnabled] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [cameraPosition, setCameraPosition] = useState<Position | null>(null)
   const [screenPosition, setScreenPosition] = useState<Position | null>(null)
@@ -97,12 +104,18 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
       const selectedBackground = BACKGROUNDS.find(item => item.id === background) || BACKGROUNDS[0]
       stage.style.position = 'relative'
       stage.style.width = '100%'
-      stage.style.minHeight = 'clamp(560px, 72vh, 820px)'
+      stage.style.aspectRatio = '16 / 9'
+      stage.style.minHeight = '0'
       stage.style.height = 'auto'
       stage.style.overflow = 'hidden'
       stage.style.background = 'transparent'
       stage.style.isolation = 'isolate'
-      currentRemote.style.position = 'relative'
+
+      currentRemote.style.position = 'absolute'
+      currentRemote.style.inset = '0'
+      currentRemote.style.width = '100%'
+      currentRemote.style.height = '100%'
+      currentRemote.style.minHeight = '0'
       currentRemote.style.zIndex = '1'
       currentRemote.style.background = 'transparent'
       if (currentBackdrop) currentBackdrop.style.background = selectedBackground.value
@@ -114,106 +127,78 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
       }
 
       const cameraIsPrimary = primary === 'camera'
-      const screenIsPrimary = active && primary === 'screen'
+      const screenIsPrimary = active && (primary === 'screen' || primary === 'none')
 
-      if (screenIsPrimary) {
-        currentScreen.style.display = ''
-        currentScreen.style.left = screenPosition ? `${screenPosition.x}px` : '16px'
-        currentScreen.style.top = screenPosition ? `${screenPosition.y}px` : '16px'
-        currentScreen.style.right = screenPosition ? 'auto' : '16px'
-        currentScreen.style.bottom = screenPosition ? 'auto' : '16px'
-        currentScreen.style.width = screenPosition ? 'min(82%, 1200px)' : 'auto'
-        currentScreen.style.height = screenPosition ? 'min(78%, 680px)' : 'auto'
-        currentScreen.style.zIndex = '2'
-        currentScreen.style.pointerEvents = 'auto'
-        currentScreen.style.touchAction = 'none'
-        currentScreen.style.cursor = dragging && dragTarget === 'screen' ? 'grabbing' : 'grab'
-        currentScreen.style.borderRadius = '12px'
-        currentScreen.style.overflow = 'hidden'
-        currentScreen.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
+      const setupFloating = (element: HTMLElement, width: number, height: number, zIndex: string, position: Position | null, fallbackX: string, fallbackY: string) => {
+        element.style.display = ''
+        element.style.width = `${width}px`
+        element.style.height = `${height}px`
+        element.style.left = position ? `${position.x}px` : fallbackX
+        element.style.top = position ? `${position.y}px` : fallbackY
+        element.style.right = 'auto'
+        element.style.bottom = 'auto'
+        element.style.zIndex = zIndex
+        element.style.pointerEvents = 'auto'
+        element.style.touchAction = moveEnabled ? 'none' : 'auto'
+        element.style.cursor = moveEnabled && dragTarget === (element === currentCamera ? 'camera' : 'screen') ? (dragging ? 'grabbing' : 'grab') : 'default'
+        element.style.transform = 'none'
+        element.style.borderRadius = '12px'
+        element.style.overflow = 'hidden'
+        element.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
+        element.style.border = element === currentCamera ? '2px solid rgba(255,255,255,.72)' : '1px solid rgba(255,255,255,.2)'
+      }
 
+      if (cameraIsPrimary) {
         currentCamera.style.display = ''
-        currentCamera.style.width = '190px'
-        currentCamera.style.height = '108px'
-        currentCamera.style.zIndex = '4'
-        currentCamera.style.right = 'auto'
-        currentCamera.style.bottom = 'auto'
-        currentCamera.style.pointerEvents = 'auto'
-        currentCamera.style.touchAction = 'none'
-        currentCamera.style.cursor = dragging && dragTarget === 'camera' ? 'grabbing' : 'grab'
-        currentCamera.style.transform = 'none'
-        currentCamera.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
-        currentCamera.style.border = '2px solid rgba(255,255,255,.72)'
-        if (cameraPosition) {
-          currentCamera.style.left = `${cameraPosition.x}px`
-          currentCamera.style.top = `${cameraPosition.y}px`
-        } else {
-          currentCamera.style.left = 'calc(100% - 206px)'
-          currentCamera.style.top = 'calc(100% - 124px)'
-        }
-      } else if (cameraIsPrimary) {
-        currentCamera.style.display = ''
-        currentCamera.style.left = '16px'
-        currentCamera.style.top = '16px'
-        currentCamera.style.right = '16px'
-        currentCamera.style.bottom = '16px'
+        currentCamera.style.left = '12px'
+        currentCamera.style.top = '12px'
+        currentCamera.style.right = '12px'
+        currentCamera.style.bottom = '12px'
         currentCamera.style.width = 'auto'
         currentCamera.style.height = 'auto'
         currentCamera.style.zIndex = '3'
         currentCamera.style.pointerEvents = 'auto'
-        currentCamera.style.touchAction = 'none'
-        currentCamera.style.cursor = dragging && dragTarget === 'camera' ? 'grabbing' : 'grab'
+        currentCamera.style.touchAction = moveEnabled && dragTarget === 'camera' ? 'none' : 'auto'
+        currentCamera.style.cursor = moveEnabled && dragTarget === 'camera' ? (dragging ? 'grabbing' : 'grab') : 'default'
         currentCamera.style.transform = 'none'
         currentCamera.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
+        currentCamera.style.border = '1px solid rgba(255,255,255,.14)'
 
-        if (active) {
-          currentScreen.style.display = ''
-          currentScreen.style.left = screenPosition ? `${screenPosition.x}px` : 'auto'
-          currentScreen.style.top = screenPosition ? `${screenPosition.y}px` : 'auto'
-          currentScreen.style.right = screenPosition ? 'auto' : '18px'
-          currentScreen.style.bottom = screenPosition ? 'auto' : '18px'
-          currentScreen.style.width = screenPosition ? '280px' : '280px'
-          currentScreen.style.height = '158px'
-          currentScreen.style.zIndex = '4'
-          currentScreen.style.pointerEvents = 'auto'
-          currentScreen.style.touchAction = 'none'
-          currentScreen.style.cursor = dragging && dragTarget === 'screen' ? 'grabbing' : 'grab'
-          currentScreen.style.borderRadius = '12px'
-          currentScreen.style.overflow = 'hidden'
-          currentScreen.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
-        } else {
-          currentScreen.style.display = 'none'
-        }
-      } else {
-        currentScreen.style.display = 'none'
-        currentCamera.style.display = ''
-        currentCamera.style.width = '190px'
-        currentCamera.style.height = '108px'
-        currentCamera.style.right = 'auto'
-        currentCamera.style.bottom = 'auto'
-        currentCamera.style.zIndex = '3'
-        currentCamera.style.pointerEvents = 'auto'
-        currentCamera.style.cursor = dragging ? 'grabbing' : 'grab'
-        currentCamera.style.touchAction = 'none'
-        currentCamera.style.boxShadow = '0 18px 48px rgba(0,0,0,.35)'
-        currentCamera.style.border = '2px solid rgba(255,255,255,.72)'
-        if (cameraPosition) {
-          currentCamera.style.left = `${cameraPosition.x}px`
-          currentCamera.style.top = `${cameraPosition.y}px`
-          currentCamera.style.transform = 'none'
-        } else {
-          currentCamera.style.left = 'calc(100% - 206px)'
-          currentCamera.style.top = 'calc(100% - 124px)'
-          currentCamera.style.transform = 'none'
-        }
+        if (active) setupFloating(currentScreen, OVERLAY_W, OVERLAY_H, '4', screenPosition, `calc(100% - ${OVERLAY_W + 18}px)`, `calc(100% - ${OVERLAY_H + 18}px)`)
+        else currentScreen.style.display = 'none'
+        return
       }
+
+      if (screenIsPrimary) {
+        currentScreen.style.display = ''
+        currentScreen.style.left = '10px'
+        currentScreen.style.top = '10px'
+        currentScreen.style.right = '10px'
+        currentScreen.style.bottom = '10px'
+        currentScreen.style.width = 'auto'
+        currentScreen.style.height = 'auto'
+        currentScreen.style.zIndex = '2'
+        currentScreen.style.pointerEvents = 'auto'
+        currentScreen.style.touchAction = moveEnabled && dragTarget === 'screen' ? 'none' : 'auto'
+        currentScreen.style.cursor = moveEnabled && dragTarget === 'screen' ? (dragging ? 'grabbing' : 'grab') : 'default'
+        currentScreen.style.borderRadius = '12px'
+        currentScreen.style.overflow = 'hidden'
+        currentScreen.style.boxShadow = '0 14px 35px rgba(0,0,0,.35)'
+        currentScreen.style.border = '1px solid rgba(255,255,255,.16)'
+
+        setupFloating(currentCamera, CAMERA_W, CAMERA_H, '4', cameraPosition, `calc(100% - ${CAMERA_W + 18}px)`, `calc(100% - ${CAMERA_H + 18}px)`)
+        return
+      }
+
+      currentScreen.style.display = 'none'
+      setupFloating(currentCamera, CAMERA_W, CAMERA_H, '3', cameraPosition, `calc(100% - ${CAMERA_W + 18}px)`, `calc(100% - ${CAMERA_H + 18}px)`)
     }
 
     applyLayout()
     const observer = new MutationObserver(applyLayout)
     observer.observe(stage, { childList: true, subtree: true })
     return () => observer.disconnect()
-  }, [host, primary, background, dragging, dragTarget, cameraPosition, screenPosition])
+  }, [host, primary, background, dragging, dragTarget, moveEnabled, cameraPosition, screenPosition])
 
   useEffect(() => {
     if (!host) return
@@ -238,14 +223,15 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         const rect = stage.getBoundingClientRect()
         const item = element.getBoundingClientRect()
         return {
-          x: Math.max(8, Math.min(rect.width - item.width - 8, item.left - rect.left)),
-          y: Math.max(8, Math.min(rect.height - item.height - 8, item.top - rect.top)),
+          x: Math.max(8, Math.min(Math.max(8, rect.width - item.width - 8), item.left - rect.left)),
+          y: Math.max(8, Math.min(Math.max(8, rect.height - item.height - 8), item.top - rect.top)),
         }
       }
 
       const onPointerDown = (event: PointerEvent) => {
+        if (!moveEnabled || target !== dragTarget) return
         if (target === 'screen' && !hasScreen) return
-        if (target !== dragTarget) return
+        if (primary === 'camera' && target === 'camera') return
         activePointer = event.pointerId
         const position = getPosition()
         startX = event.clientX
@@ -262,8 +248,8 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         if (activePointer !== event.pointerId) return
         const rect = stage.getBoundingClientRect()
         const item = element.getBoundingClientRect()
-        const x = Math.max(8, Math.min(rect.width - item.width - 8, originX + event.clientX - startX))
-        const y = Math.max(8, Math.min(rect.height - item.height - 8, originY + event.clientY - startY))
+        const x = Math.max(8, Math.min(Math.max(8, rect.width - item.width - 8), originX + event.clientX - startX))
+        const y = Math.max(8, Math.min(Math.max(8, rect.height - item.height - 8), originY + event.clientY - startY))
         element.style.left = `${x}px`
         element.style.top = `${y}px`
         element.style.right = 'auto'
@@ -293,7 +279,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
     })
 
     return () => cleanups.forEach(cleanup => cleanup())
-  }, [host, hasScreen, dragTarget, primary])
+  }, [host, hasScreen, dragTarget, primary, moveEnabled])
 
   if (!host) return <>{children}</>
 
@@ -302,9 +288,12 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
     setScreenPosition(null)
   }
 
+  const toggleCameraPrimary = () => setPrimary(value => value === 'camera' ? 'none' : 'camera')
+  const toggleScreenPrimary = () => setPrimary(value => value === 'screen' ? 'none' : 'screen')
+
   return (
     <>
-      <style>{`@media (max-width: 980px){.conik-live-studio-layout{grid-template-columns:1fr!important}.conik-live-studio-sidebar{position:relative!important;top:auto!important;right:auto!important;width:100%!important;max-height:none!important}.conik-live-studio-toggle{position:relative!important;top:auto!important;right:auto!important;margin-top:8px;width:100%!important;height:40px!important}}@media (max-width:760px){.conik-live-studio-stage{min-height:clamp(420px,60vh,620px)!important}.conik-live-studio-sidebar{width:100%!important}}`}</style>
+      <style>{`@media (max-width:980px){.conik-live-studio-layout{grid-template-columns:1fr!important}.conik-live-studio-sidebar{position:relative!important;top:auto!important;right:auto!important;width:100%!important;max-height:none!important}.conik-live-studio-toggle{position:relative!important;top:auto!important;right:auto!important;margin-top:8px;width:100%!important;height:40px!important}}@media (max-width:760px){.conik-live-studio-stage{aspect-ratio:16/9!important;min-height:0!important;height:auto!important}.conik-live-studio-sidebar{width:100%!important}}`}</style>
       <div ref={rootRef} className="conik-live-studio-layout" style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? 'minmax(0, 1fr) 248px' : 'minmax(0, 1fr)', gap: 14, width: '100%', minWidth: 0, alignItems: 'start' }}>
         <div className="conik-live-studio-main" style={{ width: '100%', minWidth: 0 }}>
           <div style={{ width: '100%', minWidth: 0 }}>{children}</div>
@@ -314,11 +303,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
             aria-label={sidebarOpen ? 'Masquer les outils du studio' : 'Afficher les outils du studio'}
             title={sidebarOpen ? 'Masquer les outils' : 'Afficher les outils'}
             onClick={() => setSidebarOpen(value => !value)}
-            style={{
-              marginTop: 8, width: 42, height: 36, borderRadius: 10, border: '1px solid var(--line)',
-              background: 'var(--panel)', color: 'var(--text)', display: 'grid', placeItems: 'center',
-              boxShadow: '0 8px 22px rgba(0,0,0,.12)', cursor: 'pointer',
-            }}
+            style={{ marginTop: 8, width: 42, height: 36, borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel)', color: 'var(--text)', display: 'grid', placeItems: 'center', boxShadow: '0 8px 22px rgba(0,0,0,.12)', cursor: 'pointer' }}
           >
             {sidebarOpen ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
           </button>
@@ -326,13 +311,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
 
         {sidebarOpen && <aside
           className="conik-live-studio-sidebar"
-          style={{
-            ...panelStyle,
-            width: '100%', maxHeight: 'min(820px, calc(100vh - 120px))', overflowY: 'auto',
-            display: 'grid', gap: 10, minWidth: 0,
-            position: 'sticky', top: 12,
-            boxShadow: '0 18px 48px rgba(0,0,0,.14)',
-          }}
+          style={{ ...panelStyle, width: '100%', maxHeight: 'min(820px, calc(100vh - 120px))', overflowY: 'auto', display: 'grid', gap: 10, minWidth: 0, position: 'sticky', top: 12, boxShadow: '0 18px 48px rgba(0,0,0,.14)' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
             <GripVertical size={16} />
@@ -341,17 +320,19 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
 
           <div style={{ display: 'grid', gap: 7 }}>
             <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Élément principal</span>
-            <button type="button" className={primary === 'camera' ? 'primary' : 'outline'} onClick={() => setPrimary('camera')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><Camera size={14} /> Mettre la caméra en avant</button>
-            {hasScreen && <button type="button" className={primary === 'screen' ? 'primary' : 'outline'} onClick={() => setPrimary('screen')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><MonitorUp size={14} /> Mettre l'écran en avant</button>}
+            <button type="button" className={primary === 'camera' ? 'primary' : 'outline'} onClick={toggleCameraPrimary} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><Camera size={14} /> {primary === 'camera' ? 'Remettre la caméra en petit' : 'Mettre la caméra en avant'}</button>
+            {hasScreen && <button type="button" className={primary === 'screen' ? 'primary' : 'outline'} onClick={toggleScreenPrimary} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><MonitorUp size={14} /> {primary === 'screen' ? 'Remettre l’écran en arrière-plan' : 'Mettre l’écran en avant'}</button>}
+            <div className="muted" style={{ fontSize: 10, lineHeight: 1.35 }}>La caméra reste petite par défaut. Un clic l’agrandit, un deuxième clic la remet en petit.</div>
           </div>
 
           <div style={{ display: 'grid', gap: 7 }}>
-            <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Déplacer</span>
+            <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Déplacement</span>
+            <button type="button" className={moveEnabled ? 'primary' : 'outline'} onClick={() => { setMoveEnabled(value => !value); setDragging(false) }} style={{ minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%' }}><Move size={14} /> {moveEnabled ? 'Désactiver le déplacement' : 'Activer le déplacement'}</button>
             <div style={{ display: 'grid', gridTemplateColumns: hasScreen ? '1fr 1fr' : '1fr', gap: 6 }}>
-              <button type="button" className={dragTarget === 'camera' ? 'primary' : 'outline'} onClick={() => setDragTarget('camera')} style={{ minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Camera size={13} /> Caméra</button>
-              {hasScreen && <button type="button" className={dragTarget === 'screen' ? 'primary' : 'outline'} onClick={() => setDragTarget('screen')} style={{ minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Move size={13} /> Écran</button>}
+              <button type="button" className={dragTarget === 'camera' ? 'primary' : 'outline'} disabled={!moveEnabled} onClick={() => setDragTarget('camera')} style={{ minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: moveEnabled ? 1 : .55 }}><Camera size={13} /> Caméra</button>
+              {hasScreen && <button type="button" className={dragTarget === 'screen' ? 'primary' : 'outline'} disabled={!moveEnabled} onClick={() => setDragTarget('screen')} style={{ minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: moveEnabled ? 1 : .55 }}><MonitorUp size={13} /> Écran</button>}
             </div>
-            <div className="muted" style={{ fontSize: 10, lineHeight: 1.35 }}>Sélectionne un élément puis fais-le glisser dans le studio.</div>
+            <div className="muted" style={{ fontSize: 10, lineHeight: 1.35 }}>{moveEnabled ? `Déplacement activé pour ${dragTarget === 'camera' ? 'la caméra' : 'l’écran'}. Faites glisser l’élément.` : 'Activez le déplacement avant de pouvoir déplacer un élément.'}</div>
             <button type="button" className="outline" onClick={resetPositions} style={{ minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><RotateCcw size={13} /> Réinitialiser</button>
           </div>
 
