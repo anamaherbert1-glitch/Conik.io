@@ -24,17 +24,18 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   const videoRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const screenRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
+  const stageRefState = useRef<StageState>(DEFAULT_STAGE)
+  const draggingRef = useRef(false)
 
   const sendStage = (next: StageState) => {
-    setStage(next)
+    const safe = { ...next, x: Math.max(3, Math.min(97, next.x)), y: Math.max(3, Math.min(97, next.y)) }
+    stageRefState.current = safe
+    setStage(safe)
     if (!host) return
     const room = roomRef.current
     if (!room) return
     try {
-      void room.localParticipant.publishData(
-        new TextEncoder().encode(JSON.stringify({ type: 'conik-stage-state', stage: next })),
-        { reliable: true, topic: 'conik-stage-state' }
-      )
+      void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type: 'conik-stage-state', stage: safe })), { reliable: true, topic: 'conik-stage-state' })
     } catch {}
   }
 
@@ -59,13 +60,15 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         const data = JSON.parse(new TextDecoder().decode(payload))
         if (data?.type !== 'conik-stage-state' || !data.stage) return
         const next = data.stage as StageState
-        setStage({
+        const safe = {
           featured: typeof next.featured === 'string' ? next.featured : null,
           movable: Boolean(next.movable),
           front: Boolean(next.front),
-          x: Number.isFinite(next.x) ? Math.max(0, Math.min(100, next.x)) : DEFAULT_STAGE.x,
-          y: Number.isFinite(next.y) ? Math.max(0, Math.min(100, next.y)) : DEFAULT_STAGE.y,
-        })
+          x: Number.isFinite(next.x) ? Math.max(3, Math.min(97, next.x)) : DEFAULT_STAGE.x,
+          y: Number.isFinite(next.y) ? Math.max(3, Math.min(97, next.y)) : DEFAULT_STAGE.y,
+        }
+        stageRefState.current = safe
+        setStage(safe)
         if (!host) setMoveMode(false)
       } catch {}
     })
@@ -106,12 +109,17 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           try { await room.localParticipant.setMicrophoneEnabled(true); if (!cancelled) setMic(true) } catch { setMessage('Microphone non disponible. Autorisez le micro pour continuer.') }
           try { await room.localParticipant.setCameraEnabled(true); if (!cancelled) setCamera(true) } catch { setMessage('Caméra non disponible. Autorisez la caméra pour apparaître dans le Live.') }
           setTimeout(() => {
-            try { void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type:'conik-stage-state', stage:DEFAULT_STAGE })), { reliable:true, topic:'conik-stage-state' }) } catch {}
+            try { void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type:'conik-stage-state', stage:stageRefState.current })), { reliable:true, topic:'conik-stage-state' }) } catch {}
           }, 300)
         }
       } catch (error) { if (!cancelled) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Connexion impossible.') } }
     })()
-    return () => { cancelled = true; room.disconnect() }
+
+    const syncTimer = host ? window.setInterval(() => {
+      try { void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type:'conik-stage-state', stage:stageRefState.current })), { reliable:true, topic:'conik-stage-state' }) } catch {}
+    }, 2000) : undefined
+
+    return () => { cancelled = true; if (syncTimer) window.clearInterval(syncTimer); room.disconnect() }
   }, [tokenUrl, JSON.stringify(tokenBody), host, label])
 
   useEffect(() => {
@@ -141,7 +149,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
 
   function toggleBringToFront(id:string){
     if(!host)return
-    const same=stage.featured===id
+    const same=stage.featured===id && stage.front
     sendStage({...stage,featured:same?null:id,front:!same,movable:false})
     setMoveMode(false)
   }
@@ -154,13 +162,28 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     sendStage({...stage,movable:next})
   }
 
+  function selectCamera(id:string){
+    if(!host)return
+    if(stage.featured===id)return
+    sendStage({...stage,featured:id,front:false,movable:false})
+    setMoveMode(false)
+  }
+
+  function handlePointerDown(event:React.PointerEvent<HTMLDivElement>){
+    if(!host||!moveMode||!stage.featured)return
+    draggingRef.current=true
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
   function handlePointerMove(event:React.PointerEvent<HTMLDivElement>){
-    if(!host||!moveMode||!stage.featured||!screenTrack||!stageRef.current)return
+    if(!host||!moveMode||!stage.featured||!stageRef.current||!draggingRef.current)return
     const rect=stageRef.current.getBoundingClientRect()
-    const x=Math.max(8,Math.min(92,((event.clientX-rect.left)/rect.width)*100))
-    const y=Math.max(8,Math.min(92,((event.clientY-rect.top)/rect.height)*100))
+    const x=Math.max(3,Math.min(97,((event.clientX-rect.left)/rect.width)*100))
+    const y=Math.max(3,Math.min(97,((event.clientY-rect.top)/rect.height)*100))
     sendStage({...stage,x,y})
   }
+
+  function handlePointerUp(){draggingRef.current=false}
 
   const count=items.length
   const columns=count<=1?'1fr':count===2?'repeat(2,minmax(0,1fr))':count<=4?'repeat(2,minmax(0,1fr))':'repeat(3,minmax(0,1fr))'
@@ -168,7 +191,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   const normalItems=useMemo(()=>items.filter(item=>item.id!==stage.featured),[items,stage.featured])
 
   const renderTile=(item:VideoItem,floating=false)=>(
-    <div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} style={{position:'relative',width:'100%',height:'100%',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:10,background:'#171922',border:stage.featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',cursor:host?'pointer':'default',boxShadow:floating?'0 12px 28px rgba(0,0,0,.42)':'0 8px 24px rgba(0,0,0,.22)'}}>
+    <div key={item.id} ref={el=>{videoRefs.current[item.id]=el}} onClick={()=>selectCamera(item.id)} style={{position:'relative',width:'100%',height:'100%',minWidth:0,minHeight:0,overflow:'hidden',borderRadius:10,background:'#171922',border:stage.featured===item.id?'2px solid rgba(255,255,255,.9)':'1px solid rgba(255,255,255,.16)',cursor:host?'pointer':'default',boxShadow:floating?'0 12px 28px rgba(0,0,0,.42)':'0 8px 24px rgba(0,0,0,.22)'}}>
       <div style={{position:'absolute',left:6,bottom:6,zIndex:3,padding:'4px 7px',borderRadius:7,background:'rgba(0,0,0,.68)',color:'#fff',fontSize:10,fontWeight:800}}>{item.label}</div>
       {host&&floating&&<div style={{position:'absolute',right:6,top:6,zIndex:5,display:'flex',gap:4}}>
         <button type="button" onClick={e=>{e.stopPropagation();toggleMove(item.id)}} title="Déplacer" style={{width:30,height:30,border:0,borderRadius:7,background:moveMode&&stage.featured===item.id?'rgba(255,255,255,.92)':'rgba(0,0,0,.68)',color:moveMode&&stage.featured===item.id?'#111':'#fff',display:'grid',placeItems:'center',cursor:'pointer'}}><Move size={14}/></button>
@@ -179,24 +202,20 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   )
 
   return <div style={{display:'grid',gap:10}}>
-    <div ref={stageRef} className="conik-multi-live-stage" data-conik-studio-stage onPointerMove={handlePointerMove} style={{position:'relative',width:'100%',aspectRatio:'16/9',minHeight:0,overflow:'hidden',borderRadius:14,background:'#090a0f',border:'1px solid var(--line)'}}>
+    <div ref={stageRef} className="conik-multi-live-stage" data-conik-studio-stage onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} style={{position:'relative',width:'100%',aspectRatio:'16/9',minHeight:0,overflow:'hidden',borderRadius:14,background:'#090a0f',border:'1px solid var(--line)'}}>
       <div data-conik-remote-canvas style={{position:'absolute',inset:0,width:'100%',height:'100%',minHeight:0}}>
         {status!=='connected'&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',padding:24,textAlign:'center',zIndex:20}}><b>{message}</b></div>}
         {status==='connected'&&items.length===0&&!screenTrack&&<div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#fff',opacity:.75}}>En attente des caméras…</div>}
         {screenTrack&&<div ref={screenRef} style={{position:'absolute',inset:0,zIndex:1,borderRadius:12,overflow:'hidden',background:'#000',padding:4}}/>}
 
-        {!screenTrack&&<div style={{position:'absolute',inset:8,display:'grid',gridTemplateColumns:columns,gap:6,zIndex:2}}>{items.map(item=>renderTile(item))}</div>}
+        {normalItems.length>0&&<div style={{position:'absolute',inset:8,display:'grid',gridTemplateColumns:columns,gap:6,zIndex:2}}>{normalItems.map(item=>renderTile(item))}</div>}
 
-        {screenTrack&&normalItems.length>0&&<div style={{position:'absolute',left:8,right:8,bottom:8,display:'grid',gridTemplateColumns:columns,gap:5,zIndex:2,maxHeight:82,gridAutoRows:'72px'}}>{normalItems.map(item=>renderTile(item))}</div>}
-
-        {screenTrack&&featuredItem&&<div style={{position:'absolute',left:`${stage.x}%`,top:`${stage.y}%`,width:stage.front?'clamp(210px,32vw,390px)':'clamp(92px,12vw,125px)',height:stage.front?'clamp(118px,18vw,220px)':'clamp(55px,7.2vw,72px)',zIndex:10,transform:'translate(-50%,-50%)',touchAction:moveMode&&host?'none':'auto',transition:moveMode?'none':'width .18s ease,height .18s ease'}}>{renderTile(featuredItem,true)}</div>}
+        {featuredItem&&<div style={{position:'absolute',left:`${stage.x}%`,top:`${stage.y}%`,width:stage.front?'clamp(210px,32vw,390px)':'clamp(78px,10vw,108px)',height:stage.front?'clamp(118px,18vw,220px)':'clamp(46px,6.2vw,62px)',zIndex:10,transform:'translate(-50%,-50%)',touchAction:moveMode&&host?'none':'auto',transition:moveMode?'none':'width .18s ease,height .18s ease'}}>{renderTile(featuredItem,true)}</div>}
       </div>
       <div data-conik-screen-canvas aria-hidden="true" style={{display:'none'}} />
       <div data-conik-camera-canvas aria-hidden="true" style={{display:'none'}} />
     </div>
     {host&&status==='connected'&&<div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}><button className="outline" onClick={()=>void toggleMic()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{mic?<Mic size={17}/>:<MicOff size={17}/>} {mic?'Couper le micro':'Activer le micro'}</button><button className="outline" onClick={()=>void toggleCamera()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{camera?<Camera size={17}/>:<CameraOff size={17}/>} {camera?'Couper la caméra':'Activer la caméra'}</button><button className="outline" onClick={()=>void toggleScreen()} style={{minHeight:44,display:'inline-flex',alignItems:'center',gap:7}}>{screenTrack?<MonitorStop size={17}/>:<MonitorUp size={17}/>} {screenTrack?'Arrêter le partage':'Partager mon écran'}</button></div>}
     {!host&&audioBlocked&&status==='connected'&&<button onClick={()=>void roomRef.current?.startAudio().then(()=>setAudioBlocked(false)).catch(()=>{})} style={{minHeight:44,border:0,borderRadius:10,fontWeight:800,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><Volume2 size={17}/>Activer le son</button>}
-    {host&&<div className="muted" style={{textAlign:'center',fontSize:11}}>Avec le partage d’écran, les caméras restent petites. « Déplacer » autorise le déplacement de la caméra sélectionnée. « Mettre la caméra en avant » est la seule action qui l’agrandit. La position et la mise en avant sont synchronisées avec les followers.</div>}
-    <style>{`@media(max-width:700px){.conik-multi-live-stage{aspect-ratio:16/10!important}.conik-multi-live-stage>div[data-conik-remote-canvas]{inset:3px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(4){left:4px!important;right:4px!important;bottom:4px!important;max-height:68px!important;grid-auto-rows:58px!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(5){width:clamp(82px,24vw,112px)!important;height:clamp(50px,14vw,65px)!important}.conik-multi-live-stage>div[data-conik-remote-canvas]>div:nth-child(5)[style*="z-index: 10"]{z-index:10}}`}</style>
   </div>
 }
