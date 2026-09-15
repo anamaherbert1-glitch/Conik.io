@@ -42,6 +42,7 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
   const [mic, setMic] = useState(false)
   const [camera, setCamera] = useState(false)
   const [screenShare, setScreenShare] = useState(false)
+  const [screenReceived, setScreenReceived] = useState(false)
   const [screenShareChanging, setScreenShareChanging] = useState(false)
   const [screenAvailable, setScreenAvailable] = useState(true)
   const [audioBlocked, setAudioBlocked] = useState(false)
@@ -112,13 +113,19 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     const room = new Room({ adaptiveStream: true, dynacast: true })
     roomRef.current = room
 
-    const attachVideo = (track: any, container: HTMLDivElement | null) => {
+    const attachVideo = (track: any, container: HTMLDivElement | null, isScreen = false) => {
       if (!container || !track || track.kind !== Track.Kind.Video) return
+      container.querySelectorAll('video').forEach(element => element.remove())
       const element = track.attach()
+      element.autoplay = true
+      element.playsInline = true
+      element.muted = host
       element.style.width = '100%'
       element.style.height = '100%'
       element.style.objectFit = 'contain'
       element.style.borderRadius = '12px'
+      element.style.display = 'block'
+      if (isScreen) element.setAttribute('data-conik-screen-video', 'true')
       container.appendChild(element)
     }
 
@@ -142,13 +149,22 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
     }
 
     room.on(RoomEvent.TrackSubscribed, (track, publication) => {
-      if (track.kind === Track.Kind.Audio) attachAudio(track)
-      else attachVideo(track, containerFor(publication.source))
+      if (track.kind === Track.Kind.Audio) {
+        attachAudio(track)
+        return
+      }
+      const isScreen = publication.source === Track.Source.ScreenShare
+      if (isScreen) setScreenReceived(true)
+      attachVideo(track, containerFor(publication.source), isScreen)
     })
-    room.on(RoomEvent.TrackUnsubscribed, track => track.detach().forEach(element => element.remove()))
+    room.on(RoomEvent.TrackUnsubscribed, (track, publication) => {
+      const isScreen = publication?.source === Track.Source.ScreenShare
+      track.detach().forEach(element => element.remove())
+      if (isScreen) setScreenReceived(false)
+    })
     room.on(RoomEvent.LocalTrackPublished, publication => {
       if (!host || !publication.track || publication.track.kind === Track.Kind.Audio) return
-      attachVideo(publication.track, containerFor(publication.source, true))
+      attachVideo(publication.track, containerFor(publication.source, true), publication.source === Track.Source.ScreenShare)
     })
     room.on(RoomEvent.LocalTrackUnpublished, publication => {
       if (publication.track) publication.track.detach().forEach(element => element.remove())
@@ -327,12 +343,12 @@ export default function LiveRoom({ tokenUrl, tokenBody, host = false }: Props) {
         className="conik-live-studio-stage"
         style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', minHeight: 0, height: 'auto', borderRadius: 14, overflow: 'hidden', background: '#090a0f', border: '1px solid var(--line)' }}
       >
-        <div ref={remoteRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0, display: 'grid', placeItems: 'center' }}>
+        <div ref={remoteRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0, display: 'grid', placeItems: 'center', zIndex: 1 }}>
           {state !== 'connected' && <div style={{ color: '#fff', textAlign: 'center', padding: 24 }}><b>{message}</b></div>}
-          {state === 'connected' && !host && <div style={{ color: '#fff', textAlign: 'center', padding: 24, opacity: 0.75 }}>En attente de la vidéo du créateur…</div>}
+          {state === 'connected' && !host && !screenReceived && <div style={{ color: '#fff', textAlign: 'center', padding: 24, opacity: 0.75 }}>En attente de la vidéo du créateur…</div>}
         </div>
-        <div ref={screenRef} style={{ position: 'absolute', left: 10, top: 10, right: 10, bottom: 10, zIndex: 1, pointerEvents: 'none', overflow: 'hidden', borderRadius: 12 }} />
-        <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: host ? 180 : 160, height: host ? 102 : 90, zIndex: 2, background: '#171922', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)' }} />
+        <div ref={screenRef} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 3, pointerEvents: 'none', overflow: 'hidden', borderRadius: 12 }} />
+        <div ref={localRef} style={{ position: 'absolute', right: 16, bottom: 16, width: 180, height: 102, zIndex: 4, background: '#171922', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)', display: host ? 'block' : 'none' }} />
 
         {host && screenShare && state === 'connected' && (
           <div style={{ position: 'absolute', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 5, display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderRadius: 14, background: 'rgba(15,17,24,.94)', border: '1px solid rgba(255,255,255,.16)', boxShadow: '0 12px 36px rgba(0,0,0,.35)', backdropFilter: 'blur(12px)', maxWidth: 'calc(100% - 24px)', flexWrap: 'wrap', justifyContent: 'center' }}>
