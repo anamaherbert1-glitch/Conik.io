@@ -11,16 +11,19 @@ export async function GET(request: NextRequest) {
       if (!live) return NextResponse.json({ error: 'Live introuvable.' }, { status: 404 })
       const { data, error } = await supabase.from('live_event_messages').select('id,sender_type,sender_email,message,created_at').eq('live_event_id', live.id).order('created_at', { ascending: true }).limit(200)
       if (error) return NextResponse.json({ error: 'Impossible de charger le chat.' }, { status: 500 })
-      return NextResponse.json({ messages: data || [] })
+      const { data: settings } = await supabase.from('live_events').select('chat_enabled').eq('id', live.id).maybeSingle()
+      return NextResponse.json({ messages: data || [], chat_enabled: settings?.chat_enabled !== false })
     } catch { return NextResponse.json({ error: 'Non autorisé.' }, { status: 401 }) }
   }
   const slug = String(request.nextUrl.searchParams.get('slug') || '').trim().toLowerCase()
   const token = request.cookies.get(`conik_live_${slug}`)?.value
-  if (!slug || !token) return NextResponse.json({ messages: [] })
+  if (!slug || !token) return NextResponse.json({ messages: [], chat_enabled: false })
   const supabase = await createClient()
+  const { data: access } = await supabase.rpc('verify_live_access', { p_slug: slug, p_token: token })
+  if (!access?.[0]) return NextResponse.json({ messages: [], chat_enabled: false }, { status: 401 })
   const { data, error } = await supabase.rpc('get_live_chat', { p_slug: slug, p_token: token })
   if (error) return NextResponse.json({ error: 'Impossible de charger le chat.' }, { status: 500 })
-  return NextResponse.json({ messages: data || [] })
+  return NextResponse.json({ messages: data || [], chat_enabled: access[0].chat_enabled !== false })
 }
 
 export async function POST(request: NextRequest) {
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest) {
   if (!slug || !token) return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('send_live_chat', { p_slug: slug, p_token: token, p_message: message })
-  if (error) return NextResponse.json({ error: error.message === 'ACCESS_DENIED' ? 'Accès refusé.' : 'Impossible d’envoyer le message.' }, { status: error.message === 'ACCESS_DENIED' ? 403 : 500 })
+  if (error) {
+    if (error.message === 'CHAT_DISABLED') return NextResponse.json({ error: 'Le chat a été désactivé par l’organisateur.' }, { status: 403 })
+    return NextResponse.json({ error: error.message === 'ACCESS_DENIED' ? 'Accès refusé.' : 'Impossible d’envoyer le message.' }, { status: error.message === 'ACCESS_DENIED' ? 403 : 500 })
+  }
   return NextResponse.json({ message: data?.[0] || null })
 }
