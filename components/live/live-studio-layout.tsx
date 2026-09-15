@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect, useRef, useState } from 'react'
-import { Camera, MonitorUp, Move, Palette, GripVertical } from 'lucide-react'
+import { Camera, ChevronLeft, ChevronRight, GripVertical, MonitorUp, Move, Palette, RotateCcw } from 'lucide-react'
 
 type Background = { id: string; label: string; value: string }
 type Position = { x: number; y: number }
@@ -15,9 +15,20 @@ const BACKGROUNDS: Background[] = [
   { id: 'dark', label: 'Sombre', value: 'linear-gradient(135deg,#05060a 0%,#111827 55%,#273449 100%)' },
 ]
 
-const panelStyle: React.CSSProperties = { border: '1px solid var(--line)', background: 'var(--panel)', borderRadius: 14, padding: 12 }
+const panelStyle: React.CSSProperties = {
+  border: '1px solid var(--line)',
+  background: 'var(--panel)',
+  borderRadius: 14,
+  padding: 12,
+}
 
-export default function LiveStudioLayout({ children, host = false }: { children: ReactNode; host?: boolean }) {
+type Props = {
+  children: ReactNode
+  host?: boolean
+  sidebarContent?: ReactNode
+}
+
+export default function LiveStudioLayout({ children, host = false, sidebarContent }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [primary, setPrimary] = useState<'camera' | 'screen'>('camera')
   const [background, setBackground] = useState(BACKGROUNDS[1].id)
@@ -26,6 +37,7 @@ export default function LiveStudioLayout({ children, host = false }: { children:
   const [dragging, setDragging] = useState(false)
   const [cameraPosition, setCameraPosition] = useState<Position | null>(null)
   const [screenPosition, setScreenPosition] = useState<Position | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     if (!host) return
@@ -76,6 +88,7 @@ export default function LiveStudioLayout({ children, host = false }: { children:
       const currentScreen = stage.querySelector('[data-conik-screen-canvas]') as HTMLElement | null
       const currentCamera = stage.querySelector('[data-conik-camera-canvas]') as HTMLElement | null
       const currentRemote = stage.querySelector('[data-conik-remote-canvas]') as HTMLElement | null
+      const currentBackdrop = stage.querySelector('[data-conik-studio-background]') as HTMLElement | null
       if (!currentScreen || !currentCamera || !currentRemote) return
 
       const active = currentScreen.childElementCount > 0
@@ -83,14 +96,15 @@ export default function LiveStudioLayout({ children, host = false }: { children:
 
       const selectedBackground = BACKGROUNDS.find(item => item.id === background) || BACKGROUNDS[0]
       stage.style.position = 'relative'
-      stage.style.minHeight = 'clamp(500px, 68vh, 720px)'
+      stage.style.minHeight = 'clamp(420px, 60vh, 680px)'
+      stage.style.height = 'auto'
       stage.style.overflow = 'hidden'
       stage.style.background = 'transparent'
       stage.style.isolation = 'isolate'
       currentRemote.style.position = 'relative'
       currentRemote.style.zIndex = '1'
       currentRemote.style.background = 'transparent'
-      if (backdrop) backdrop.style.background = selectedBackground.value
+      if (currentBackdrop) currentBackdrop.style.background = selectedBackground.value
 
       const watermark = stage.querySelector('[data-conik-watermark]') as HTMLElement | null
       if (watermark) {
@@ -282,28 +296,70 @@ export default function LiveStudioLayout({ children, host = false }: { children:
 
   return (
     <>
-      <style>{`@media (max-width: 860px){.conik-live-studio-layout{grid-template-columns:1fr!important}.conik-live-studio-sidebar{position:relative!important;top:auto!important}.conik-live-studio-main{min-width:0}.conik-live-studio-sidebar button{min-height:42px!important}}`}</style>
-      <div ref={rootRef} className="conik-live-studio-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 270px', gap: 14, alignItems: 'start' }}>
-        <div className="conik-live-studio-main" style={{ minWidth: 0 }}>
-          <div style={{ minWidth: 0 }}><div style={{ position: 'relative', zIndex: 1 }}>{children}</div></div>
+      <style>{`@media (max-width: 760px){.conik-live-studio-sidebar{width:min(272px,calc(100vw - 26px))!important}.conik-live-studio-toggle{width:38px!important;height:38px!important}}`}</style>
+      <div ref={rootRef} className="conik-live-studio-layout" style={{ position: 'relative', width: '100%', minWidth: 0 }}>
+        <div className="conik-live-studio-main" style={{ width: '100%', minWidth: 0 }}>
+          <div style={{ width: '100%', minWidth: 0 }}>{children}</div>
         </div>
-        <aside className="conik-live-studio-sidebar" style={{ ...panelStyle, position: 'sticky', top: 16, display: 'grid', gap: 10, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 9, borderBottom: '1px solid var(--line)' }}><GripVertical size={17} /><div><b style={{ fontSize: 13 }}>Commandes du studio</b><div className="muted" style={{ fontSize: 11 }}>Mise en page</div></div></div>
+
+        <button
+          type="button"
+          className="conik-live-studio-toggle"
+          aria-label={sidebarOpen ? 'Masquer les outils du studio' : 'Afficher les outils du studio'}
+          title={sidebarOpen ? 'Masquer les outils' : 'Afficher les outils'}
+          onClick={() => setSidebarOpen(value => !value)}
+          style={{
+            position: 'absolute', top: 18, right: sidebarOpen ? 258 : 8, zIndex: 30,
+            width: 40, height: 40, borderRadius: 12, border: '1px solid var(--line)',
+            background: 'var(--panel)', color: 'var(--text)', display: 'grid', placeItems: 'center',
+            boxShadow: '0 10px 30px rgba(0,0,0,.18)', cursor: 'pointer', transition: 'right .2s ease',
+          }}
+        >
+          {sidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+
+        <aside
+          className="conik-live-studio-sidebar"
+          aria-hidden={!sidebarOpen}
+          style={{
+            ...panelStyle,
+            position: 'absolute', top: 8, right: 8, zIndex: 25,
+            width: 248, maxHeight: 'calc(100% - 16px)', overflowY: 'auto',
+            display: 'grid', gap: 10, minWidth: 0,
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(calc(100% + 18px))',
+            opacity: sidebarOpen ? 1 : 0, pointerEvents: sidebarOpen ? 'auto' : 'none',
+            transition: 'transform .2s ease, opacity .2s ease', boxShadow: '0 18px 48px rgba(0,0,0,.22)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
+            <GripVertical size={16} />
+            <div style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>Outils du Live</b><div className="muted" style={{ fontSize: 10 }}>Sidebar masquable</div></div>
+          </div>
+
           <div style={{ display: 'grid', gap: 7 }}>
-            <span className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Élément principal</span>
-            <button type="button" className={primary === 'camera' ? 'primary' : 'outline'} onClick={() => setPrimary('camera')} style={{ minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8, width: '100%' }}><Camera size={15} /> Caméra en avant</button>
-            {hasScreen && <button type="button" className={primary === 'screen' ? 'primary' : 'outline'} onClick={() => setPrimary('screen')} style={{ minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8, width: '100%' }}><MonitorUp size={15} /> Écran en avant</button>}
+            <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Élément principal</span>
+            <button type="button" className={primary === 'camera' ? 'primary' : 'outline'} onClick={() => setPrimary('camera')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><Camera size={14} /> Caméra en avant</button>
+            {hasScreen && <button type="button" className={primary === 'screen' ? 'primary' : 'outline'} onClick={() => setPrimary('screen')} style={{ minHeight: 38, display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}><MonitorUp size={14} /> Écran en avant</button>}
           </div>
-          {!hasScreen && <div style={{ display: 'grid', gap: 8, paddingTop: 4 }}><div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Palette size={16} /><b style={{ fontSize: 12 }}>Fond du studio</b></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>{BACKGROUNDS.map(item => <button key={item.id} type="button" aria-label={`Fond ${item.label}`} title={item.label} onClick={() => setBackground(item.id)} style={{ width: '100%', aspectRatio: '1.35', borderRadius: 8, border: background === item.id ? '2px solid #fff' : '1px solid rgba(255,255,255,.25)', background: item.value, cursor: 'pointer', boxShadow: background === item.id ? '0 0 0 2px #0b5cff' : 'none' }} />)}</div><span className="muted" style={{ fontSize: 11 }}>{BACKGROUNDS.find(item => item.id === background)?.label} · Filigrane Conik.io</span></div>}
-          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 9, display: 'grid', gap: 7 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Move size={15} /><b style={{ fontSize: 12 }}>Déplacer un élément</b></div>
+
+          <div style={{ display: 'grid', gap: 7 }}>
+            <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Déplacer</span>
             <div style={{ display: 'grid', gridTemplateColumns: hasScreen ? '1fr 1fr' : '1fr', gap: 6 }}>
-              <button type="button" className={dragTarget === 'camera' ? 'primary' : 'outline'} onClick={() => setDragTarget('camera')} style={{ minHeight: 38, fontSize: 12 }}>Caméra</button>
-              {hasScreen && <button type="button" className={dragTarget === 'screen' ? 'primary' : 'outline'} onClick={() => setDragTarget('screen')} style={{ minHeight: 38, fontSize: 12 }}>Écran</button>}
+              <button type="button" className={dragTarget === 'camera' ? 'primary' : 'outline'} onClick={() => setDragTarget('camera')} style={{ minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Camera size={13} /> Caméra</button>
+              {hasScreen && <button type="button" className={dragTarget === 'screen' ? 'primary' : 'outline'} onClick={() => setDragTarget('screen')} style={{ minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Move size={13} /> Écran</button>}
             </div>
-            <span className="muted" style={{ fontSize: 11, lineHeight: 1.4 }}>Sélectionnez un élément puis faites-le glisser directement dans le studio.</span>
-            <button type="button" className="outline" onClick={resetPositions} style={{ minHeight: 36, fontSize: 11 }}>Réinitialiser les positions</button>
+            <div className="muted" style={{ fontSize: 10, lineHeight: 1.35 }}>Sélectionne un élément puis fais-le glisser dans le studio.</div>
+            <button type="button" className="outline" onClick={resetPositions} style={{ minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><RotateCcw size={13} /> Réinitialiser</button>
           </div>
+
+          <div style={{ display: 'grid', gap: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Palette size={14} /><span style={{ fontSize: 11, fontWeight: 800 }}>Arrière-plan</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
+              {BACKGROUNDS.map(item => <button key={item.id} type="button" aria-label={item.label} title={item.label} onClick={() => setBackground(item.id)} style={{ height: 28, borderRadius: 7, border: background === item.id ? '2px solid var(--text)' : '1px solid var(--line)', background: item.value, cursor: 'pointer', padding: 0 }} />)}
+            </div>
+          </div>
+
+          {sidebarContent && <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>{sidebarContent}</div>}
         </aside>
       </div>
     </>
