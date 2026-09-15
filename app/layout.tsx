@@ -7,6 +7,15 @@ import { PreferencesProvider } from '@/components/preferences-provider'
 export const metadata: Metadata = {
   title: 'Conik.io — Marketing OS',
   description: 'Plateforme de tunnels et d’automatisation marketing propulsée par l’IA',
+  applicationName: 'Conik',
+  icons: {
+    icon: [{ url: '/icon', type: 'image/png' }],
+    apple: [{ url: '/apple-icon', type: 'image/png' }],
+  },
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FFF8F1' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f1220' },
+  ],
 }
 
 const themeInit = `
