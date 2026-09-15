@@ -13,11 +13,20 @@ import {
   Move,
   Volume2,
   BringToFront,
-  Palette,
+  Square,
 } from 'lucide-react'
 import { Room, RoomEvent, Track } from 'livekit-client'
 
-type Props = { tokenUrl: string; tokenBody: Record<string, string>; host?: boolean; label?: string }
+type Props = {
+  tokenUrl: string
+  tokenBody: Record<string, string>
+  host?: boolean
+  label?: string
+  /** Bouton Couper le Live (organisateur) — affiché sur la même ligne que micro/caméra */
+  onEndLive?: () => void
+  endingLive?: boolean
+}
+
 type VideoItem = { id: string; label: string; track: any; local: boolean }
 
 type StageState = {
@@ -63,7 +72,14 @@ function normalizeStage(next: Partial<StageState> | null | undefined): StageStat
   }
 }
 
-export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label }: Props) {
+export default function MultiLiveRoom({
+  tokenUrl,
+  tokenBody,
+  host = false,
+  label,
+  onEndLive,
+  endingLive = false,
+}: Props) {
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading')
   const [message, setMessage] = useState('Connexion au Live…')
   const [items, setItems] = useState<VideoItem[]>([])
@@ -118,7 +134,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     const onParticipant = (participant: any) =>
       participant.name || (participant.identity.startsWith('cohost-') ? 'Co-organisateur' : 'Organisateur')
 
-    // Sync scène organisateur → tous les participants (followers inclus)
     room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
       if (topic !== 'conik-stage-state') return
       try {
@@ -212,7 +227,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           } catch {
             setMessage('Caméra non disponible.')
           }
-          // Envoyer l’état de scène dès la connexion
           setTimeout(() => sendStage(stageRefState.current), 250)
           setTimeout(() => sendStage(stageRefState.current), 1200)
         }
@@ -224,7 +238,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       }
     })()
 
-    // Resync périodique pour les followers qui rejoignent en retard
     const syncTimer = host
       ? window.setInterval(() => {
           try {
@@ -245,7 +258,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     }
   }, [tokenUrl, JSON.stringify(tokenBody), host, label])
 
-  // Attacher les vidéos caméra
   useEffect(() => {
     items.forEach((item) => {
       const container = videoRefs.current[item.id]
@@ -264,7 +276,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     })
   }, [items, host])
 
-  // Attacher le partage d’écran (visible organisateur ET followers)
   useEffect(() => {
     const container = screenRef.current
     if (!container || !screenTrack) return
@@ -331,8 +342,14 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     sendStage({ ...stage, backgroundId: id })
   }
 
-  function toggleMinimize(id: string) {
+  function activeCameraId() {
+    return stage.featured || items[0]?.id || null
+  }
+
+  function toggleMinimize() {
     if (!host) return
+    const id = activeCameraId()
+    if (!id) return
     if (stage.featured !== id) {
       sendStage({ ...stage, featured: id, minimized: true, front: false, movable: false })
       setMoveMode(false)
@@ -341,8 +358,10 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     sendStage({ ...stage, minimized: !stage.minimized, front: stage.minimized ? false : stage.front })
   }
 
-  function toggleBringToFront(id: string) {
+  function toggleBringToFront() {
     if (!host) return
+    const id = activeCameraId()
+    if (!id) return
     const same = stage.featured === id && stage.front && !stage.minimized
     sendStage({
       ...stage,
@@ -354,8 +373,10 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     setMoveMode(false)
   }
 
-  function toggleMove(id: string) {
+  function toggleMove() {
     if (!host) return
+    const id = activeCameraId()
+    if (!id) return
     if (stage.featured !== id) {
       sendStage({ ...stage, featured: id, front: false, movable: true, minimized: stage.minimized })
       setMoveMode(true)
@@ -364,13 +385,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     const next = !moveMode
     setMoveMode(next)
     sendStage({ ...stage, movable: next })
-  }
-
-  function selectCamera(id: string) {
-    if (!host) return
-    if (stage.featured === id) return
-    sendStage({ ...stage, featured: id, front: false, movable: false, minimized: true })
-    setMoveMode(false)
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -411,7 +425,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   )
 
   const bg = BACKGROUNDS[stage.backgroundId] || BACKGROUNDS.blue
-  const showWatermark = !screenTrack // filigrane seulement sans partage d’écran
+  const showWatermark = !screenTrack
 
   const renderTile = (item: VideoItem, floating = false) => (
     <div
@@ -419,7 +433,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       ref={(el) => {
         videoRefs.current[item.id] = el
       }}
-      onClick={() => selectCamera(item.id)}
       style={{
         position: 'relative',
         width: '100%',
@@ -430,7 +443,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         borderRadius: 10,
         background: '#171922',
         border: stage.featured === item.id ? '2px solid rgba(255,255,255,.9)' : '1px solid rgba(255,255,255,.16)',
-        cursor: host ? 'pointer' : 'default',
+        cursor: host && moveMode && floating ? 'grab' : 'default',
         boxShadow: floating ? '0 12px 28px rgba(0,0,0,.42)' : '0 8px 24px rgba(0,0,0,.22)',
       }}
     >
@@ -450,55 +463,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       >
         {item.label}
       </div>
-      {host && floating && (
-        <div style={{ position: 'absolute', right: 6, top: 6, zIndex: 5, display: 'flex', gap: 4 }}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleMinimize(item.id)
-            }}
-            title={stage.minimized ? 'Agrandir la caméra' : 'Réduire la caméra'}
-            style={btnStyle}
-          >
-            {stage.minimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleMove(item.id)
-            }}
-            title="Déplacer"
-            style={{
-              ...btnStyle,
-              background: moveMode && stage.featured === item.id ? 'rgba(255,255,255,.92)' : 'rgba(0,0,0,.68)',
-              color: moveMode && stage.featured === item.id ? '#111' : '#fff',
-            }}
-          >
-            <Move size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleBringToFront(item.id)
-            }}
-            title="Mettre en avant"
-            style={{
-              ...btnStyle,
-              background:
-                stage.front && stage.featured === item.id && !stage.minimized
-                  ? 'rgba(255,255,255,.92)'
-                  : 'rgba(0,0,0,.68)',
-              color:
-                stage.front && stage.featured === item.id && !stage.minimized ? '#111' : '#fff',
-            }}
-          >
-            <BringToFront size={14} />
-          </button>
-        </div>
-      )}
     </div>
   )
 
@@ -507,6 +471,47 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
+      {/* Couleurs / arrière-plan EN HAUT */}
+      {host && status === 'connected' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+            padding: '8px 10px',
+            borderRadius: 12,
+            border: '1px solid var(--line)',
+            background: 'var(--panel)',
+          }}
+        >
+          <span className="muted" style={{ fontSize: 12, fontWeight: 800 }}>
+            Arrière-plan
+          </span>
+          {Object.entries(BACKGROUNDS).map(([id, item]) => (
+            <button
+              key={id}
+              type="button"
+              title={item.label}
+              aria-label={item.label}
+              onClick={() => setBackground(id)}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                border: stage.backgroundId === id ? '2px solid var(--text)' : '1px solid var(--line)',
+                background: item.value,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            />
+          ))}
+          <span className="muted" style={{ fontSize: 11 }}>
+            + filigrane Conik.io
+          </span>
+        </div>
+      )}
+
       <div
         ref={stageRef}
         className="conik-multi-live-stage"
@@ -526,7 +531,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           border: '1px solid var(--line)',
         }}
       >
-        {/* Arrière-plan + filigrane Conik.io (sync organisateur → followers) */}
         {!screenTrack && (
           <div
             aria-hidden
@@ -574,7 +578,10 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
           </div>
         )}
 
-        <div data-conik-remote-canvas style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0, zIndex: 1 }}>
+        <div
+          data-conik-remote-canvas
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 0, zIndex: 1 }}
+        >
           {status !== 'connected' && (
             <div
               style={{
@@ -608,7 +615,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             </div>
           )}
 
-          {/* Partage d’écran plein cadre — visible pour tous */}
           {screenTrack && (
             <div
               ref={screenRef}
@@ -624,7 +630,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             />
           )}
 
-          {/* Grille caméras (sans partage d’écran) */}
           {!screenTrack && normalItems.length > 0 && (
             <div
               style={{
@@ -640,7 +645,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             </div>
           )}
 
-          {/* Caméra PiP (petite/grande) — même position/taille côté followers */}
           {featuredItem && (
             <div
               style={{
@@ -659,7 +663,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             </div>
           )}
 
-          {/* Autres caméras en pastilles pendant le partage d’écran */}
           {screenTrack && normalItems.length > 0 && (
             <div
               style={{
@@ -683,6 +686,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         </div>
       </div>
 
+      {/* Contrôles EN BAS : micro, caméra, écran, agrandir, déplacer, avant, Couper le Live */}
       {host && status === 'connected' && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="outline" onClick={() => void toggleMic()} style={ctrlBtn}>
@@ -697,27 +701,40 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
             {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}
           </button>
 
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-            <Palette size={15} style={{ opacity: 0.7 }} />
-            {Object.entries(BACKGROUNDS).map(([id, item]) => (
-              <button
-                key={id}
-                type="button"
-                title={item.label}
-                aria-label={item.label}
-                onClick={() => setBackground(id)}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
-                  border: stage.backgroundId === id ? '2px solid var(--text)' : '1px solid var(--line)',
-                  background: item.value,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              />
-            ))}
-          </div>
+          <button className="outline" onClick={toggleMinimize} style={ctrlBtn} disabled={!items.length}>
+            {stage.minimized ? <Maximize2 size={17} /> : <Minimize2 size={17} />}{' '}
+            {stage.minimized ? 'Agrandir la caméra' : 'Réduire la caméra'}
+          </button>
+          <button
+            className={moveMode ? 'primary' : 'outline'}
+            onClick={toggleMove}
+            style={ctrlBtn}
+            disabled={!items.length}
+          >
+            <Move size={17} /> {moveMode ? 'Déplacement ON' : 'Déplacer'}
+          </button>
+          <button className="outline" onClick={toggleBringToFront} style={ctrlBtn} disabled={!items.length}>
+            <BringToFront size={17} /> Mettre en avant
+          </button>
+
+          {onEndLive && (
+            <button
+              type="button"
+              onClick={onEndLive}
+              disabled={endingLive}
+              style={{
+                ...ctrlBtn,
+                border: '1px solid rgba(239,68,68,.5)',
+                background: 'rgba(127,29,29,.16)',
+                color: '#f87171',
+                fontWeight: 800,
+                cursor: endingLive ? 'wait' : 'pointer',
+              }}
+            >
+              <Square size={16} fill="currentColor" />
+              {endingLive ? 'Arrêt…' : 'Couper le Live'}
+            </button>
+          )}
         </div>
       )}
 
@@ -746,18 +763,6 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       )}
     </div>
   )
-}
-
-const btnStyle: React.CSSProperties = {
-  width: 30,
-  height: 30,
-  border: 0,
-  borderRadius: 7,
-  background: 'rgba(0,0,0,.68)',
-  color: '#fff',
-  display: 'grid',
-  placeItems: 'center',
-  cursor: 'pointer',
 }
 
 const ctrlBtn: React.CSSProperties = {

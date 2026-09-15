@@ -1,7 +1,22 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Copy, Radio, Trash2, Users, Square, CircleCheck, Clock3, Send, Smartphone, Link2, MessageSquare, MessageSquareOff, UserPlus } from 'lucide-react'
+import {
+  ArrowLeft,
+  Copy,
+  Radio,
+  Trash2,
+  Users,
+  Square,
+  CircleCheck,
+  Clock3,
+  Send,
+  Smartphone,
+  Link2,
+  MessageSquare,
+  MessageSquareOff,
+  UserPlus,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { ConikDialog } from '@/components/conik-dialog'
@@ -9,25 +24,551 @@ import MultiLiveRoom from '@/components/live/multi-live-room'
 import LiveStudioLayout from '@/components/live/live-studio-layout'
 import LiveChat from '@/components/live/live-chat'
 
-type Participant={id:string;contact_id:string;email:string;status:string;invited_at:string}
-type Attendee={participant_id:string;contact_id:string;display_name:string;email:string;status:string;joined_at:string|null;last_seen_at:string|null;connected:boolean}
-type Live={id:string;title:string;description:string|null;slug:string;scheduled_at:string;timezone:string;status:string;stream_provider:string|null;stream_id:string|null;chat_enabled:boolean}
-const EMPTY_LIVE:Live={id:'',title:'',description:null,slug:'',scheduled_at:'',timezone:'',status:'loading',stream_provider:null,stream_id:null,chat_enabled:true}
+type Participant = { id: string; contact_id: string; email: string; status: string; invited_at: string }
+type Attendee = {
+  participant_id: string
+  contact_id: string
+  display_name: string
+  email: string
+  status: string
+  joined_at: string | null
+  last_seen_at: string | null
+  connected: boolean
+}
+type Live = {
+  id: string
+  title: string
+  description: string | null
+  slug: string
+  scheduled_at: string
+  timezone: string
+  status: string
+  stream_provider: string | null
+  stream_id: string | null
+  chat_enabled: boolean
+}
+const EMPTY_LIVE: Live = {
+  id: '',
+  title: '',
+  description: null,
+  slug: '',
+  scheduled_at: '',
+  timezone: '',
+  status: 'loading',
+  stream_provider: null,
+  stream_id: null,
+  chat_enabled: true,
+}
 
-export default function LiveDetail({params}:{params:Promise<{id:string}>}){
-  const [live,setLive]=useState<Live>(EMPTY_LIVE),[participants,setParticipants]=useState<Participant[]>([]),[attendees,setAttendees]=useState<Attendee[]>([]),[contacts,setContacts]=useState<any[]>([]),[selected,setSelected]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[studio,setStudio]=useState(false),[ending,setEnding]=useState(false),[endConfirmOpen,setEndConfirmOpen]=useState(false),[waMessage,setWaMessage]=useState(''),[waEligible,setWaEligible]=useState(0),[waInvited,setWaInvited]=useState(0),[waSaving,setWaSaving]=useState(false),[chatSaving,setChatSaving]=useState(false),[cohostLink,setCohostLink]=useState(''),[cohostLoading,setCohostLoading]=useState(false)
-  async function load(id:string){const [l,p,c,a,w]=await Promise.all([fetch('/api/lives').then(r=>r.json()),fetch(`/api/lives/${id}/participants`).then(r=>r.json()),fetch('/api/contacts').then(r=>r.json()),fetch(`/api/lives/presence?live_id=${id}`,{cache:'no-store'}).then(r=>r.json()).catch(()=>({})),fetch(`/api/lives/${id}/whatsapp`,{cache:'no-store'}).then(r=>r.json()).catch(()=>({}))]);setLive((l.lives||[]).find((x:Live)=>x.id===id)||EMPTY_LIVE);setParticipants(p.participants||[]);setContacts(c.contacts||[]);setAttendees(a.attendees||[]);setWaMessage(w.draft||'');setWaEligible(w.whatsapp_eligible||0);setWaInvited(w.total_invited||0)}
-  useEffect(()=>{let timer:number|undefined;params.then(({id})=>{load(id).catch(()=>setError('Impossible de charger cet événement'));timer=window.setInterval(()=>{void fetch(`/api/lives/presence?live_id=${id}`,{cache:'no-store'}).then(r=>r.json()).then(j=>setAttendees(j.attendees||[])).catch(()=>{})},5000)});return()=>{if(timer)window.clearInterval(timer)}},[params])
-  async function add(){if(!live.id||!selected)return;setError('');const r=await fetch(`/api/lives/${live.id}/participants`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact_ids:[selected]})});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible d’ajouter le contact');else{setSelected('');setNotice('Contact autorisé.');await load(live.id)}}
-  async function remove(contactId:string){if(!live.id)return;const r=await fetch(`/api/lives/${live.id}/participants`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact_id:contactId})});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible de retirer le contact');else{setNotice('Contact retiré.');await load(live.id)}}
-  function copy(){if(!live.id)return;navigator.clipboard?.writeText(`${window.location.origin}/live/${live.slug}`);setNotice('Lien copié.')}
-  async function startStudio(){if(!live.id)return;setError('');const r=await fetch(`/api/lives/${live.id}/token`,{method:'POST'});const j=await r.json().catch(()=>({}));if(!r.ok){setError(j.error||'Impossible de démarrer le studio');return}setLive(v=>({...v,stream_provider:'livekit',stream_id:j.room,status:'live'}));setStudio(true);setNotice('Studio prêt.')}
-  async function createCohostInvite(){if(!live.id||cohostLoading)return;setCohostLoading(true);setError('');const r=await fetch(`/api/lives/${live.id}/cohost-invite`,{method:'POST'});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible de créer le lien organisateur.');else{setCohostLink(j.link||'');setNotice('Lien organisateur créé. Il est valable 24 heures et à usage unique.')}setCohostLoading(false)}
-  async function endLive(){if(!live.id||ending)return;setEnding(true);setError('');const r=await fetch(`/api/lives/${live.id}/end`,{method:'POST'});const j=await r.json().catch(()=>({}));if(!r.ok){setError(j.error||'Impossible de terminer le Live.');setEnding(false);return}setLive(v=>({...v,status:'ended'}));setStudio(false);setEndConfirmOpen(false);setNotice('Live terminé.');setEnding(false)}
-  async function toggleChat(){if(!live.id||chatSaving)return;setChatSaving(true);setError('');const enabled=!live.chat_enabled;const r=await fetch(`/api/lives/${live.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_enabled:enabled})});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible de modifier le chat.');else{setLive(v=>({...v,chat_enabled:j.chat_enabled}));setNotice(enabled?'Chat des followers activé.':'Chat des followers désactivé.')}setChatSaving(false)}
-  async function saveWhatsApp(){if(!live.id||!waMessage.trim())return;setWaSaving(true);setError('');const r=await fetch(`/api/lives/${live.id}/whatsapp`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:waMessage})});const j=await r.json().catch(()=>({}));if(!r.ok)setError(j.error||'Impossible d’enregistrer le message WhatsApp.');else setNotice('Message WhatsApp enregistré.');setWaSaving(false)}
-  const allowed=new Set(participants.map(p=>p.contact_id)),connected=attendees.filter(a=>a.connected),notConnected=participants.filter(p=>!connected.some(a=>a.participant_id===p.id))
-  const contactName=(contactId:string,email:string)=>{const c=contacts.find(x=>x.id===contactId);return c?[c.first_name,c.last_name].filter(Boolean).join(' ')||email:email}
-  const inviteSidebar=<div style={{display:'grid',gap:9}}><div style={{display:'flex',alignItems:'center',gap:7}}><Users size={15}/><b style={{fontSize:12}}>Invités</b><span className="muted" style={{fontSize:10}}>{participants.length}</span></div><div style={{display:'grid',gap:6}}><div className="choice" style={{padding:'7px 8px',fontSize:11}}><div style={{display:'flex',alignItems:'center',gap:6}}><CircleCheck size={13}/><b>Connectés</b><span className="muted">{connected.length}</span></div>{connected.length>0&&<div style={{marginTop:5,display:'grid',gap:4}}>{connected.slice(0,4).map(a=><div key={a.participant_id} style={{fontSize:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.display_name||a.email}</div>)}</div>}</div><div className="choice" style={{padding:'7px 8px',fontSize:11}}><div style={{display:'flex',alignItems:'center',gap:6}}><Clock3 size={13}/><b>En attente</b><span className="muted">{notConnected.length}</span></div>{notConnected.length>0&&<div style={{marginTop:5,display:'grid',gap:4}}>{notConnected.slice(0,4).map(p=><div key={p.id} style={{fontSize:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{contactName(p.contact_id,p.email)}</div>)}</div>}</div></div><div style={{borderTop:'1px solid var(--line)',paddingTop:8}}><div className="muted" style={{fontSize:10,fontWeight:800,marginBottom:5}}>ORGANISATEURS</div><button type="button" onClick={()=>void createCohostInvite()} disabled={cohostLoading||live.status==='ended'||!live.id} className="primary" style={{width:'100%',minHeight:38,display:'flex',alignItems:'center',justifyContent:'center',gap:7,fontSize:11,fontWeight:800}}><UserPlus size={14}/>{cohostLoading?'Création…':'Inviter un organisateur'}</button>{cohostLink&&<div style={{display:'grid',gap:6,marginTop:7}}><div className="choice" style={{fontSize:10,wordBreak:'break-all'}}>{cohostLink}</div><button type="button" className="outline" onClick={()=>{navigator.clipboard?.writeText(cohostLink);setNotice('Lien organisateur copié.')}} style={{minHeight:34,fontSize:11,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Copy size={13}/>Copier le lien</button><div className="muted" style={{fontSize:9,textAlign:'center'}}>Lien sécurisé • valable 24 h • usage unique</div></div>}</div><div style={{borderTop:'1px solid var(--line)',paddingTop:8}}><div className="muted" style={{fontSize:10,fontWeight:800,marginBottom:5}}>CHAT DES FOLLOWERS</div><button type="button" onClick={()=>void toggleChat()} disabled={chatSaving||live.status==='ended'||!live.id} className={live.chat_enabled?'outline':'primary'} style={{width:'100%',minHeight:38,display:'flex',alignItems:'center',justifyContent:'center',gap:7,fontSize:11,fontWeight:800}}>{live.chat_enabled?<><MessageSquareOff size={14}/>{chatSaving?'Modification…':'Couper le chat'}</>:<><MessageSquare size={14}/>{chatSaving?'Modification…':'Réactiver le chat'}</>}</button><div className="muted" style={{fontSize:10,textAlign:'center',marginTop:5}}>{live.chat_enabled?'Les followers peuvent envoyer des messages.':'Les followers peuvent lire les messages, mais ne peuvent plus en envoyer.'}</div></div><div style={{borderTop:'1px solid var(--line)',paddingTop:8}}><div className="muted" style={{fontSize:10,fontWeight:800,marginBottom:5}}>AJOUTER UN CONTACT</div><select className="form-input" value={selected} onChange={e=>setSelected(e.target.value)} style={{width:'100%',fontSize:11,minHeight:36}}><option value="">Choisir…</option>{contacts.filter(c=>c.email&&!allowed.has(c.id)).map(c=><option key={c.id} value={c.id}>{[c.first_name,c.last_name].filter(Boolean).join(' ')||c.email}</option>)}</select><button className="primary" onClick={add} disabled={!selected||!live.id} style={{width:'100%',minHeight:35,marginTop:6,fontSize:11}}>Autoriser</button></div>{participants.length>0&&<div style={{borderTop:'1px solid var(--line)',paddingTop:8,display:'grid',gap:5}}>{participants.slice(0,8).map(p=><div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,fontSize:10}}><span style={{minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{contactName(p.contact_id,p.email)}</span><button className="outline" onClick={()=>remove(p.contact_id)} aria-label="Retirer" style={{width:28,height:28,padding:0,display:'grid',placeItems:'center',flex:'0 0 auto'}}><Trash2 size={12}/></button></div>)}</div>}</div>
-  return <AppShell active="Live Events"><div className="page" style={{maxWidth:1180}}><Link href="/lives" className="back"><ArrowLeft size={16}/>Live Events</Link>{error&&<div className="error" style={{marginBottom:16}}>{error}</div>}{notice&&<div className="notice" style={{marginBottom:16}}>{notice}</div>}{live.status==='loading'?<div className="emptybox big">Chargement…</div>:<><header className="head" style={{marginBottom:22,alignItems:'flex-start'}}><div><div style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:11,fontWeight:700,letterSpacing:'.08em',opacity:.65,marginBottom:7}}><Radio size={14}/>LIVE PRIVÉ</div><h1 style={{marginBottom:6}}>{live.title}</h1>{live.description&&<p className="muted" style={{margin:0,maxWidth:650}}>{live.description}</p>}</div><div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}>{live.status!=='ended'&&<><button className="primary" onClick={startStudio} disabled={studio}><Radio size={15}/>{studio?'Studio ouvert':'Démarrer le studio'}</button><button className="outline" onClick={()=>setEndConfirmOpen(true)} disabled={ending}><Square size={15}/>{ending?'Arrêt…':'Couper le Live'}</button></>}<button className="outline" onClick={copy}><Copy size={15}/>Copier le lien</button></div></header>{studio&&live.status!=='ended'&&<section className="panel" style={{marginBottom:18}}><div style={{display:'flex',alignItems:'center',gap:9,marginBottom:14}}><Radio size={18}/><h3 style={{margin:0}}>Studio multi-organisateurs</h3></div><LiveStudioLayout host sidebarContent={inviteSidebar}><MultiLiveRoom tokenUrl={`/api/lives/${live.id}/token`} tokenBody={{}} host/></LiveStudioLayout></section>}{studio&&live.status!=='ended'&&<div style={{display:'flex',justifyContent:'center',margin:'-2px 0 18px'}}><button type="button" onClick={()=>setEndConfirmOpen(true)} disabled={ending} style={{minHeight:46,padding:'0 20px',borderRadius:12,border:'1px solid rgba(239,68,68,.5)',background:'rgba(127,29,29,.16)',color:'#f87171',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:9,fontWeight:800,cursor:ending?'wait':'pointer',boxShadow:'0 8px 24px rgba(127,29,29,.12)'}}><Square size={18} fill="currentColor" />{ending?'Arrêt du Live…':'Couper le Live'}</button></div>}{live.status!=='ended'&&<section style={{marginBottom:18}}><LiveChat liveId={live.id} host chatEnabled={live.chat_enabled}/></section>}<section className="panel" style={{marginTop:18}}><div style={{display:'flex',alignItems:'center',gap:9,marginBottom:5}}><Smartphone size={18}/><h3 style={{margin:0}}>WhatsApp</h3><span className="muted" style={{fontSize:12,marginLeft:'auto'}}>{waEligible}/{waInvited} éligibles</span></div><p className="muted" style={{fontSize:13,margin:'0 0 12px'}}>Préparez le message d’invitation. Le lien de ce Live sera utilisé automatiquement.</p><textarea className="form-input" rows={4} value={waMessage} onChange={e=>setWaMessage(e.target.value)} placeholder="Message d’invitation…"/><div style={{display:'flex',gap:9,alignItems:'center',flexWrap:'wrap',marginTop:10}}><button className="primary" onClick={saveWhatsApp} disabled={waSaving||!waMessage.trim()}><Send size={15}/>{waSaving?'Enregistrement…':'Enregistrer'}</button><span className="muted" style={{fontSize:12}}>L’envoi sera activé après connexion WhatsApp.</span></div></section><section className="panel" style={{marginTop:18}}><div style={{display:'flex',alignItems:'center',gap:9,marginBottom:8}}><Link2 size={18}/><h3 style={{margin:0}}>Lien du Live</h3></div><div className="choice" style={{fontSize:13,wordBreak:'break-all'}}>{window.location.origin}/live/{live.slug}</div></section></>}<ConikDialog open={endConfirmOpen} title="Terminer ce Live ?" message="Le Live sera marqué comme terminé. Les participants ne pourront plus rejoindre la session en direct." tone="warning" confirmLabel="Terminer le Live" busy={ending} onConfirm={()=>void endLive()} onCancel={()=>!ending&&setEndConfirmOpen(false)} /></div></AppShell>
+export default function LiveDetail({ params }: { params: Promise<{ id: string }> }) {
+  const [live, setLive] = useState<Live>(EMPTY_LIVE)
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [attendees, setAttendees] = useState<Attendee[]>([])
+  const [contacts, setContacts] = useState<any[]>([])
+  const [selected, setSelected] = useState('')
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [studio, setStudio] = useState(false)
+  const [ending, setEnding] = useState(false)
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false)
+  const [waMessage, setWaMessage] = useState('')
+  const [waEligible, setWaEligible] = useState(0)
+  const [waInvited, setWaInvited] = useState(0)
+  const [waSaving, setWaSaving] = useState(false)
+  const [chatSaving, setChatSaving] = useState(false)
+  const [cohostLink, setCohostLink] = useState('')
+  const [cohostLoading, setCohostLoading] = useState(false)
+
+  async function load(id: string) {
+    const [l, p, c, a, w] = await Promise.all([
+      fetch('/api/lives').then((r) => r.json()),
+      fetch(`/api/lives/${id}/participants`).then((r) => r.json()),
+      fetch('/api/contacts').then((r) => r.json()),
+      fetch(`/api/lives/presence?live_id=${id}`, { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => ({})),
+      fetch(`/api/lives/${id}/whatsapp`, { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => ({})),
+    ])
+    setLive((l.lives || []).find((x: Live) => x.id === id) || EMPTY_LIVE)
+    setParticipants(p.participants || [])
+    setContacts(c.contacts || [])
+    setAttendees(a.attendees || [])
+    setWaMessage(w.draft || '')
+    setWaEligible(w.whatsapp_eligible || 0)
+    setWaInvited(w.total_invited || 0)
+  }
+
+  useEffect(() => {
+    let timer: number | undefined
+    params.then(({ id }) => {
+      load(id).catch(() => setError('Impossible de charger cet événement'))
+      timer = window.setInterval(() => {
+        void fetch(`/api/lives/presence?live_id=${id}`, { cache: 'no-store' })
+          .then((r) => r.json())
+          .then((j) => setAttendees(j.attendees || []))
+          .catch(() => {})
+      }, 5000)
+    })
+    return () => {
+      if (timer) window.clearInterval(timer)
+    }
+  }, [params])
+
+  async function add() {
+    if (!live.id || !selected) return
+    setError('')
+    const r = await fetch(`/api/lives/${live.id}/participants`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact_ids: [selected] }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) setError(j.error || 'Impossible d’ajouter le contact')
+    else {
+      setSelected('')
+      setNotice('Contact autorisé.')
+      await load(live.id)
+    }
+  }
+
+  async function remove(contactId: string) {
+    if (!live.id) return
+    const r = await fetch(`/api/lives/${live.id}/participants`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact_id: contactId }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) setError(j.error || 'Impossible de retirer le contact')
+    else {
+      setNotice('Contact retiré.')
+      await load(live.id)
+    }
+  }
+
+  function copy() {
+    if (!live.id) return
+    navigator.clipboard?.writeText(`${window.location.origin}/live/${live.slug}`)
+    setNotice('Lien copié.')
+  }
+
+  async function startStudio() {
+    if (!live.id) return
+    setError('')
+    const r = await fetch(`/api/lives/${live.id}/token`, { method: 'POST' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      setError(j.error || 'Impossible de démarrer le studio')
+      return
+    }
+    setLive((v) => ({ ...v, stream_provider: 'livekit', stream_id: j.room, status: 'live' }))
+    setStudio(true)
+    setNotice('Studio prêt.')
+  }
+
+  async function createCohostInvite() {
+    if (!live.id || cohostLoading) return
+    setCohostLoading(true)
+    setError('')
+    const r = await fetch(`/api/lives/${live.id}/cohost-invite`, { method: 'POST' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) setError(j.error || 'Impossible de créer le lien organisateur.')
+    else {
+      setCohostLink(j.link || '')
+      setNotice('Lien organisateur créé. Il est valable 24 heures et à usage unique.')
+    }
+    setCohostLoading(false)
+  }
+
+  async function endLive() {
+    if (!live.id || ending) return
+    setEnding(true)
+    setError('')
+    const r = await fetch(`/api/lives/${live.id}/end`, { method: 'POST' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      setError(j.error || 'Impossible de terminer le Live.')
+      setEnding(false)
+      return
+    }
+    setLive((v) => ({ ...v, status: 'ended' }))
+    setStudio(false)
+    setEndConfirmOpen(false)
+    setNotice('Live terminé.')
+    setEnding(false)
+  }
+
+  async function toggleChat() {
+    if (!live.id || chatSaving) return
+    setChatSaving(true)
+    setError('')
+    const enabled = !live.chat_enabled
+    const r = await fetch(`/api/lives/${live.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_enabled: enabled }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) setError(j.error || 'Impossible de modifier le chat.')
+    else {
+      setLive((v) => ({ ...v, chat_enabled: j.chat_enabled }))
+      setNotice(enabled ? 'Chat des followers activé.' : 'Chat des followers désactivé.')
+    }
+    setChatSaving(false)
+  }
+
+  async function saveWhatsApp() {
+    if (!live.id || !waMessage.trim()) return
+    setWaSaving(true)
+    setError('')
+    const r = await fetch(`/api/lives/${live.id}/whatsapp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: waMessage }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) setError(j.error || 'Impossible d’enregistrer le message WhatsApp.')
+    else setNotice('Message WhatsApp enregistré.')
+    setWaSaving(false)
+  }
+
+  const allowed = new Set(participants.map((p) => p.contact_id))
+  const connected = attendees.filter((a) => a.connected)
+  const notConnected = participants.filter((p) => !connected.some((a) => a.participant_id === p.id))
+  const contactName = (contactId: string, email: string) => {
+    const c = contacts.find((x) => x.id === contactId)
+    return c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || email : email
+  }
+
+  const inviteSidebar = (
+    <div style={{ display: 'grid', gap: 9 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <Users size={15} />
+        <b style={{ fontSize: 12 }}>Invités</b>
+        <span className="muted" style={{ fontSize: 10 }}>
+          {participants.length}
+        </span>
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div className="choice" style={{ padding: '7px 8px', fontSize: 11 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CircleCheck size={13} />
+            <b>Connectés</b>
+            <span className="muted">{connected.length}</span>
+          </div>
+          {connected.length > 0 && (
+            <div style={{ marginTop: 5, display: 'grid', gap: 4 }}>
+              {connected.slice(0, 4).map((a) => (
+                <div
+                  key={a.participant_id}
+                  style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  {a.display_name || a.email}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="choice" style={{ padding: '7px 8px', fontSize: 11 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Clock3 size={13} />
+            <b>En attente</b>
+            <span className="muted">{notConnected.length}</span>
+          </div>
+          {notConnected.length > 0 && (
+            <div style={{ marginTop: 5, display: 'grid', gap: 4 }}>
+              {notConnected.slice(0, 4).map((p) => (
+                <div
+                  key={p.id}
+                  style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  {contactName(p.contact_id, p.email)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+        <div className="muted" style={{ fontSize: 10, fontWeight: 800, marginBottom: 5 }}>
+          ORGANISATEURS
+        </div>
+        <button
+          type="button"
+          onClick={() => void createCohostInvite()}
+          disabled={cohostLoading || live.status === 'ended' || !live.id}
+          className="primary"
+          style={{
+            width: '100%',
+            minHeight: 38,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 7,
+            fontSize: 11,
+            fontWeight: 800,
+          }}
+        >
+          <UserPlus size={14} />
+          {cohostLoading ? 'Création…' : 'Inviter un organisateur'}
+        </button>
+        {cohostLink && (
+          <div style={{ display: 'grid', gap: 6, marginTop: 7 }}>
+            <div className="choice" style={{ fontSize: 10, wordBreak: 'break-all' }}>
+              {cohostLink}
+            </div>
+            <button
+              type="button"
+              className="outline"
+              onClick={() => {
+                navigator.clipboard?.writeText(cohostLink)
+                setNotice('Lien organisateur copié.')
+              }}
+              style={{
+                minHeight: 34,
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <Copy size={13} />
+              Copier le lien
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+        <div className="muted" style={{ fontSize: 10, fontWeight: 800, marginBottom: 5 }}>
+          CHAT DES FOLLOWERS
+        </div>
+        <button
+          type="button"
+          onClick={() => void toggleChat()}
+          disabled={chatSaving || live.status === 'ended' || !live.id}
+          className={live.chat_enabled ? 'outline' : 'primary'}
+          style={{
+            width: '100%',
+            minHeight: 38,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 7,
+            fontSize: 11,
+            fontWeight: 800,
+          }}
+        >
+          {live.chat_enabled ? (
+            <>
+              <MessageSquareOff size={14} />
+              {chatSaving ? 'Modification…' : 'Couper le chat'}
+            </>
+          ) : (
+            <>
+              <MessageSquare size={14} />
+              {chatSaving ? 'Modification…' : 'Réactiver le chat'}
+            </>
+          )}
+        </button>
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+        <div className="muted" style={{ fontSize: 10, fontWeight: 800, marginBottom: 5 }}>
+          AJOUTER UN CONTACT
+        </div>
+        <select
+          className="form-input"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          style={{ width: '100%', fontSize: 11, minHeight: 36 }}
+        >
+          <option value="">Choisir…</option>
+          {contacts
+            .filter((c) => c.email && !allowed.has(c.id))
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
+              </option>
+            ))}
+        </select>
+        <button
+          className="primary"
+          onClick={add}
+          disabled={!selected || !live.id}
+          style={{ width: '100%', minHeight: 35, marginTop: 6, fontSize: 11 }}
+        >
+          Autoriser
+        </button>
+      </div>
+
+      {participants.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'grid', gap: 5 }}>
+          {participants.slice(0, 8).map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 6,
+                fontSize: 10,
+              }}
+            >
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {contactName(p.contact_id, p.email)}
+              </span>
+              <button
+                className="outline"
+                onClick={() => remove(p.contact_id)}
+                aria-label="Retirer"
+                style={{ width: 28, height: 28, padding: 0, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <AppShell active="Live Events">
+      <div className="page" style={{ maxWidth: 1180 }}>
+        <Link href="/lives" className="back">
+          <ArrowLeft size={16} />
+          Live Events
+        </Link>
+        {error && (
+          <div className="error" style={{ marginBottom: 16 }}>
+            {error}
+          </div>
+        )}
+        {notice && (
+          <div className="notice" style={{ marginBottom: 16 }}>
+            {notice}
+          </div>
+        )}
+        {live.status === 'loading' ? (
+          <div className="emptybox big">Chargement…</div>
+        ) : (
+          <>
+            <header className="head" style={{ marginBottom: 22, alignItems: 'flex-start' }}>
+              <div>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '.08em',
+                    opacity: 0.65,
+                    marginBottom: 7,
+                  }}
+                >
+                  <Radio size={14} />
+                  LIVE PRIVÉ
+                </div>
+                <h1 style={{ marginBottom: 6 }}>{live.title}</h1>
+                {live.description && (
+                  <p className="muted" style={{ margin: 0, maxWidth: 650 }}>
+                    {live.description}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {live.status !== 'ended' && (
+                  <button className="primary" onClick={startStudio} disabled={studio}>
+                    <Radio size={15} />
+                    {studio ? 'Studio ouvert' : 'Démarrer le studio'}
+                  </button>
+                )}
+                <button className="outline" onClick={copy}>
+                  <Copy size={15} />
+                  Copier le lien
+                </button>
+              </div>
+            </header>
+
+            {studio && live.status !== 'ended' && (
+              <section className="panel" style={{ marginBottom: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+                  <Radio size={18} />
+                  <h3 style={{ margin: 0 }}>Studio multi-organisateurs</h3>
+                </div>
+                <LiveStudioLayout host sidebarContent={inviteSidebar}>
+                  <MultiLiveRoom
+                    tokenUrl={`/api/lives/${live.id}/token`}
+                    tokenBody={{}}
+                    host
+                    onEndLive={() => setEndConfirmOpen(true)}
+                    endingLive={ending}
+                  />
+                </LiveStudioLayout>
+              </section>
+            )}
+
+            {live.status !== 'ended' && (
+              <section style={{ marginBottom: 18 }}>
+                <LiveChat liveId={live.id} host chatEnabled={live.chat_enabled} />
+              </section>
+            )}
+
+            <section className="panel" style={{ marginTop: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 5 }}>
+                <Smartphone size={18} />
+                <h3 style={{ margin: 0 }}>WhatsApp</h3>
+                <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
+                  {waEligible}/{waInvited} éligibles
+                </span>
+              </div>
+              <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
+                Préparez le message d’invitation. Le lien de ce Live sera utilisé automatiquement.
+              </p>
+              <textarea
+                className="form-input"
+                rows={4}
+                value={waMessage}
+                onChange={(e) => setWaMessage(e.target.value)}
+                placeholder="Message d’invitation…"
+              />
+              <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+                <button className="primary" onClick={saveWhatsApp} disabled={waSaving || !waMessage.trim()}>
+                  <Send size={15} />
+                  {waSaving ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              </div>
+            </section>
+
+            <section className="panel" style={{ marginTop: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+                <Link2 size={18} />
+                <h3 style={{ margin: 0 }}>Lien du Live</h3>
+              </div>
+              <div className="choice" style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                {typeof window !== 'undefined' ? window.location.origin : ''}/live/{live.slug}
+              </div>
+            </section>
+          </>
+        )}
+
+        <ConikDialog
+          open={endConfirmOpen}
+          title="Terminer ce Live ?"
+          message="Le Live sera marqué comme terminé. Les participants ne pourront plus rejoindre la session en direct."
+          tone="warning"
+          confirmLabel="Terminer le Live"
+          busy={ending}
+          onConfirm={() => void endLive()}
+          onCancel={() => !ending && setEndConfirmOpen(false)}
+        />
+      </div>
+    </AppShell>
+  )
 }
