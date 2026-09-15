@@ -16,13 +16,15 @@ create or replace function public.create_live_cohost_invite(p_live_id uuid, p_or
 returns table(id uuid, expires_at timestamptz)
 language plpgsql security definer set search_path = public
 as $$
-declare l public.live_events%rowtype; r public.live_cohost_invites%rowtype;
+declare l public.live_events%rowtype; r public.live_cohost_invites%rowtype; m public.organization_members%rowtype;
 begin
+  select * into m from public.organization_members where organization_id=p_organization_id and user_id=auth.uid() and role in ('owner','admin','editor') limit 1;
+  if not found then raise exception 'FORBIDDEN'; end if;
   select * into l from public.live_events where id=p_live_id and organization_id=p_organization_id for update;
   if not found then raise exception 'LIVE_NOT_FOUND'; end if;
   if l.status in ('ended','cancelled') then raise exception 'LIVE_NOT_AVAILABLE'; end if;
-  insert into public.live_cohost_invites(live_id,organization_id,token_hash,expires_at)
-  values(p_live_id,p_organization_id,p_token_hash,least(p_expires_at, now()+interval '24 hours'))
+  insert into public.live_cohost_invites(live_id,organization_id,token_hash,created_by,expires_at)
+  values(p_live_id,p_organization_id,p_token_hash,auth.uid(),least(p_expires_at, now()+interval '24 hours'))
   returning live_cohost_invites.id, live_cohost_invites.expires_at into r;
   return query select r.id,r.expires_at;
 end; $$;
