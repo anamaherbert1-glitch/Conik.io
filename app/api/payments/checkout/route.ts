@@ -67,22 +67,34 @@ export async function POST(request: Request) {
       if (!page || page.status !== 'published') return NextResponse.json({ error: 'Page de paiement invalide' }, { status: 400 })
     }
 
+    const methodCode = body.methodCode ? String(body.methodCode).slice(0, 100) : null
+    let providerId = funnel.payment_provider_id || null
+    if (methodCode && paymentPageId) {
+      const { data: method } = await supabase.from('payment_page_methods').select('provider_id,method_code').eq('payment_page_id', paymentPageId).eq('method_code', methodCode).eq('enabled', true).maybeSingle()
+      if (!method) return NextResponse.json({ error: 'Moyen de paiement indisponible sur cette page.' }, { status: 400 })
+      providerId = method.provider_id
+    }
+    if (!providerId) return NextResponse.json({ error: 'Aucun prestataire associé au moyen de paiement.' }, { status: 400 })
+
+    const { data: provider } = await supabase.from('payment_providers').select('id,status').eq('id', providerId).eq('organization_id', funnel.organization_id).maybeSingle()
+    if (!provider || !['connected', 'active'].includes(provider.status)) return NextResponse.json({ error: 'Prestataire de paiement non connecté ou inactif.' }, { status: 400 })
+
     const buyerEmail = body.email ? String(body.email).slice(0, 320) : null
     const buyerPhone = body.phone ? String(body.phone).slice(0, 40) : null
     const buyerName = body.name ? String(body.name).slice(0, 160) : null
     const { data: order, error: orderError } = await supabase.from('payment_orders').insert({
-      organization_id: tariff.organization_id, funnel_id: tariff.funnel_id, tariff_id: tariff.id, provider_id: funnel.payment_provider_id, payment_page_id: paymentPageId,
+      organization_id: tariff.organization_id, funnel_id: tariff.funnel_id, tariff_id: tariff.id, provider_id: providerId, payment_page_id: paymentPageId,
       amount_cents: tariff.amount_cents, currency: tariff.currency, subtotal: tariff.amount_cents, total_amount: tariff.amount_cents, status: 'pending',
       buyer_email: buyerEmail, buyer_phone: buyerPhone, buyer_name: buyerName, customer_email: buyerEmail, customer_phone: buyerPhone,
       customer_first_name: body.firstName ? String(body.firstName).slice(0, 80) : null, customer_last_name: body.lastName ? String(body.lastName).slice(0, 80) : null,
-      product_label: tariff.product_label || tariff.name, metadata: { checkout_source: 'conik_checkout' },
+      product_label: tariff.product_label || tariff.name, metadata: { checkout_source: 'conik_checkout', method_code: methodCode },
     }).select('id,order_number,amount_cents,total_amount,currency,status,payment_page_id').single()
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 })
 
     const { data: transaction, error: transactionError } = await supabase.from('payment_transactions').insert({
-      organization_id: tariff.organization_id, order_id: order.id, provider_id: funnel.payment_provider_id,
+      organization_id: tariff.organization_id, order_id: order.id, provider_id: providerId,
       amount: Number((tariff.amount_cents / 100).toFixed(2)), currency: tariff.currency, status: 'pending', provider_transaction_id: null,
-      method_code: body.methodCode ? String(body.methodCode).slice(0, 100) : null, raw_response: null,
+      method_code: methodCode, raw_response: null,
     }).select('id,order_id,provider_id,amount,currency,status,provider_transaction_id,method_code,created_at').single()
 
     if (transactionError) {
@@ -90,7 +102,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: transactionError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ order, transaction, message: 'Commande créée. Sélectionnez un moyen de paiement puis appelez /api/payments/initialize.' }, { status: 201 })
+    return NextResponse.json({ order, transaction, message: 'Commande créée. Initialisez maintenant la transaction auprès du prestataire.' }, { status: 201 })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur paiement' }, { status: 500 })
   }
