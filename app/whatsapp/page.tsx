@@ -13,7 +13,7 @@ export default async function WhatsAppPage() {
       <div>
         <small>INTÉGRATIONS · WHATSAPP</small>
         <h1>WhatsApp</h1>
-        <p className="muted">Connectez votre propre instance Green API pour utiliser WhatsApp directement depuis le CRM Conik.</p>
+        <p className="muted">Connectez votre propre instance Green API pour utiliser WhatsApp directement depuis le CRM Conik, avec synchronisation des contacts et conversations.</p>
       </div>
     </header>
     <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
