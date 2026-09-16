@@ -5,6 +5,12 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
+// The publishable Supabase key is safe to expose to the browser. Keep these
+// fallbacks aligned with the browser client so the cohost endpoint also works
+// when the NEXT_PUBLIC_* variables have not been added to Vercel yet.
+const SUPABASE_URL_FALLBACK = 'https://ndsksabyzxfmhnyykcfb.supabase.co'
+const SUPABASE_PUBLISHABLE_KEY_FALLBACK = 'sb_publishable_-adOy-Xd9Xuqugx74Cjklg_CV9EzTfF'
+
 export async function POST(request: Request) {
   try {
     if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET || !process.env.LIVEKIT_URL) {
@@ -14,11 +20,16 @@ export async function POST(request: Request) {
     if (!body?.token || body.token.length < 20 || body.token.length > 200) {
       return NextResponse.json({ error: 'Lien organisateur invalide.' }, { status: 400 })
     }
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !anonKey) return NextResponse.json({ error: 'Supabase n’est pas configuré.' }, { status: 503 })
 
-    const supabase = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL_FALLBACK
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      SUPABASE_PUBLISHABLE_KEY_FALLBACK
+
+    const supabase = createClient(url, supabaseKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
     const tokenHash = createHash('sha256').update(body.token).digest('hex')
     const { data, error } = await supabase.rpc('consume_live_cohost_invite', { p_token_hash: tokenHash })
     if (error) {
