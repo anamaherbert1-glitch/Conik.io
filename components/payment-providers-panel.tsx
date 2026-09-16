@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { Check, Trash2 } from 'lucide-react'
 import { PAYMENT_GATEWAYS } from '@/lib/payment-gateways'
+import { OFFICIAL_PAYMENT_LOGOS } from '@/lib/payment-provider-logos'
 
 type Provider = { id: string; provider: string; label: string; status: string; created_at?: string }
 
@@ -33,35 +34,18 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
         ou coller vos identifiants (comme sur systeme.io).
       </p>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 14,
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
         {PAYMENT_GATEWAYS.map((g) => {
           const connected = connectedMap.get(g.id) || []
+          const logoUrl = OFFICIAL_PAYMENT_LOGOS[g.id] || g.logoUrl
           return (
             <div key={g.id} className="panel" style={{ margin: 0, padding: 16, display: 'grid', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 12,
-                    background: g.bg,
-                    display: 'grid',
-                    placeItems: 'center',
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                    padding: 6,
-                  }}
-                >
+                <div style={{ width: 52, height: 52, borderRadius: 12, background: g.bg, display: 'grid', placeItems: 'center', flexShrink: 0, overflow: 'hidden', padding: 6 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={g.logoUrl}
-                    alt={g.name}
+                    src={logoUrl}
+                    alt={`${g.name} logo officiel`}
                     style={{ maxWidth: '100%', maxHeight: 36, objectFit: 'contain' }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
@@ -69,19 +53,7 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
                       if (sib) sib.style.display = 'grid'
                     }}
                   />
-                  <span
-                    style={{
-                      display: 'none',
-                      placeItems: 'center',
-                      width: 40,
-                      height: 40,
-                      borderRadius: 10,
-                      background: g.bg,
-                      color: g.color,
-                      fontWeight: 800,
-                      fontSize: 14,
-                    }}
-                  >
+                  <span style={{ display: 'none', placeItems: 'center', width: 40, height: 40, borderRadius: 10, background: g.bg, color: g.color, fontWeight: 800, fontSize: 14 }}>
                     {g.name.slice(0, 2).toUpperCase()}
                   </span>
                 </div>
@@ -89,64 +61,25 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <b style={{ fontSize: 15 }}>{g.name}</b>
                     {connected.length > 0 && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: '#059669',
-                          background: '#ECFDF5',
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <Check size={12} /> Connecté
                       </span>
                     )}
                   </div>
-                  <span className="muted" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>
-                    {g.countries}
-                  </span>
+                  <span className="muted" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{g.countries}</span>
                 </div>
               </div>
 
-              <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.4 }}>
-                {g.description}
-              </p>
+              <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.4 }}>{g.description}</p>
 
               {connected.map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    padding: '8px 10px',
-                    borderRadius: 8,
-                    background: 'var(--panel, #f2f3f7)',
-                    fontSize: 13,
-                  }}
-                >
-                  <span>
-                    <b>{p.label}</b>
-                    <span className="muted" style={{ marginLeft: 6 }}>
-                      {p.status}
-                    </span>
-                  </span>
-                  <button type="button" className="outline" style={{ padding: '4px 8px' }} onClick={() => void remove(p.id)}>
-                    <Trash2 size={13} />
-                  </button>
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--panel, #f2f3f7)', fontSize: 13 }}>
+                  <span><b>{p.label}</b><span className="muted" style={{ marginLeft: 6 }}>{p.status}</span></span>
+                  <button type="button" className="outline" style={{ padding: '4px 8px' }} onClick={() => void remove(p.id)}><Trash2 size={13} /></button>
                 </div>
               ))}
 
-              <Link
-                href={`/integrations/payments/${g.id}`}
-                className={connected.length ? 'outline' : 'primary'}
-                style={{ width: '100%', justifyContent: 'center', textAlign: 'center', textDecoration: 'none' }}
-              >
+              <Link href={`/integrations/payments/${g.id}`} className={connected.length ? 'outline' : 'primary'} style={{ width: '100%', justifyContent: 'center', textAlign: 'center', textDecoration: 'none' }}>
                 {connected.length ? 'Ajouter / reconnecter' : 'Connecter'}
               </Link>
             </div>
