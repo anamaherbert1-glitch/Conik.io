@@ -102,7 +102,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Import impossible')
       setPayment(j.payment)
-      setMessage('Page de paiement importée (HTML / CSS / JS).')
+      setMessage('Page de paiement importée (ZIP ou HTML / CSS / JS).')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import impossible')
     } finally {
@@ -213,7 +213,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
             </span>
           </div>
           <p>
-            Importez votre page HTML. Créez des tarifs : chaque tarif donne un lien à coller sur le bouton du produit.
+            Importez votre page HTML ou un ZIP contenant HTML/CSS/JS. Créez des tarifs : chaque tarif donne un lien à coller sur le bouton du produit.
             Prestataire obligatoire avant activation.
           </p>
         </div>
@@ -279,17 +279,17 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
             <div className="capture-card-heading">
               <div className="heading-icon"><UploadCloud size={19} /></div>
               <div>
-                <h2>2. Importer la page (HTML + CSS + JS)</h2>
-                <p>Le design importé reste la partie principale. Le moteur de paiement sera rendu sous ce design côté public.</p>
+                <h2>2. Importer la page (ZIP ou HTML + CSS + JS)</h2>
+                <p>Importez directement un ZIP contenant votre page HTML et ses fichiers CSS/JS, ou sélectionnez les fichiers séparément.</p>
               </div>
             </div>
             <div className="capture-import-row">
               <label className="capture-upload-button">
                 <UploadCloud size={17} />
-                Importer HTML / CSS / JS
+                Importer ZIP / HTML / CSS / JS
                 <input
                   type="file"
-                  accept=".html,.htm,.css,.js,text/html,text/css,application/javascript"
+                  accept=".zip,application/zip,application/x-zip-compressed,.html,.htm,.css,.js,text/html,text/css,application/javascript"
                   multiple
                   hidden
                   onChange={(e) => {
@@ -362,7 +362,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
                   </div>
                   <div className="button-row">
                     <button type="button" className="outline" onClick={() => copyLink(t)}><Copy size={14} /> Copier le lien</button>
-                    <button type="button" className="outline" onClick={() => void removeTariff(t.id)}><Trash2 size={14} /></button>
+                    <button type="button" className="outline" onClick={() => void removeTariff(t.id)}><Trash2 size={14} /> Supprimer</button>
                   </div>
                 </div>
               ))}
