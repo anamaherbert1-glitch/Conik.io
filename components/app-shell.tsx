@@ -10,6 +10,7 @@ import {
   MessageSquare,
   MousePointer2,
   BarChart3,
+  Wallet,
   Globe2,
   Settings2,
   LogOut,
@@ -29,6 +30,7 @@ const items = [
   ['Live Events', Radio, '/lives'],
   ['WhatsApp', MessageSquare, '/whatsapp'],
   ['Links', MousePointer2, '/links'],
+  ['Revenus', Wallet, '/revenus'],
   ['Analytics', BarChart3, '/analytics'],
   ['Domains', Globe2, '/domains'],
   ['Integrations', Plug, '/integrations'],
@@ -38,7 +40,6 @@ const items = [
 type Props = {
   children: React.ReactNode
   active: string
-  /** Mode compact : uniquement les icônes (ex. studio Live) */
   compact?: boolean
 }
 
@@ -67,7 +68,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               title={dict.nav[name] || name}
             >
               <Icon size={17} />
-              {!compact && <span>{dict.nav[name]}</span>}
+              {!compact && <span>{dict.nav[name] || name}</span>}
             </Link>
           ))}
         </nav>
