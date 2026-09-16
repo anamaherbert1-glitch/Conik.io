@@ -45,6 +45,16 @@ export async function POST(request: Request) {
     .maybeSingle()
   if (!page) return NextResponse.json({ error: 'Page de paiement introuvable.' }, { status: 404 })
 
+  const providerRow = await supabase
+    .from('payment_providers')
+    .select('id,provider,status')
+    .eq('id', providerId)
+    .eq('organization_id', organization.id)
+    .maybeSingle()
+  if (!providerRow.data || providerRow.data.provider !== provider || providerRow.data.status !== 'connected') {
+    return NextResponse.json({ error: 'Prestataire de paiement invalide ou non connecté.' }, { status: 400 })
+  }
+
   const catalog = getPaymentMethodDefinitions(provider)
   const allowed = new Map(catalog.map(item => [item.code, item]))
   const normalized = methods
@@ -68,7 +78,6 @@ export async function POST(request: Request) {
     .from('payment_page_methods')
     .delete()
     .eq('payment_page_id', paymentPageId)
-    .eq('provider_id', providerId)
   if (clearError) return NextResponse.json({ error: clearError.message }, { status: 400 })
 
   if (normalized.length) {
