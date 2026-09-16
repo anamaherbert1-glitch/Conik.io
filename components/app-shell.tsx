@@ -2,21 +2,8 @@
 
 import Link from 'next/link'
 import {
-  LayoutDashboard,
-  Zap,
-  Users,
-  Send,
-  Bot,
-  MessageSquare,
-  MousePointer2,
-  BarChart3,
-  Wallet,
-  Globe2,
-  Settings2,
-  LogOut,
-  Plug,
-  BookOpen,
-  Radio,
+  LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Wallet, Globe2,
+  Settings2, LogOut, Plug, BookOpen, Radio, CreditCard,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
@@ -28,20 +15,13 @@ const items = [
   ['Campaigns', Send, '/campaigns'],
   ['Automations', Bot, '/automations'],
   ['Live Events', Radio, '/lives'],
-  ['WhatsApp', MessageSquare, '/whatsapp'],
   ['Links', MousePointer2, '/links'],
   ['Revenus', Wallet, '/revenus'],
   ['Analytics', BarChart3, '/analytics'],
   ['Domains', Globe2, '/domains'],
-  ['Integrations', Plug, '/integrations'],
-  ['Tutorial', BookOpen, '/tutorial'],
 ] as const
 
-type Props = {
-  children: React.ReactNode
-  active: string
-  compact?: boolean
-}
+type Props = { children: React.ReactNode; active: string; compact?: boolean }
 
 export function AppShell({ children, active, compact = false }: Props) {
   const { dict } = usePreferences()
@@ -51,32 +31,40 @@ export function AppShell({ children, active, compact = false }: Props) {
       <aside className={compact ? 'shell-aside-compact' : undefined}>
         <Link href="/dashboard" className="brand" title={dict.brand}>
           <b>C</b>
-          {!compact && (
-            <>
-              <strong>{dict.brand}</strong>
-              <small>{dict.tagline}</small>
-            </>
-          )}
+          {!compact && <><strong>{dict.brand}</strong><small>{dict.tagline}</small></>}
         </Link>
         {!compact && <div className="workspace">C&nbsp; {dict.workspace}</div>}
         <nav>
           {items.map(([name, Icon, href]) => (
-            <Link
-              className={active === name ? 'active' : ''}
-              href={href}
-              key={name}
-              title={(dict.nav as Record<string, string>)[name] || name}
-            >
+            <Link className={active === name ? 'active' : ''} href={href} key={name} title={(dict.nav as Record<string, string>)[name] || name}>
               <Icon size={17} />
               {!compact && <span>{(dict.nav as Record<string, string>)[name] || name}</span>}
             </Link>
           ))}
+
+          <div className="sidebar-group">
+            <Link className={active === 'Integrations' || active === 'WhatsApp' ? 'active' : ''} href="/integrations" title="Intégrations">
+              <Plug size={17} />
+              {!compact && <span>Intégrations</span>}
+            </Link>
+            {!compact && (
+              <div style={{ marginLeft: 34, display: 'grid', gap: 2, marginTop: 2, marginBottom: 4 }}>
+                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" style={{ fontSize: 13 }}>
+                  <CreditCard size={15} /><span>Solutions de paiement</span>
+                </Link>
+                <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp" style={{ fontSize: 13 }}>
+                  <MessageSquare size={15} /><span>WhatsApp</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <Link className={active === 'Tutorial' ? 'active' : ''} href="/tutorial" title={dict.nav.Tutorial}>
+            <BookOpen size={17} />
+            {!compact && <span>{dict.nav.Tutorial}</span>}
+          </Link>
         </nav>
-        <Link
-          href="/settings"
-          className={active === 'Settings' ? 'settings active' : 'settings'}
-          title={dict.nav.Settings}
-        >
+        <Link href="/settings" className={active === 'Settings' ? 'settings active' : 'settings'} title={dict.nav.Settings}>
           <Settings2 size={17} />
           {!compact && <span>{dict.nav.Settings}</span>}
         </Link>
