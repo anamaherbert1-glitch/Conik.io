@@ -86,7 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   await supabase.from('live_events').update({ whatsapp_message_draft: message }).eq('id', id).eq('organization_id', membership.organizationId)
-  const inviteStatus = failed === 0 ? 'completed' : sent === 0 ? 'failed' : 'ready'
+  const inviteStatus = failed === 0 ? 'completed' : sent === 0 ? 'failed' : 'partial'
   await supabase.from('live_event_whatsapp_invites').insert({ live_event_id: id, organization_id: membership.organizationId, message, status: inviteStatus })
 
   return NextResponse.json({ ok: failed === 0, status: failed ? (sent ? 'partial' : 'failed') : 'sent', total_eligible: recipients.length, sent, failed, results })
