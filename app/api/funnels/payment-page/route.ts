@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { parseZip } from '@/lib/funnel/zip'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +12,40 @@ function slugify(input: string) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 40) || `tarif-${Date.now().toString(36)}`
+}
+
+function isZip(file: File) {
+  return /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed'
+}
+
+function isHtml(file: File) {
+  return /\.(html?|HTML?)$/i.test(file.name) || file.type.includes('html')
+}
+
+function isCss(file: File) {
+  return /\.css$/i.test(file.name) || file.type.includes('css')
+}
+
+function isJs(file: File) {
+  return /\.m?js$/i.test(file.name) || file.type.includes('javascript')
+}
+
+function extractHtmlParts(text: string) {
+  let html = text
+  let css = ''
+  let js = ''
+  const styleMatches = [...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
+  const scriptMatches = [...text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)]
+  styleMatches.forEach((m) => (css += `\n${m[1]}`))
+  scriptMatches.forEach((m) => (js += `\n${m[1]}`))
+  html = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<\/?html[^>]*>/gi, '')
+    .replace(/<\/?head[^>]*>[\s\S]*?<\/head>/gi, '')
+    .replace(/<\/?body[^>]*>/gi, '')
+    .trim()
+  return { html, css, js }
 }
 
 async function parseImport(request: Request) {
@@ -26,26 +61,44 @@ async function parseImport(request: Request) {
   let html = ''
   let css = ''
   let js = ''
+  let hasFiles = false
+
   for (const file of files) {
-    const name = file.name.toLowerCase()
-    const text = await file.text()
-    if (name.endsWith('.css')) css += `\n${text}`
-    else if (name.endsWith('.js')) js += `\n${text}`
-    else if (name.endsWith('.html') || name.endsWith('.htm') || file.type.includes('html')) {
-      const styleMatches = [...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
-      const scriptMatches = [...text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)]
-      styleMatches.forEach((m) => (css += `\n${m[1]}`))
-      scriptMatches.forEach((m) => (js += `\n${m[1]}`))
-      html = text
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-        .replace(/<\/?html[^>]*>/gi, '')
-        .replace(/<\/?head[^>]*>[\s\S]*?<\/head>/gi, '')
-        .replace(/<\/?body[^>]*>/gi, '')
-        .trim()
+    if (isZip(file)) {
+      const entries = parseZip(Buffer.from(await file.arrayBuffer()))
+      const htmlEntries = entries.filter((entry) => /\.html?$/i.test(entry.name))
+      const htmlEntry = htmlEntries.find((entry) => /(^|\/)index\.html?$/i.test(entry.name)) || htmlEntries[0]
+      if (!htmlEntry) throw new Error(`Aucun fichier HTML trouvé dans « ${file.name} ».`)
+
+      const parts = extractHtmlParts(htmlEntry.data.toString('utf8'))
+      html = parts.html
+      css += parts.css
+      js += parts.js
+      for (const entry of entries) {
+        if (entry.name === htmlEntry.name) continue
+        if (/\.css$/i.test(entry.name)) css += `\n${entry.data.toString('utf8')}`
+        else if (/\.m?js$/i.test(entry.name)) js += `\n${entry.data.toString('utf8')}`
+      }
+      hasFiles = true
+      continue
+    }
+
+    if (isHtml(file)) {
+      const parts = extractHtmlParts(await file.text())
+      html = parts.html
+      css += parts.css
+      js += parts.js
+      hasFiles = true
+    } else if (isCss(file)) {
+      css += `\n${await file.text()}`
+      hasFiles = true
+    } else if (isJs(file)) {
+      js += `\n${await file.text()}`
+      hasFiles = true
     }
   }
-  return { funnelId, enabled, providerId, html, css, js, hasFiles: files.length > 0 }
+
+  return { funnelId, enabled, providerId, html, css, js, hasFiles }
 }
 
 export async function GET(request: Request) {
@@ -73,14 +126,11 @@ export async function POST(request: Request) {
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
   const contentType = request.headers.get('content-type') || ''
 
-  // JSON : créer / modifier un tarif
   if (contentType.includes('application/json')) {
     const body = await request.json().catch(() => null)
     if (!body?.funnelId) return NextResponse.json({ error: 'funnelId requis' }, { status: 400 })
 
     if (body.action === 'create_tariff') {
-      const amount = Math.round(Number(body.amount) * (String(body.currency || 'XOF').toUpperCase() === 'XOF' ? 1 : 100))
-      // XOF n'a pas de centimes utiles : on stocke l'unité entière dans amount_cents
       const amountCents = String(body.currency || 'XOF').toUpperCase() === 'XOF'
         ? Math.round(Number(body.amount))
         : Math.round(Number(body.amount) * 100)
@@ -126,10 +176,7 @@ export async function POST(request: Request) {
       }
       const { data, error } = await supabase
         .from('funnels')
-        .update({
-          payment_enabled: Boolean(body.enabled),
-          payment_provider_id: providerId,
-        })
+        .update({ payment_enabled: Boolean(body.enabled), payment_provider_id: providerId })
         .eq('id', body.funnelId)
         .eq('organization_id', organization.id)
         .select('id,name,slug,payment_enabled,payment_html,payment_css,payment_js,payment_provider_id')
@@ -141,52 +188,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Action inconnue' }, { status: 400 })
   }
 
-  // FormData : import HTML / CSS / JS
-  const parsed = await parseImport(request)
-  if (!parsed.funnelId) return NextResponse.json({ error: 'funnelId requis' }, { status: 400 })
+  try {
+    const parsed = await parseImport(request)
+    if (!parsed.funnelId) return NextResponse.json({ error: 'funnelId requis' }, { status: 400 })
+    if (!parsed.hasFiles) return NextResponse.json({ error: 'Importez un ZIP ou des fichiers HTML, CSS ou JS.' }, { status: 400 })
 
-  const { data: funnel } = await supabase
-    .from('funnels')
-    .select('id,payment_html,payment_css,payment_js,payment_provider_id')
-    .eq('id', parsed.funnelId)
-    .eq('organization_id', organization.id)
-    .maybeSingle()
-  if (!funnel) return NextResponse.json({ error: 'Tunnel introuvable' }, { status: 404 })
+    const { data: funnel } = await supabase
+      .from('funnels')
+      .select('id,payment_html,payment_css,payment_js,payment_provider_id')
+      .eq('id', parsed.funnelId)
+      .eq('organization_id', organization.id)
+      .maybeSingle()
+    if (!funnel) return NextResponse.json({ error: 'Tunnel introuvable' }, { status: 404 })
 
-  if (parsed.enabled && !parsed.providerId && !funnel.payment_provider_id) {
-    return NextResponse.json({ error: 'Intégrez d’abord un prestataire de paiement (Wave, CinetPay…) dans Intégrations.' }, { status: 400 })
-  }
+    if (parsed.enabled && !parsed.providerId && !funnel.payment_provider_id) {
+      return NextResponse.json({ error: 'Intégrez d’abord un prestataire de paiement (Wave, CinetPay…) dans Intégrations.' }, { status: 400 })
+    }
 
-  const update: Record<string, any> = {
-    payment_enabled: parsed.enabled,
-    payment_provider_id: parsed.providerId || funnel.payment_provider_id,
-  }
-  if (parsed.hasFiles) {
+    const update: Record<string, any> = {
+      payment_enabled: parsed.enabled,
+      payment_provider_id: parsed.providerId || funnel.payment_provider_id,
+    }
     if (parsed.html) update.payment_html = parsed.html
     if (parsed.css) update.payment_css = parsed.css
     if (parsed.js) update.payment_js = parsed.js
-    // si seul HTML envoyé avec styles inline déjà extraits
-    if (parsed.html && !parsed.css && !parsed.js) {
-      update.payment_html = parsed.html
-    }
+
+    const { data, error } = await supabase
+      .from('funnels')
+      .update(update)
+      .eq('id', parsed.funnelId)
+      .eq('organization_id', organization.id)
+      .select('id,name,slug,payment_enabled,payment_html,payment_css,payment_js,payment_provider_id')
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({
+      payment: data,
+      analysis: { cssBytes: (data.payment_css || '').length, jsBytes: (data.payment_js || '').length },
+    })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Import de la page impossible.' }, { status: 400 })
   }
-
-  const { data, error } = await supabase
-    .from('funnels')
-    .update(update)
-    .eq('id', parsed.funnelId)
-    .eq('organization_id', organization.id)
-    .select('id,name,slug,payment_enabled,payment_html,payment_css,payment_js,payment_provider_id')
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({
-    payment: data,
-    analysis: {
-      cssBytes: (data.payment_css || '').length,
-      jsBytes: (data.payment_js || '').length,
-    },
-  })
 }
 
 export async function DELETE(request: Request) {
