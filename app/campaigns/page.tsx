@@ -19,14 +19,20 @@ const CHANNEL: Record<string, string> = {
 
 export default async function CampaignsPage() {
   const { supabase, organization } = await requireWorkspace()
-  let { data, error } = await supabase
+
+  let data: any[] | null = null
+  let error: { message: string } | null = null
+
+  const full = await supabase
     .from('campaigns')
     .select('id,name,status,funnel_id,channel,audience,goal,created_at')
     .eq('organization_id', organization.id)
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) {
+  if (!full.error) {
+    data = full.data
+  } else {
     const fallback = await supabase
       .from('campaigns')
       .select('id,name,status,funnel_id,created_at')
