@@ -32,7 +32,7 @@ async function verifyProvider(provider: any, reference: string, transaction: any
     const status = mapProviderStatus(data?.data || data)
     const amount = Number(data?.data?.amount)
     const txRef = data?.data?.tx_ref
-    if (status === 'succeeded' && (txRef !== transaction.order?.order_number || !Number.isFinite(amount) || amount < expectedAmount || String(data?.data?.currency || '').trim() !== currency)) throw new Error('Flutterwave: transaction vérifiée mais montant/devise/référence non conformes.')
+    if (status === 'succeeded' && (txRef !== transaction.order?.[0]?.order_number || !Number.isFinite(amount) || amount < expectedAmount || String(data?.data?.currency || '').trim() !== currency)) throw new Error('Flutterwave: transaction vérifiée mais montant/devise/référence non conformes.')
     return { status, raw: data }
   }
 
@@ -106,7 +106,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 
         const txStatus = status === 'succeeded' ? 'succeeded' : status
         const orderStatus = status === 'succeeded' ? 'paid' : status === 'refunded' ? 'refunded' : status === 'cancelled' ? 'cancelled' : status === 'failed' ? 'failed' : 'processing'
-        const paidAt = status === 'succeeded' ? new Date().toISOString() : status === 'refunded' ? null : transaction.order?.paid_at || null
+        const paidAt = status === 'succeeded' ? new Date().toISOString() : status === 'refunded' ? null : transaction.order?.[0]?.paid_at || null
         await supabase.from('payment_transactions').update({ status: txStatus, raw_response: verification.raw, updated_at: new Date().toISOString() }).eq('id', transaction.id)
         await supabase.from('payment_orders').update({ status: orderStatus, paid_at: paidAt, updated_at: new Date().toISOString() }).eq('id', transaction.order_id)
         if (eventRow?.id) await supabase.from('payment_webhook_events').update({ processed: true, processed_at: new Date().toISOString(), error_message: null }).eq('id', eventRow.id)
