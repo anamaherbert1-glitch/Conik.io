@@ -13,7 +13,7 @@ const panelStyle: React.CSSProperties = {
   border: '1px solid var(--line)',
   background: 'var(--panel)',
   borderRadius: 14,
-  padding: 12,
+  padding: 8,
 }
 
 /**
@@ -38,6 +38,56 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
           .conik-live-studio-stage{aspect-ratio:16/9!important;min-height:0!important;height:auto!important}
           .conik-live-studio-sidebar{width:100%!important}
         }
+        .conik-live-studio-sidebar > :nth-child(3){
+          display:flex!important;
+          align-items:center!important;
+          gap:6px!important;
+          padding-top:5px!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > .muted{
+          display:none!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > button{
+          flex:0 0 38px!important;
+          width:38px!important;
+          min-width:38px!important;
+          height:38px!important;
+          min-height:38px!important;
+          padding:0!important;
+          font-size:0!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > button svg{
+          width:17px!important;
+          height:17px!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > div[style*='margin-top']{
+          flex:1 1 auto!important;
+          min-width:0!important;
+          display:flex!important;
+          align-items:center!important;
+          gap:5px!important;
+          margin-top:0!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > div[style*='margin-top'] > .choice{
+          flex:1 1 auto!important;
+          min-width:0!important;
+          max-height:38px!important;
+          overflow:hidden!important;
+          white-space:nowrap!important;
+          text-overflow:ellipsis!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > div[style*='margin-top'] > button{
+          flex:0 0 34px!important;
+          width:34px!important;
+          min-width:34px!important;
+          min-height:34px!important;
+          padding:0!important;
+          font-size:0!important;
+        }
+        .conik-live-studio-sidebar > :nth-child(3) > div[style*='margin-top'] > button svg{
+          width:14px!important;
+          height:14px!important;
+        }
       `}</style>
 
       <div
@@ -45,7 +95,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         style={{
           display: 'grid',
           gridTemplateColumns: sidebarOpen ? 'minmax(0, 1fr) 248px' : 'minmax(0, 1fr)',
-          gap: 14,
+          gap: 10,
           width: '100%',
           minWidth: 0,
           alignItems: 'start',
@@ -86,10 +136,10 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
               maxHeight: 'min(820px, calc(100vh - 120px))',
               overflowY: 'auto',
               display: 'grid',
-              gap: 10,
+              gap: 8,
               minWidth: 0,
               position: 'sticky',
-              top: 12,
+              top: 4,
               boxShadow: '0 18px 48px rgba(0,0,0,.14)',
             }}
           >
@@ -98,7 +148,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                paddingBottom: 8,
+                paddingBottom: 6,
                 borderBottom: '1px solid var(--line)',
               }}
             >
