@@ -18,7 +18,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     )
   }
 
-  const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
+  const { supabase, membership, user } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'Live invalide.' }, { status: 400 })
 
@@ -47,8 +47,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     .eq('organization_id', membership.organizationId)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
-  // Identité stable pour l’organisateur (évite de perdre la piste à chaque refresh)
-  const identity = `host-${membership.userId}`
+  const identity = `host-${user.id}`
   const token = new AccessToken(key, secret, {
     identity,
     name: 'Organisateur',
