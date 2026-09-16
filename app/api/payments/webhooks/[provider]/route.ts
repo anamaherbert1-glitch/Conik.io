@@ -126,3 +126,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 }
 
 export async function GET() { return NextResponse.json({ ok: true }) }
+
+// Deployment trigger: keep the production build synchronized with main.
