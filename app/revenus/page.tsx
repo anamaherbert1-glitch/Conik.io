@@ -1,14 +1,5 @@
-import { AppShell } from '@/components/app-shell'
-import { RevenusDashboard } from '@/components/revenus-dashboard'
-import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
-
-export default async function RevenusPage() {
-  await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
-  return (
-    <AppShell active="Revenus">
-      <RevenusDashboard />
-    </AppShell>
-  )
+export default function RevenusPage() {
+  redirect('/analytics')
 }
