@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, Copy, CreditCard, Plus, Save, Trash2, UploadCloud, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { PaymentMethodSelector } from '@/components/payment-method-selector'
 
 type Provider = { id: string; provider: string; label: string; status: string }
 type Tariff = {
@@ -29,6 +30,12 @@ const PROVIDER_LABEL: Record<string, string> = {
   wave: 'Wave',
   cinetpay: 'CinetPay',
   flutterwave: 'Flutterwave',
+  paydunya: 'PayDunya',
+  saspay: 'SasPay',
+  ligdicash: 'LigdiCash',
+  hub2: 'Hub2',
+  fedapay: 'FedaPay',
+  campay: 'CamPay',
   other: 'Autre',
 }
 
@@ -177,6 +184,8 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
     setMessage(`Lien copié : ${link}`)
   }
 
+  const selectedProvider = providers.find((p) => p.id === providerId)
+
   const preview = useMemo(() => {
     if (!payment?.payment_html) return ''
     return (
@@ -218,27 +227,17 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {message && (
-        <div className="capture-alert success">
-          <CheckCircle2 size={17} /> {message}
-        </div>
-      )}
-      {error && (
-        <div className="capture-alert error">
-          <X size={17} /> {error}
-        </div>
-      )}
+      {message && <div className="capture-alert success"><CheckCircle2 size={17} /> {message}</div>}
+      {error && <div className="capture-alert error"><X size={17} /> {error}</div>}
 
       <div className="capture-layout">
         <main className="capture-main">
           <section className="capture-card">
             <div className="capture-card-heading">
-              <div className="heading-icon">
-                <CreditCard size={19} />
-              </div>
+              <div className="heading-icon"><CreditCard size={19} /></div>
               <div>
                 <h2>1. Prestataire de paiement</h2>
-                <p>Obligatoire. Connectez Wave, CinetPay ou Flutterwave dans Intégrations, puis sélectionnez-le ici.</p>
+                <p>Choisissez le prestataire connecté qui exécutera les paiements de cette page.</p>
               </div>
             </div>
             <div className="capture-settings-grid">
@@ -255,11 +254,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               </label>
               <label className="capture-toggle-field">
                 <span>Page de paiement activée</span>
-                <button
-                  type="button"
-                  className={`capture-toggle ${enabled ? 'on' : ''}`}
-                  onClick={() => setEnabled((v) => !v)}
-                >
+                <button type="button" className={`capture-toggle ${enabled ? 'on' : ''}`} onClick={() => setEnabled((v) => !v)}>
                   <span />
                 </button>
               </label>
@@ -267,21 +262,25 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
             {providers.length === 0 && (
               <p className="muted" style={{ padding: '0 20px 16px' }}>
                 Aucun prestataire connecté.{' '}
-                <Link href="/integrations" style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                  Aller dans Intégrations
-                </Link>
+                <Link href="/integrations" style={{ color: 'var(--accent)', fontWeight: 700 }}>Aller dans Intégrations</Link>
               </p>
             )}
           </section>
 
+          {payment?.id && selectedProvider && (
+            <PaymentMethodSelector
+              paymentPageId={payment.id}
+              providerId={selectedProvider.id}
+              provider={selectedProvider.provider}
+            />
+          )}
+
           <section className="capture-card">
             <div className="capture-card-heading">
-              <div className="heading-icon">
-                <UploadCloud size={19} />
-              </div>
+              <div className="heading-icon"><UploadCloud size={19} /></div>
               <div>
                 <h2>2. Importer la page (HTML + CSS + JS)</h2>
-                <p>Même principe que la page de capture. Un seul design pour tous les tarifs.</p>
+                <p>Le design importé reste la partie principale. Le moteur de paiement sera rendu sous ce design côté public.</p>
               </div>
             </div>
             <div className="capture-import-row">
@@ -304,11 +303,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
                 <div className="file-icon">PAY</div>
                 <div>
                   <b>{payment?.payment_html ? 'Page enregistrée' : 'Aucun fichier'}</b>
-                  <small>
-                    {payment?.payment_html
-                      ? ['HTML', payment.payment_css ? 'CSS' : null, payment.payment_js ? 'JS' : null].filter(Boolean).join(' + ')
-                      : 'Importez votre maquette de paiement'}
-                  </small>
+                  <small>{payment?.payment_html ? ['HTML', payment.payment_css ? 'CSS' : null, payment.payment_js ? 'JS' : null].filter(Boolean).join(' + ') : 'Importez votre maquette de paiement'}</small>
                 </div>
                 {payment?.payment_html && <CheckCircle2 size={17} className="file-ok" />}
               </div>
@@ -322,15 +317,10 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
 
           <section className="capture-card">
             <div className="capture-card-heading">
-              <div className="heading-icon">
-                <Plus size={19} />
-              </div>
+              <div className="heading-icon"><Plus size={19} /></div>
               <div>
                 <h2>3. Tarifs (liens préconfigurés)</h2>
-                <p>
-                  Créez un tarif par produit (2500, 5000…). Chaque tarif a un lien unique à coller sur le bouton
-                  « Acheter » de votre page de vente.
-                </p>
+                <p>Créez un tarif par produit (2500, 5000…). Chaque tarif a un lien unique à coller sur le bouton « Acheter » de votre page de vente.</p>
               </div>
             </div>
 
@@ -342,15 +332,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
                 </label>
                 <label className="form-label">
                   Montant
-                  <input
-                    className="form-input"
-                    type="number"
-                    min="1"
-                    required
-                    value={tariffAmount}
-                    onChange={(e) => setTariffAmount(e.target.value)}
-                    placeholder="2500"
-                  />
+                  <input className="form-input" type="number" min="1" required value={tariffAmount} onChange={(e) => setTariffAmount(e.target.value)} placeholder="2500" />
                 </label>
               </div>
               <label className="form-label">
@@ -362,9 +344,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
                   <option value="USD">USD</option>
                 </select>
               </label>
-              <button className="primary" type="submit" disabled={busy}>
-                <Plus size={15} /> Ajouter le tarif
-              </button>
+              <button className="primary" type="submit" disabled={busy}><Plus size={15} /> Ajouter le tarif</button>
             </form>
 
             <div className="funnel-table" style={{ padding: '0 12px 16px' }}>
@@ -377,20 +357,12 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               {tariffs.map((t) => (
                 <div className="funnel-row" key={t.id}>
                   <div>
-                    <b>
-                      {t.name} · {formatAmount(t.amount_cents, t.currency)}
-                    </b>
-                    <span style={{ wordBreak: 'break-all' }}>
-                      /pay?funnel={payment?.slug}&tarif={t.slug}
-                    </span>
+                    <b>{t.name} · {formatAmount(t.amount_cents, t.currency)}</b>
+                    <span style={{ wordBreak: 'break-all' }}>/pay?funnel={payment?.slug}&tarif={t.slug}</span>
                   </div>
                   <div className="button-row">
-                    <button type="button" className="outline" onClick={() => copyLink(t)}>
-                      <Copy size={14} /> Copier le lien
-                    </button>
-                    <button type="button" className="outline" onClick={() => void removeTariff(t.id)}>
-                      <Trash2 size={14} />
-                    </button>
+                    <button type="button" className="outline" onClick={() => copyLink(t)}><Copy size={14} /> Copier le lien</button>
+                    <button type="button" className="outline" onClick={() => void removeTariff(t.id)}><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
