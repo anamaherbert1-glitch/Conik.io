@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const supabase = createAdminClient()
     const { data: transaction, error: txError } = await supabase
       .from('payment_transactions')
-      .select('id,organization_id,order_id,provider_id,amount,currency,status,order:payment_orders(id,order_number,amount_cents,product_label,buyer_name,buyer_email,buyer_phone,customer_first_name,customer_last_name)')
+      .select('id,organization_id,order_id,provider_id,amount,currency,status,order:payment_orders(id,order_number,payment_page_id,amount_cents,product_label,buyer_name,buyer_email,buyer_phone,customer_first_name,customer_last_name)')
       .eq('id', String(body.transactionId))
       .maybeSingle()
 
@@ -33,14 +33,15 @@ export async function POST(request: Request) {
     const order = Array.isArray(transaction.order) ? transaction.order[0] : transaction.order
     if (!order) return NextResponse.json({ error: 'Commande liée introuvable.' }, { status: 404 })
 
-    const { data: method } = await supabase
+    let methodQuery = supabase
       .from('payment_page_methods')
       .select('id,payment_page_id,provider_id,method_code,display_name,enabled,config')
       .eq('provider_id', provider.id)
       .eq('method_code', String(body.methodCode))
       .eq('enabled', true)
-      .maybeSingle()
-
+    if (order.payment_page_id) methodQuery = methodQuery.eq('payment_page_id', order.payment_page_id)
+    const { data: method, error: methodError } = await methodQuery.maybeSingle()
+    if (methodError) return NextResponse.json({ error: methodError.message }, { status: 500 })
     if (!method) return NextResponse.json({ error: 'Moyen de paiement non disponible pour ce prestataire.' }, { status: 400 })
 
     const origin = new URL(request.url).origin
@@ -52,34 +53,16 @@ export async function POST(request: Request) {
       amountCents: order.amount_cents,
       currency: transaction.currency.trim(),
       productLabel: order.product_label || 'Paiement Conik',
-      customer: {
-        name: order.buyer_name,
-        firstName: order.customer_first_name,
-        lastName: order.customer_last_name,
-        email: order.buyer_email,
-        phone: order.buyer_phone,
-      },
+      customer: { name: order.buyer_name, firstName: order.customer_first_name, lastName: order.customer_last_name, email: order.buyer_email, phone: order.buyer_phone },
       baseUrl: origin,
     })
 
-    const { error: updateError } = await supabase
-      .from('payment_transactions')
-      .update({
-        provider_transaction_id: result.providerTransactionId,
-        method_code: method.method_code,
-        status: result.status,
-        raw_response: result.rawResponse,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', transaction.id)
-
+    const { error: updateError } = await supabase.from('payment_transactions').update({ provider_transaction_id: result.providerTransactionId, method_code: method.method_code, status: result.status, raw_response: result.rawResponse, updated_at: new Date().toISOString() }).eq('id', transaction.id)
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
     await supabase.from('payment_orders').update({ provider_ref: result.providerTransactionId, status: 'processing', updated_at: new Date().toISOString() }).eq('id', order.id)
-
     return NextResponse.json({ transactionId: transaction.id, provider: provider.provider, method: method.method_code, status: result.status, paymentUrl: result.paymentUrl || null })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Initialisation du paiement impossible.'
-    return NextResponse.json({ error: message }, { status: 502 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Initialisation du paiement impossible.' }, { status: 502 })
   }
 }
