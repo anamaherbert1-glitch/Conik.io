@@ -7,12 +7,24 @@ export const dynamic = 'force-dynamic'
 
 export default async function IntegrationsPage() {
   const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
-  const [{ data: connections }, { data: quota }, { data: stats }, { data: paymentProviders }] = await Promise.all([
-    supabase.from('whatsapp_connections').select('id,waba_id,phone_number_id,display_phone_number,verified_name,status,quality_rating,connected_at,last_synced_at,last_error').eq('organization_id', membership.organizationId).order('connected_at', { ascending: false }),
+  const [{ data: connections }, { data: quota }, { data: stats }, providersRes] = await Promise.all([
+    supabase
+      .from('whatsapp_connections')
+      .select(
+        'id,waba_id,phone_number_id,display_phone_number,verified_name,status,quality_rating,connected_at,last_synced_at,last_error',
+      )
+      .eq('organization_id', membership.organizationId)
+      .order('connected_at', { ascending: false }),
     supabase.rpc('whatsapp_quota', { p_organization_id: membership.organizationId }),
     supabase.rpc('whatsapp_stats', { p_organization_id: membership.organizationId, p_days: 30 }),
-    supabase.from('payment_providers').select('id,provider,label,status,created_at').eq('organization_id', membership.organizationId).order('created_at', { ascending: false }),
+    supabase
+      .from('payment_providers')
+      .select('id,provider,label,status,created_at')
+      .eq('organization_id', membership.organizationId)
+      .order('created_at', { ascending: false }),
   ])
+
+  const paymentProviders = providersRes.error ? [] : providersRes.data || []
 
   return (
     <AppShell active="Integrations">
@@ -20,13 +32,21 @@ export default async function IntegrationsPage() {
         <div>
           <small>INTÉGRATIONS</small>
           <h1>Intégrations</h1>
-          <p className="muted">Connectez vos propres fournisseurs (WhatsApp, paiements) sans mélanger les comptes entre organisations.</p>
+          <p className="muted">
+            Connectez vos propres fournisseurs (WhatsApp, paiements) sans mélanger les comptes entre organisations.
+          </p>
         </div>
       </header>
 
       <section style={{ marginBottom: 28 }}>
         <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Paiements</h2>
-        <PaymentProvidersPanel initial={paymentProviders || []} />
+        {providersRes.error && (
+          <div className="notice" style={{ marginBottom: 12 }}>
+            Tables paiement non installées encore. Exécutez la migration SQL{' '}
+            <code>20260916120000_payment_pages.sql</code> dans Supabase.
+          </div>
+        )}
+        <PaymentProvidersPanel initial={paymentProviders} />
       </section>
 
       <section>

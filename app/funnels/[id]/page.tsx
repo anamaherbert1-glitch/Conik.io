@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Globe2, Pencil, UserRoundPlus, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Globe2, Pencil, UserRoundPlus, UploadCloud, CreditCard } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { FunnelDeleteButton } from '@/components/funnel-delete-button'
@@ -17,7 +17,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
   if (!claims?.claims) redirect('/login')
   const { data: funnel, error: funnelError } = await supabase
     .from('funnels')
-    .select('id,name,slug,status,source,created_at,capture_enabled,capture_delay_ms,capture_html')
+    .select('id,name,slug,status,source,created_at,capture_enabled,capture_delay_ms,capture_html,payment_enabled,payment_html')
     .eq('id', id)
     .single()
   if (funnelError || !funnel) notFound()
@@ -55,6 +55,10 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
             <UserRoundPlus size={15} />
             Page de capture
           </Link>
+          <Link className="outline" href={`/funnels/${id}/payment`}>
+            <CreditCard size={15} />
+            Page de paiement
+          </Link>
           <Link className="outline" href={`/funnels/${id}/editor`}>
             <Pencil size={15} />
             Ouvrir l’éditeur
@@ -69,7 +73,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      <div className="panel" style={{ marginBottom: 16, border: '1px solid #e8e8e8' }}>
+      <div className="panel" style={{ marginBottom: 16 }}>
         <div className="section-head">
           <div>
             <h3 style={{ marginBottom: 4 }}>Page d’accueil de capture</h3>
@@ -91,6 +95,32 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
           <Link className="primary" href={`/funnels/${id}/capture`}>
             <UploadCloud size={16} />
             {funnel.capture_html ? 'Modifier / remplacer la capture' : 'Importer le HTML de capture'}
+          </Link>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="section-head">
+          <div>
+            <h3 style={{ marginBottom: 4 }}>Page de paiement</h3>
+            <span className="muted">
+              Import HTML + tarifs avec liens à coller sur les boutons produits. Prestataire obligatoire.
+            </span>
+          </div>
+          <span className={`status ${funnel.payment_enabled && funnel.payment_html ? 'published' : 'draft'}`}>
+            {funnel.payment_enabled && funnel.payment_html ? 'Activée' : 'Non configurée'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div>
+            <b>{funnel.payment_html ? 'Page de paiement configurée.' : 'Aucune page de paiement.'}</b>
+            <span className="muted" style={{ display: 'block', marginTop: 4 }}>
+              Créez des tarifs (2500, 5000…) puis copiez chaque lien sur le bouton du produit.
+            </span>
+          </div>
+          <Link className="primary" href={`/funnels/${id}/payment`}>
+            <CreditCard size={16} />
+            Configurer le paiement
           </Link>
         </div>
       </div>
