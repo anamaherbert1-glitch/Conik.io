@@ -1,6 +1,6 @@
 export const PAYMENT_METHOD_LOGOS: Record<string, string> = {
-  visa: 'https://corporate.visa.com/content/dam/VCOM/corporate/about-visa/documents/visa-brand-standards-sept2025.pdf',
-  mastercard: 'https://www.mastercard.com/global/en/vision/corp-media-library.html',
+  visa: 'https://corporate.visa.com/favicon.ico',
+  mastercard: 'https://www.mastercard.com/favicon.ico',
   cinetpay_card: 'https://docs.cinetpay.com/images/logo-new.png',
   t_money: 'https://www.togocel.tg/favicon.ico',
   tmoney: 'https://www.togocel.tg/favicon.ico',
