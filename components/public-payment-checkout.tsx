@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getPaymentMethodKind, getPaymentMethodLogo } from '@/lib/payment-method-logos'
 
-type Method = { id: string; provider_id: string; provider?: string | null; method_code: string; display_name?: string | null; enabled: boolean; config?: Record<string, unknown> | null }
+type Method = { id: string; provider_id: string; provider?: string | null; provider_label?: string | null; method_code: string; display_name?: string | null; enabled: boolean; config?: Record<string, unknown> | null }
 type CheckoutData = { funnel: { id: string; name: string; slug: string }; paymentPage: { id: string; name: string; slug: string } | null; tariff: { id: string; name: string; amount_cents: number; currency: string; product_label?: string | null }; methods: Method[] }
 
-const money = (cents: number, currency: string) => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100) } catch { return `${(cents / 100).toFixed(2)} ${currency}` } }
+const money = (amount: number, currency: string) => {
+  const upper = currency.toUpperCase()
+  if (upper === 'XOF' || upper === 'XAF') return `${amount.toLocaleString('fr-FR')} ${upper}`
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: upper }).format(amount / 100) } catch { return `${(amount / 100).toFixed(2)} ${upper}` }
+}
 
-export function PublicPaymentCheckout({ funnelSlug, pageSlug, tariffSlug }: { funnelSlug: string; pageSlug: string; tariffSlug: string }) {
+export function PublicPaymentCheckout({ funnelSlug, pageSlug, tariffSlug }: { funnelSlug: string; pageSlug?: string; tariffSlug: string }) {
   const [data, setData] = useState<CheckoutData | null>(null)
   const [methodCode, setMethodCode] = useState('')
   const [firstName, setFirstName] = useState(''), [lastName, setLastName] = useState(''), [email, setEmail] = useState(''), [phone, setPhone] = useState('')
@@ -16,7 +20,8 @@ export function PublicPaymentCheckout({ funnelSlug, pageSlug, tariffSlug }: { fu
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/payments/checkout?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(pageSlug)}&tarif=${encodeURIComponent(tariffSlug)}`)
+    const page = pageSlug ? `&page=${encodeURIComponent(pageSlug)}` : ''
+    fetch(`/api/payments/checkout?funnel=${encodeURIComponent(funnelSlug)}${page}&tarif=${encodeURIComponent(tariffSlug)}`)
       .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Impossible de charger le paiement.'); return j as CheckoutData })
       .then(j => { if (!cancelled) { setData(j); setMethodCode(j.methods?.find(m => m.enabled)?.method_code || '') } })
       .catch(e => !cancelled && setError(e instanceof Error ? e.message : 'Impossible de charger le paiement.'))
@@ -61,18 +66,16 @@ export function PublicPaymentCheckout({ funnelSlug, pageSlug, tariffSlug }: { fu
     <div style={s.methods} role="radiogroup" aria-label="Moyens de paiement">
       {activeMethods.map(m => {
         const active = m.method_code === selected?.method_code
-        const logo = getPaymentMethodLogo(m.method_code, m.config)
+        const logo = getPaymentMethodLogo(m.method_code, m.config, m.provider)
         return <button key={m.id} type="button" onClick={() => { setMethodCode(m.method_code); setError('') }} aria-pressed={active} style={{ ...s.method, ...(active ? s.active : {}) }}>
-          {logo ? <img src={logo} alt="" style={s.logo}/> : <span style={s.fallback}>{(m.display_name || m.method_code).slice(0,2).toUpperCase()}</span>}
+          {logo ? <img src={logo} alt="" style={s.logo} onError={e => { e.currentTarget.style.display = 'none' }}/> : <span style={s.fallback}>{(m.display_name || m.provider_label || m.method_code).slice(0,2).toUpperCase()}</span>}
           <span>{m.display_name || m.method_code}</span>
         </button>
       })}
     </div>
 
     {selected && <div style={s.panel}>
-      <div style={s.panelTitle}>
-        {selected.method_code === 'visa' || selected.method_code === 'mastercard' ? 'Paiement par carte' : selected.display_name || selected.method_code}
-      </div>
+      <div style={s.panelTitle}>{selected.method_code === 'visa' || selected.method_code === 'mastercard' ? 'Paiement par carte' : selected.display_name || selected.provider_label || selected.method_code}</div>
       {kind === 'card' ? <>
         <p style={s.panelText}>Après avoir continué, vous serez redirigé vers l’espace sécurisé du prestataire pour saisir les informations de votre carte.</p>
         <div style={s.secure}>🔒 Les données de carte sont saisies sur l’espace sécurisé du prestataire et ne sont pas stockées par Conik.</div>
@@ -85,7 +88,7 @@ export function PublicPaymentCheckout({ funnelSlug, pageSlug, tariffSlug }: { fu
 
     {!activeMethods.length && <div style={s.inlineError}>Aucun moyen de paiement n’est actuellement activé pour cette page.</div>}
     {error && <div style={s.inlineError}>{error}</div>}
-    <button type="button" disabled={busy || !selected} onClick={pay} style={s.pay}>{busy ? 'Redirection vers le paiement…' : selected ? `Continuer avec ${selected.display_name || selected.method_code}` : 'Aucun moyen disponible'}</button>
+    <button type="button" disabled={busy || !selected} onClick={pay} style={s.pay}>{busy ? 'Redirection vers le paiement…' : selected ? `Continuer avec ${selected.display_name || selected.provider_label || selected.method_code}` : 'Aucun moyen disponible'}</button>
   </section>
 }
 
