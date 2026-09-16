@@ -19,20 +19,21 @@ export default async function IntegrationsPage() {
     <AppShell active="Integrations">
       <header>
         <div>
-          <small>INTÉGRATIONS</small>
-          <h1>Intégrations</h1>
+          <small>PASSERELLES DE PAIEMENT</small>
+          <h1>Passerelles de paiement</h1>
           <p className="muted">
-            Connectez vos prestataires de paiement (Wave, CinetPay, Flutterwave…) à votre espace Conik.
+            Connectez vos prestataires (CinetPay, Flutterwave, Wave, PayDunya…) comme sur systeme.io. L’argent va sur
+            votre compte marchand.
           </p>
         </div>
       </header>
 
       <section>
-        <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Paiements</h2>
         {providersRes.error && (
           <div className="notice" style={{ marginBottom: 12 }}>
-            Tables paiement non installées encore. Exécutez la migration SQL{' '}
-            <code>20260916120000_payment_pages.sql</code> dans Supabase, puis rechargez cette page.
+            Tables paiement non installées. Exécutez dans Supabase :{' '}
+            <code>20260916120000_payment_pages.sql</code> puis{' '}
+            <code>20260916130000_payment_providers_expand.sql</code>.
           </div>
         )}
         <PaymentProvidersPanel initial={paymentProviders} />

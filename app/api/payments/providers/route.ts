@@ -2,8 +2,20 @@ import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { z } from 'zod'
 
+const PROVIDERS = [
+  'wave',
+  'cinetpay',
+  'flutterwave',
+  'paydunya',
+  'ligdicash',
+  'hub2',
+  'fedapay',
+  'campay',
+  'other',
+] as const
+
 const schema = z.object({
-  provider: z.enum(['wave', 'cinetpay', 'flutterwave', 'other']),
+  provider: z.enum(PROVIDERS),
   label: z.string().trim().min(1).max(120),
   credentials: z.record(z.string(), z.string()).default({}),
 })
@@ -36,6 +48,18 @@ export async function POST(request: Request) {
     .select('id,provider,label,status,created_at')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) {
+    // Si le CHECK SQL n'accepte pas encore les nouveaux codes, message clair
+    if (error.message?.includes('check') || error.code === '23514') {
+      return NextResponse.json(
+        {
+          error:
+            'La base n’accepte pas encore ce prestataire. Exécutez la migration SQL 20260916130000_payment_providers_expand.sql dans Supabase.',
+        },
+        { status: 400 },
+      )
+    }
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
   return NextResponse.json({ provider: data }, { status: 201 })
 }
