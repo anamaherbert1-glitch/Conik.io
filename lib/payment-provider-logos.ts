@@ -9,3 +9,25 @@ export const OFFICIAL_PAYMENT_LOGOS: Record<string, string> = {
   fedapay: 'https://www.fedapay.com/favicon.ico',
   campay: 'https://www.campay.net/favicon.ico',
 }
+
+export const PAYMENT_PROVIDER_BADGE_LABELS: Record<string, string> = {
+  cinetpay: 'CinetPay',
+  flutterwave: 'Flutterwave',
+  paydunya: 'PayDunya',
+  wave: 'Wave',
+  saspay: 'SasPay',
+  ligdicash: 'LigdiCash',
+  hub2: 'Hub2',
+  fedapay: 'FedaPay',
+  campay: 'CamPay',
+}
+
+export function getPaymentProviderLogo(provider?: string | null) {
+  if (!provider) return undefined
+  return OFFICIAL_PAYMENT_LOGOS[provider.toLowerCase()]
+}
+
+export function getPaymentProviderBadgeLabel(provider?: string | null) {
+  if (!provider) return 'Prestataire'
+  return PAYMENT_PROVIDER_BADGE_LABELS[provider.toLowerCase()] || provider
+}
