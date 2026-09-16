@@ -7,6 +7,7 @@ const PROVIDERS = [
   'cinetpay',
   'flutterwave',
   'paydunya',
+  'saspay',
   'ligdicash',
   'hub2',
   'fedapay',
@@ -49,12 +50,11 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    // Si le CHECK SQL n'accepte pas encore les nouveaux codes, message clair
     if (error.message?.includes('check') || error.code === '23514') {
       return NextResponse.json(
         {
           error:
-            'La base n’accepte pas encore ce prestataire. Exécutez la migration SQL 20260916130000_payment_providers_expand.sql dans Supabase.',
+            'La base n’accepte pas encore ce prestataire. Exécutez la migration SQL 20260916131000_payment_providers_saspay.sql dans Supabase.',
         },
         { status: 400 },
       )

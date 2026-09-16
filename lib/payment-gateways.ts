@@ -10,24 +10,16 @@ export type GatewayDef = {
   name: string
   description: string
   countries: string
-  /** Logo officiel (URL publique du prestataire ou doc) */
   logoUrl: string
   color: string
   bg: string
-  /** Site principal */
   websiteUrl: string
-  /** Page pour créer un compte marchand */
   signupUrl: string
-  /** Où récupérer les clés API */
   credentialsHelp: string
   fields: GatewayField[]
   docsUrl?: string
 }
 
-/**
- * Passerelles Afrique — logos et liens officiels.
- * Logos : ressources officielles CinetPay docs ; autres via sites / brandfetch stables.
- */
 export const PAYMENT_GATEWAYS: GatewayDef[] = [
   {
     id: 'cinetpay',
@@ -103,6 +95,24 @@ export const PAYMENT_GATEWAYS: GatewayDef[] = [
       { key: 'api_secret', label: 'Secret API', placeholder: 'optionnel', secret: true },
     ],
     docsUrl: 'https://www.wave.com',
+  },
+  {
+    id: 'saspay',
+    name: 'SasPay',
+    description: 'Agrégateur Mobile Money + cartes — Afrique de l’Ouest et du Centre',
+    countries: 'UEMOA · CEMAC · multi-pays',
+    logoUrl: 'https://cdn.brandfetch.io/idsaspay/w/400/h/100/theme/dark/logo.png?c=1dxbfHSJFAPEGdCLU4o5B',
+    color: '#2563EB',
+    bg: '#EFF6FF',
+    websiteUrl: 'https://saspay.me',
+    signupUrl: 'https://app.saspay.me',
+    credentialsHelp:
+      'Créez un compte sur app.saspay.me, validez le KYC, puis générez une clé API (sk_live_… ou sk_test_…). La clé secrète n’est affichée qu’une seule fois.',
+    fields: [
+      { key: 'secret_key', label: 'Clé API secrète', placeholder: 'sk_live_… ou sk_test_…', secret: true },
+      { key: 'merchant_id', label: 'Merchant ID (si affiché)', placeholder: 'optionnel' },
+    ],
+    docsUrl: 'https://docs.saspay.me',
   },
   {
     id: 'ligdicash',
