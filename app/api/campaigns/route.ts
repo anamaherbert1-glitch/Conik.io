@@ -18,14 +18,15 @@ const FULL = `${CORE},description,channel,message,audience,goal,settings`
 
 export async function GET() {
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
-  let { data, error } = await supabase.from('campaigns').select(FULL).eq('organization_id', organization.id).order('created_at', { ascending: false })
-  if (error) {
-    const fallback = await supabase.from('campaigns').select(CORE).eq('organization_id', organization.id).order('created_at', { ascending: false })
-    data = fallback.data
-    error = fallback.error
+  const result = await supabase.from('campaigns').select(FULL).eq('organization_id', organization.id).order('created_at', { ascending: false })
+
+  if (!result.error) {
+    return NextResponse.json({ campaigns: result.data || [] })
   }
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ campaigns: data || [] })
+
+  const fallback = await supabase.from('campaigns').select(CORE).eq('organization_id', organization.id).order('created_at', { ascending: false })
+  if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 })
+  return NextResponse.json({ campaigns: fallback.data || [] })
 }
 
 export async function POST(request: Request) {
