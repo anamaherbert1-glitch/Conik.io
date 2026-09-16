@@ -1,0 +1,37 @@
+name: Fix live stage sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch live stage composition
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('components/live/multi-live-room.tsx')
+          s = p.read_text()
+          old = '''          {/* Mode plein : caméra occupe tout le stage */}\n          {!screenTrack && mode === 'full' && featuredItem && (\n            <div style={{ position: 'absolute', inset: 8, zIndex: 2 }}>{renderTile(featuredItem)}</div>\n          )}\n\n          {/* Modes petit / moyen : pastille positionnable */}\n          {featuredItem && mode !== 'full' && (\n            <div\n              style={{\n                position: 'absolute',\n                left: `${stage.x}%`,\n                top: `${stage.y}%`,\n                width: pipW,\n                height: pipH,\n                zIndex: 10,\n                transform: 'translate(-50%, -50%)',\n                touchAction: moveMode && host ? 'none' : 'auto',\n                transition: moveMode ? 'none' : 'width .18s ease, height .18s ease',\n              }}\n            >\n              {renderTile(featuredItem, true)}\n            </div>\n          )}\n'''
+          new = '''          {/* Composition synchronisée : le partage d'écran reste le fond et la caméra suit exactement le mode choisi par l'organisateur. */}\n          {mode === 'full' && featuredItem && (\n            <div style={{ position: 'absolute', inset: 8, zIndex: 12 }}>\n              {renderTile(featuredItem)}\n            </div>\n          )}\n\n          {/* Petit / moyen : la caméra reste au-dessus du partage d'écran et conserve sa position. */}\n          {featuredItem && mode !== 'full' && (\n            <div\n              style={{\n                position: 'absolute',\n                left: `${stage.x}%`,\n                top: `${stage.y}%`,\n                width: pipW,\n                height: pipH,\n                zIndex: 12,\n                transform: 'translate(-50%, -50%)',\n                touchAction: moveMode && host ? 'none' : 'auto',\n                transition: moveMode ? 'none' : 'width .18s ease, height .18s ease',\n              }}\n            >\n              {renderTile(featuredItem, true)}\n            </div>\n          )}\n'''
+          if old not in s:
+              raise SystemExit('Expected live stage rendering block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/live/multi-live-room.tsx .github/workflows/fix-live-stage-sync.yml
+          git commit -m 'fix(live): sync camera composition with followers'
+          git rm .github/workflows/fix-live-stage-sync.yml
+          git commit -m 'chore: remove temporary live stage patch workflow'
+          git push
