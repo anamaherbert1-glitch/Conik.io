@@ -16,6 +16,8 @@ const schema = z.object({
 const CORE = 'id,name,status,funnel_id,created_at,updated_at'
 const FULL = `${CORE},description,channel,message,audience,goal,settings`
 
+type CampaignResponse = Record<string, unknown> | null
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
   const { id } = await params
@@ -39,7 +41,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     updated_at: new Date().toISOString(),
   }
 
-  let { data, error } = await supabase.from('campaigns').update(payload).eq('id', id).eq('organization_id', organization.id).select(FULL).single()
+  let data: CampaignResponse = null
+  let error: { message: string } | null = null
+
+  const result = await supabase
+    .from('campaigns')
+    .update(payload)
+    .eq('id', id)
+    .eq('organization_id', organization.id)
+    .select(FULL)
+    .single()
+
+  data = result.data as CampaignResponse
+  error = result.error
+
   if (error) {
     const fallback = await supabase
       .from('campaigns')
@@ -48,7 +63,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .eq('organization_id', organization.id)
       .select(CORE)
       .single()
-    data = fallback.data
+    data = fallback.data as CampaignResponse
     error = fallback.error
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
