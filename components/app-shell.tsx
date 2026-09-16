@@ -10,6 +10,7 @@ import {
   MessageSquare,
   MousePointer2,
   BarChart3,
+  Wallet,
   Globe2,
   Settings2,
   LogOut,
@@ -29,7 +30,8 @@ const items = [
   ['Live Events', Radio, '/lives'],
   ['WhatsApp', MessageSquare, '/whatsapp'],
   ['Links', MousePointer2, '/links'],
-  ['Performance', BarChart3, '/analytics'],
+  ['Revenus', Wallet, '/revenus'],
+  ['Analytics', BarChart3, '/analytics'],
   ['Domains', Globe2, '/domains'],
   ['Integrations', Plug, '/integrations'],
   ['Tutorial', BookOpen, '/tutorial'],
@@ -49,18 +51,32 @@ export function AppShell({ children, active, compact = false }: Props) {
       <aside className={compact ? 'shell-aside-compact' : undefined}>
         <Link href="/dashboard" className="brand" title={dict.brand}>
           <b>C</b>
-          {!compact && <><strong>{dict.brand}</strong><small>{dict.tagline}</small></>}
+          {!compact && (
+            <>
+              <strong>{dict.brand}</strong>
+              <small>{dict.tagline}</small>
+            </>
+          )}
         </Link>
         {!compact && <div className="workspace">C&nbsp; {dict.workspace}</div>}
         <nav>
           {items.map(([name, Icon, href]) => (
-            <Link className={active === name ? 'active' : ''} href={href} key={name} title={dict.nav[name] || name}>
+            <Link
+              className={active === name ? 'active' : ''}
+              href={href}
+              key={name}
+              title={(dict.nav as Record<string, string>)[name] || name}
+            >
               <Icon size={17} />
-              {!compact && <span>{dict.nav[name] || name}</span>}
+              {!compact && <span>{(dict.nav as Record<string, string>)[name] || name}</span>}
             </Link>
           ))}
         </nav>
-        <Link href="/settings" className={active === 'Settings' ? 'settings active' : 'settings'} title={dict.nav.Settings}>
+        <Link
+          href="/settings"
+          className={active === 'Settings' ? 'settings active' : 'settings'}
+          title={dict.nav.Settings}
+        >
           <Settings2 size={17} />
           {!compact && <span>{dict.nav.Settings}</span>}
         </Link>
