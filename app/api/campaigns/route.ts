@@ -16,15 +16,25 @@ const schema = z.object({
 const CORE = 'id,name,status,funnel_id,created_at,updated_at'
 const FULL = `${CORE},description,channel,message,audience,goal,settings`
 
+type CampaignRow = Record<string, unknown> | null
+
 export async function GET() {
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
-  const result = await supabase.from('campaigns').select(FULL).eq('organization_id', organization.id).order('created_at', { ascending: false })
+  const result = await supabase
+    .from('campaigns')
+    .select(FULL)
+    .eq('organization_id', organization.id)
+    .order('created_at', { ascending: false })
 
   if (!result.error) {
     return NextResponse.json({ campaigns: result.data || [] })
   }
 
-  const fallback = await supabase.from('campaigns').select(CORE).eq('organization_id', organization.id).order('created_at', { ascending: false })
+  const fallback = await supabase
+    .from('campaigns')
+    .select(CORE)
+    .eq('organization_id', organization.id)
+    .order('created_at', { ascending: false })
   if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 })
   return NextResponse.json({ campaigns: fallback.data || [] })
 }
@@ -35,7 +45,12 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Données de campagne invalides.' }, { status: 400 })
 
   if (parsed.data.funnel_id) {
-    const { data: f } = await supabase.from('funnels').select('id').eq('id', parsed.data.funnel_id).eq('organization_id', organization.id).maybeSingle()
+    const { data: f } = await supabase
+      .from('funnels')
+      .select('id')
+      .eq('id', parsed.data.funnel_id)
+      .eq('organization_id', organization.id)
+      .maybeSingle()
     if (!f) return NextResponse.json({ error: 'Ce tunnel n’appartient pas à cet espace de travail.' }, { status: 400 })
   }
 
@@ -51,7 +66,13 @@ export async function POST(request: Request) {
     goal: parsed.data.goal || null,
   }
 
-  let { data, error } = await supabase.from('campaigns').insert(row).select(FULL).single()
+  let data: CampaignRow = null
+  let error: { message: string } | null = null
+
+  const result = await supabase.from('campaigns').insert(row).select(FULL).single()
+  data = result.data as CampaignRow
+  error = result.error
+
   if (error) {
     const core = {
       organization_id: organization.id,
@@ -60,9 +81,10 @@ export async function POST(request: Request) {
       funnel_id: parsed.data.funnel_id || null,
     }
     const fallback = await supabase.from('campaigns').insert(core).select(CORE).single()
-    data = fallback.data
+    data = fallback.data as CampaignRow
     error = fallback.error
   }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ campaign: data }, { status: 201 })
 }
