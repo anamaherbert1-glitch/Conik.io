@@ -106,7 +106,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 
         const txStatus = status === 'succeeded' ? 'succeeded' : status
         const orderStatus = status === 'succeeded' ? 'paid' : status === 'refunded' ? 'refunded' : status === 'cancelled' ? 'cancelled' : status === 'failed' ? 'failed' : 'processing'
-        const paidAt = status === 'succeeded' ? new Date().toISOString() : status === 'refunded' ? null : transaction.order?.[0]?.paid_at || null
+        const order = transaction.order?.[0]
+        const paidAt = status === 'succeeded' ? new Date().toISOString() : status === 'refunded' ? null : order?.paid_at || null
         await supabase.from('payment_transactions').update({ status: txStatus, raw_response: verification.raw, updated_at: new Date().toISOString() }).eq('id', transaction.id)
         await supabase.from('payment_orders').update({ status: orderStatus, paid_at: paidAt, updated_at: new Date().toISOString() }).eq('id', transaction.order_id)
         if (eventRow?.id) await supabase.from('payment_webhook_events').update({ processed: true, processed_at: new Date().toISOString(), error_message: null }).eq('id', eventRow.id)
