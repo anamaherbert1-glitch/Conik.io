@@ -5,7 +5,7 @@ import { z } from 'zod'
 const schema = z.object({
   label: z.string().trim().min(1).max(120).optional(),
   credentials: z.record(z.string(), z.string()).optional(),
-  status: z.enum(['connected', 'disabled', 'error']).optional(),
+  status: z.enum(['connected', 'active', 'inactive', 'disabled', 'error']).optional(),
 })
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
