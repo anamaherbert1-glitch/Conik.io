@@ -28,6 +28,12 @@ type Props = {
 
 type VideoItem = { id: string; label: string; track: any; local: boolean }
 
+/**
+ * minimized + front = mode d’affichage caméra :
+ * - small  : minimized=true, front=false  → petite pastille
+ * - medium : minimized=false, front=false → taille moyenne
+ * - full   : minimized=false, front=true  → plein stage
+ */
 type StageState = {
   featured: string | null
   movable: boolean
@@ -52,7 +58,7 @@ const DEFAULT_STAGE: StageState = {
   front: false,
   x: 88,
   y: 82,
-  minimized: false,
+  minimized: true, // départ : caméra petite
   backgroundId: 'blue',
 }
 
@@ -61,7 +67,7 @@ function normalizeStage(next: Partial<StageState> | null | undefined): StageStat
     featured: typeof next?.featured === 'string' ? next.featured : null,
     movable: Boolean(next?.movable),
     front: Boolean(next?.front),
-    minimized: Boolean(next?.minimized),
+    minimized: next?.minimized !== false, // défaut true si absent
     x: Number.isFinite(next?.x) ? Math.max(3, Math.min(97, Number(next?.x))) : DEFAULT_STAGE.x,
     y: Number.isFinite(next?.y) ? Math.max(3, Math.min(97, Number(next?.y))) : DEFAULT_STAGE.y,
     backgroundId:
@@ -69,6 +75,12 @@ function normalizeStage(next: Partial<StageState> | null | undefined): StageStat
         ? next.backgroundId
         : DEFAULT_STAGE.backgroundId,
   }
+}
+
+function cameraMode(stage: StageState): 'small' | 'medium' | 'full' {
+  if (stage.front && !stage.minimized) return 'full'
+  if (stage.minimized) return 'small'
+  return 'medium'
 }
 
 export default function MultiLiveRoom({
@@ -172,11 +184,12 @@ export default function MultiLiveRoom({
           track: publication.track,
           local: true,
         })
+        // Départ : petite caméra
         if (!stageRefState.current.featured) {
           sendStage({
             ...stageRefState.current,
             featured: room.localParticipant.identity,
-            minimized: false,
+            minimized: true,
             front: false,
             movable: false,
           })
@@ -345,24 +358,34 @@ export default function MultiLiveRoom({
     return stage.featured || items[0]?.id || null
   }
 
+  /** Petit ↔ Moyen (pas plein écran) */
   function toggleMinimize() {
     if (!host) return
     const id = activeCameraId()
     if (!id) return
-    if (stage.featured !== id) {
+    const mode = cameraMode(stage)
+    if (mode === 'small') {
+      // Agrandir moyennement
+      sendStage({ ...stage, featured: id, minimized: false, front: false, movable: false })
+      setMoveMode(false)
+    } else {
+      // Réduire en petite pastille
       sendStage({ ...stage, featured: id, minimized: true, front: false, movable: false })
       setMoveMode(false)
-      return
     }
-    sendStage({ ...stage, minimized: !stage.minimized, front: stage.minimized ? false : stage.front })
   }
 
+  /** Plein stage (ou retour au moyen si déjà plein) */
   function toggleBringToFront() {
     if (!host) return
     const id = activeCameraId()
     if (!id) return
-    const same = stage.featured === id && stage.front && !stage.minimized
-    sendStage({ ...stage, featured: id, front: !same, minimized: false, movable: false })
+    const mode = cameraMode(stage)
+    if (mode === 'full') {
+      sendStage({ ...stage, featured: id, minimized: false, front: false, movable: false })
+    } else {
+      sendStage({ ...stage, featured: id, minimized: false, front: true, movable: false })
+    }
     setMoveMode(false)
   }
 
@@ -371,7 +394,7 @@ export default function MultiLiveRoom({
     const id = activeCameraId()
     if (!id) return
     if (stage.featured !== id) {
-      sendStage({ ...stage, featured: id, front: false, movable: true, minimized: stage.minimized })
+      sendStage({ ...stage, featured: id, movable: true })
       setMoveMode(true)
       return
     }
@@ -382,6 +405,7 @@ export default function MultiLiveRoom({
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (!host || !moveMode || !stage.featured) return
+    if (cameraMode(stage) === 'full') return
     draggingRef.current = true
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
@@ -398,25 +422,23 @@ export default function MultiLiveRoom({
     draggingRef.current = false
   }
 
-  const count = items.length
-  const columns =
-    count <= 1
-      ? '1fr'
-      : count === 2
-        ? 'repeat(2,minmax(0,1fr))'
-        : count <= 4
-          ? 'repeat(2,minmax(0,1fr))'
-          : 'repeat(3,minmax(0,1fr))'
-
   const featuredItem = useMemo(
-    () => items.find((item) => item.id === stage.featured) || null,
+    () => items.find((item) => item.id === stage.featured) || items[0] || null,
     [items, stage.featured],
+  )
+  const otherItems = useMemo(
+    () => items.filter((item) => item.id !== featuredItem?.id),
+    [items, featuredItem],
   )
 
   const bg = BACKGROUNDS[stage.backgroundId] || BACKGROUNDS.blue
   const showWatermark = !screenTrack
-  const pipW = stage.minimized ? 'clamp(78px,10vw,108px)' : 'clamp(210px,32vw,390px)'
-  const pipH = stage.minimized ? 'clamp(46px,6.2vw,62px)' : 'clamp(118px,18vw,220px)'
+  const mode = cameraMode(stage)
+
+  const pipW =
+    mode === 'small' ? 'clamp(88px,12vw,120px)' : mode === 'medium' ? 'clamp(200px,30vw,360px)' : '100%'
+  const pipH =
+    mode === 'small' ? 'clamp(52px,7vw,70px)' : mode === 'medium' ? 'clamp(112px,17vw,210px)' : '100%'
 
   const attachVideoTo = (el: HTMLDivElement | null, item: VideoItem) => {
     videoRefs.current[item.id] = el
@@ -431,7 +453,7 @@ export default function MultiLiveRoom({
       video.style.height = '100%'
       video.style.objectFit = 'cover'
       video.style.display = 'block'
-      video.style.borderRadius = '10px'
+      video.style.borderRadius = mode === 'full' ? '12px' : '10px'
       el.appendChild(video)
       void video.play().catch(() => {})
     } catch {}
@@ -448,9 +470,10 @@ export default function MultiLiveRoom({
         minWidth: 0,
         minHeight: 0,
         overflow: 'hidden',
-        borderRadius: 10,
+        borderRadius: mode === 'full' && !floating ? 12 : 10,
         background: '#171922',
-        border: stage.featured === item.id ? '2px solid rgba(255,255,255,.9)' : '1px solid rgba(255,255,255,.16)',
+        border:
+          stage.featured === item.id ? '2px solid rgba(255,255,255,.9)' : '1px solid rgba(255,255,255,.16)',
         cursor: host && moveMode && floating ? 'grab' : 'default',
         boxShadow: floating ? '0 12px 28px rgba(0,0,0,.42)' : '0 8px 24px rgba(0,0,0,.22)',
       }}
@@ -523,13 +546,13 @@ export default function MultiLiveRoom({
         </div>
       )}
 
-      {(status === 'error' || message) && status !== 'loading' && (
+      {status === 'error' && (
         <div
           style={{
             padding: '10px 12px',
             borderRadius: 10,
-            background: status === 'error' ? 'rgba(239,68,68,.12)' : 'rgba(37,99,235,.08)',
-            border: `1px solid ${status === 'error' ? 'rgba(239,68,68,.35)' : 'rgba(37,99,235,.25)'}`,
+            background: 'rgba(239,68,68,.12)',
+            border: '1px solid rgba(239,68,68,.35)',
             fontSize: 13,
             fontWeight: 600,
           }}
@@ -557,10 +580,10 @@ export default function MultiLiveRoom({
           border: '1px solid var(--line)',
         }}
       >
-        {!screenTrack && (
+        {!screenTrack && mode !== 'full' && (
           <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0, background: bg.value, pointerEvents: 'none' }} />
         )}
-        {showWatermark && (
+        {showWatermark && mode !== 'full' && (
           <div
             aria-hidden
             style={{
@@ -623,22 +646,13 @@ export default function MultiLiveRoom({
             />
           )}
 
-          {!screenTrack && items.length > 0 && !stage.minimized && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 8,
-                display: 'grid',
-                gridTemplateColumns: columns,
-                gap: 6,
-                zIndex: 2,
-              }}
-            >
-              {items.map((item) => renderTile(item))}
-            </div>
+          {/* Mode plein : caméra occupe tout le stage */}
+          {!screenTrack && mode === 'full' && featuredItem && (
+            <div style={{ position: 'absolute', inset: 8, zIndex: 2 }}>{renderTile(featuredItem)}</div>
           )}
 
-          {featuredItem && (screenTrack || stage.minimized) && (
+          {/* Modes petit / moyen : pastille positionnable */}
+          {featuredItem && mode !== 'full' && (
             <div
               style={{
                 position: 'absolute',
@@ -649,14 +663,15 @@ export default function MultiLiveRoom({
                 zIndex: 10,
                 transform: 'translate(-50%, -50%)',
                 touchAction: moveMode && host ? 'none' : 'auto',
-                transition: moveMode ? 'none' : 'width .18s ease,height .18s ease',
+                transition: moveMode ? 'none' : 'width .18s ease, height .18s ease',
               }}
             >
               {renderTile(featuredItem, true)}
             </div>
           )}
 
-          {screenTrack && items.length > 0 && (
+          {/* Autres caméras en bandeau bas si partage écran ou plein */}
+          {(screenTrack || mode === 'full') && otherItems.length > 0 && (
             <div
               style={{
                 position: 'absolute',
@@ -669,7 +684,7 @@ export default function MultiLiveRoom({
                 overflowX: 'auto',
               }}
             >
-              {items.map((item) => (
+              {otherItems.map((item) => (
                 <div key={item.id} style={{ width: 72, height: 48, flex: '0 0 auto' }}>
                   {renderTile(item)}
                 </div>
@@ -685,19 +700,22 @@ export default function MultiLiveRoom({
             {mic ? <Mic size={17} /> : <MicOff size={17} />} {mic ? 'Couper le micro' : 'Activer le micro'}
           </button>
           <button className="outline" onClick={() => void toggleCamera()} style={ctrlBtn}>
-            {camera ? <Camera size={17} /> : <CameraOff size={17} />} {camera ? 'Couper la caméra' : 'Activer la caméra'}
+            {camera ? <Camera size={17} /> : <CameraOff size={17} />}{' '}
+            {camera ? 'Couper la caméra' : 'Activer la caméra'}
           </button>
           <button className="outline" onClick={() => void toggleScreen()} style={ctrlBtn}>
-            {screenTrack ? <MonitorStop size={17} /> : <MonitorUp size={17} />} {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}
+            {screenTrack ? <MonitorStop size={17} /> : <MonitorUp size={17} />}{' '}
+            {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}
           </button>
           <button className="outline" onClick={toggleMinimize} style={ctrlBtn} disabled={!items.length}>
-            {stage.minimized ? <Maximize2 size={17} /> : <Minimize2 size={17} />} {stage.minimized ? 'Agrandir la caméra' : 'Réduire la caméra'}
+            {mode === 'small' ? <Maximize2 size={17} /> : <Minimize2 size={17} />}{' '}
+            {mode === 'small' ? 'Agrandir la caméra' : 'Réduire la caméra'}
           </button>
-          <button className={moveMode ? 'primary' : 'outline'} onClick={toggleMove} style={ctrlBtn} disabled={!items.length}>
+          <button className={moveMode ? 'primary' : 'outline'} onClick={toggleMove} style={ctrlBtn} disabled={!items.length || mode === 'full'}>
             <Move size={17} /> {moveMode ? 'Déplacement ON' : 'Déplacer'}
           </button>
-          <button className="outline" onClick={toggleBringToFront} style={ctrlBtn} disabled={!items.length}>
-            <BringToFront size={17} /> Mettre en avant
+          <button className={mode === 'full' ? 'primary' : 'outline'} onClick={toggleBringToFront} style={ctrlBtn} disabled={!items.length}>
+            <BringToFront size={17} /> {mode === 'full' ? 'Quitter le plein écran' : 'Mettre en avant'}
           </button>
           {onEndLive && (
             <button
