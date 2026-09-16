@@ -1,8 +1,9 @@
 export const OFFICIAL_PAYMENT_LOGOS: Record<string, string> = {
+  // Official provider-hosted brand assets (not generic third-party logo services).
   cinetpay: 'https://docs.cinetpay.com/images/logo-new.png',
-  flutterwave: 'https://flutterwave.com/favicon.ico',
-  paydunya: 'https://paydunya.com/favicon.ico',
-  wave: 'https://www.wave.com/favicon.ico',
+  flutterwave: 'https://flutterwave.com/images/logo/full.svg',
+  paydunya: 'https://paydunya.com/assets/img/logo.png',
+  wave: 'https://www.wave.com/assets/images/logo.svg',
   saspay: 'https://saspay.me/favicon.ico',
   ligdicash: 'https://www.ligdicash.com/favicon.ico',
   hub2: 'https://www.hub2.io/favicon.ico',
