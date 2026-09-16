@@ -10,22 +10,54 @@ export const dynamic = 'force-dynamic'
 const STATUS_FR: Record<string, string> = { draft: 'brouillon', published: 'publié', archived: 'archivé' }
 const SOURCE_FR: Record<string, string> = { imported: 'importé', ai_generated: 'généré par IA', manual: 'manuel' }
 
+type FunnelRow = {
+  id: string
+  name: string
+  slug: string
+  status: string
+  source: string
+  created_at?: string
+  capture_enabled?: boolean
+  capture_delay_ms?: number
+  capture_html?: string | null
+  payment_enabled?: boolean
+  payment_html?: string | null
+}
+
 export default async function FunnelDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: claims } = await supabase.auth.getClaims()
   if (!claims?.claims) redirect('/login')
-  const { data: funnel, error: funnelError } = await supabase
+
+  // Ne pas exiger les colonnes paiement (migration optionnelle) pour éviter un 404
+  let funnel: FunnelRow | null = null
+  const full = await supabase
     .from('funnels')
-    .select('id,name,slug,status,source,created_at,capture_enabled,capture_delay_ms,capture_html,payment_enabled,payment_html')
+    .select(
+      'id,name,slug,status,source,created_at,capture_enabled,capture_delay_ms,capture_html,payment_enabled,payment_html',
+    )
     .eq('id', id)
-    .single()
-  if (funnelError || !funnel) notFound()
+    .maybeSingle()
+
+  if (!full.error && full.data) {
+    funnel = full.data as FunnelRow
+  } else {
+    const core = await supabase
+      .from('funnels')
+      .select('id,name,slug,status,source,created_at,capture_enabled,capture_delay_ms,capture_html')
+      .eq('id', id)
+      .maybeSingle()
+    if (core.error || !core.data) notFound()
+    funnel = { ...(core.data as FunnelRow), payment_enabled: false, payment_html: null }
+  }
+
   const { data: pages, error: pagesError } = await supabase
     .from('funnel_pages')
     .select('id,name,slug,page_type,published_version_id,position')
     .eq('funnel_id', id)
     .order('position')
+
   if (pagesError) {
     return (
       <div className="page">
@@ -33,6 +65,9 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
       </div>
     )
   }
+
+  const paymentOn = Boolean(funnel.payment_enabled && funnel.payment_html)
+  const captureOn = Boolean(funnel.capture_enabled && funnel.capture_html)
 
   return (
     <div className="page">
@@ -79,13 +114,25 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
             <h3 style={{ marginBottom: 4 }}>Page d’accueil de capture</h3>
             <span className="muted">Cette capture est affichée avant la première page réelle du tunnel.</span>
           </div>
-          <span className={`status ${funnel.capture_enabled && funnel.capture_html ? 'published' : 'draft'}`}>
-            {funnel.capture_enabled && funnel.capture_html ? 'Activée' : 'Non configurée'}
+          <span className={`status ${captureOn ? 'published' : 'draft'}`}>
+            {captureOn ? 'Activée' : 'Non configurée'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 14,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+          }}
+        >
           <div>
-            <b>{funnel.capture_html ? 'Un HTML de capture est déjà importé.' : 'Aucun fichier HTML de capture importé.'}</b>
+            <b>
+              {funnel.capture_html
+                ? 'Un HTML de capture est déjà importé.'
+                : 'Aucun fichier HTML de capture importé.'}
+            </b>
             <span className="muted" style={{ display: 'block', marginTop: 4 }}>
               {funnel.capture_html
                 ? `Délai : ${Math.max(1, Math.round((funnel.capture_delay_ms || 5000) / 1000))} seconde(s)`
@@ -107,11 +154,19 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
               Import HTML + tarifs avec liens à coller sur les boutons produits. Prestataire obligatoire.
             </span>
           </div>
-          <span className={`status ${funnel.payment_enabled && funnel.payment_html ? 'published' : 'draft'}`}>
-            {funnel.payment_enabled && funnel.payment_html ? 'Activée' : 'Non configurée'}
+          <span className={`status ${paymentOn ? 'published' : 'draft'}`}>
+            {paymentOn ? 'Activée' : 'Non configurée'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 14,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+          }}
+        >
           <div>
             <b>{funnel.payment_html ? 'Page de paiement configurée.' : 'Aucune page de paiement.'}</b>
             <span className="muted" style={{ display: 'block', marginTop: 4 }}>
@@ -130,7 +185,8 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
           <div>
             <h3>Pages</h3>
             <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-              Chaque page a un lien public. Ouvre l’éditeur pour importer le HTML, détecter les boutons et définir les redirections.
+              Chaque page a un lien public. Ouvre l’éditeur pour importer le HTML, détecter les boutons et définir
+              les redirections.
             </span>
           </div>
           <span className="muted">{pages?.length || 0} page(s)</span>
@@ -173,7 +229,10 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         ) : (
           <div className="empty">
             <b>Aucune page pour le moment</b>
-            <span>Ouvrez l’éditeur pour créer votre première page, importer le HTML et configurer les redirections des boutons.</span>
+            <span>
+              Ouvrez l’éditeur pour créer votre première page, importer le HTML et configurer les redirections des
+              boutons.
+            </span>
             <Link className="primary" href={`/funnels/${id}/editor`}>
               Créer la première page
             </Link>
