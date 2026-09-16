@@ -4,10 +4,10 @@ import { extractProviderReference, mapProviderStatus } from '@/lib/payments/prov
 
 export const runtime = 'nodejs'
 
-async function jsonBody(request: Request) {
+async function readBody(request: Request) {
   const text = await request.text()
-  if (!text) return { raw: {} as any, text: '' }
-  try { return { raw: JSON.parse(text), text } } catch { return { raw: Object.fromEntries(new URLSearchParams(text)), text } }
+  if (!text) return {}
+  try { return JSON.parse(text) } catch { return Object.fromEntries(new URLSearchParams(text)) }
 }
 
 async function verifyProvider(provider: any, reference: string, transaction: any) {
@@ -16,10 +16,7 @@ async function verifyProvider(provider: any, reference: string, transaction: any
   const currency = String(transaction.currency).trim()
 
   if (provider.provider === 'cinetpay') {
-    const response = await fetch('https://api-checkout.cinetpay.com/v2/payment/check', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apikey: credentials.apikey, site_id: credentials.site_id, transaction_id: reference }),
-    })
+    const response = await fetch('https://api-checkout.cinetpay.com/v2/payment/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apikey: credentials.apikey, site_id: credentials.site_id, transaction_id: reference }) })
     const data = await response.json().catch(() => ({}))
     const status = mapProviderStatus(data?.data || data)
     const amount = Number(data?.data?.amount)
@@ -28,8 +25,8 @@ async function verifyProvider(provider: any, reference: string, transaction: any
   }
 
   if (provider.provider === 'flutterwave') {
-    const providerId = transaction.provider_transaction_id && /^\d+$/.test(String(transaction.provider_transaction_id)) ? transaction.provider_transaction_id : reference
     if (!credentials.secret_key) throw new Error('Flutterwave: Secret Key manquante.')
+    const providerId = /^\d+$/.test(String(transaction.provider_transaction_id || '')) ? transaction.provider_transaction_id : reference
     const response = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(providerId)}/verify`, { headers: { Authorization: `Bearer ${credentials.secret_key}` } })
     const data = await response.json().catch(() => ({}))
     const status = mapProviderStatus(data?.data || data)
@@ -70,7 +67,7 @@ async function verifyProvider(provider: any, reference: string, transaction: any
 
 export async function POST(request: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider: providerName } = await params
-  const { raw: payload, text: rawText } = await jsonBody(request)
+  const payload = await readBody(request)
 
   try {
     const supabase = createAdminClient()
@@ -80,24 +77,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     const reference = extractProviderReference(providerName, payload)
     if (!reference) return NextResponse.json({ error: 'Référence de transaction absente.' }, { status: 400 })
 
-    let handled = false
     for (const provider of providers) {
-      const { data: transaction } = await supabase
-        .from('payment_transactions')
-        .select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at)')
-        .eq('provider_id', provider.id)
-        .or(`provider_transaction_id.eq.${reference},order_id.eq.${reference}`)
-        .maybeSingle()
-
+      let { data: transaction } = await supabase.from('payment_transactions').select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at)').eq('provider_id', provider.id).eq('provider_transaction_id', reference).maybeSingle()
+      if (!transaction && providerName === 'cinetpay') {
+        const { data: byOrder } = await supabase.from('payment_orders').select('id,order_number').eq('organization_id', provider.organization_id).eq('order_number', reference).maybeSingle()
+        if (byOrder) {
+          const { data: tx } = await supabase.from('payment_transactions').select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at)').eq('provider_id', provider.id).eq('order_id', byOrder.id).maybeSingle()
+          transaction = tx
+        }
+      }
       if (!transaction) continue
-      handled = true
+
       const eventId = String(request.headers.get('x-webhook-id') || payload?.webhook_id || payload?.id || `${providerName}:${reference}:${payload?.status || payload?.event || payload?.type || 'event'}`)
       const signature = request.headers.get('verif-hash') || request.headers.get('x-token') || request.headers.get('x-fedapay-signature')
-
       const { data: existingEvent } = await supabase.from('payment_webhook_events').select('id,processed').eq('provider_id', provider.id).eq('event_id', eventId).maybeSingle()
       if (existingEvent?.processed) return NextResponse.json({ received: true, duplicate: true }, { status: 200 })
 
-      const { data: eventRow } = await supabase.from('payment_webhook_events').upsert({ organization_id: provider.organization_id, provider_id: provider.id, event_id: eventId, event_type: String(payload?.event || payload?.type || payload?.name || payload?.status || 'payment.update'), payload, signature, processed: false }, { onConflict: 'provider_id,event_id' }).select('id').maybeSingle()
+      const { data: eventRow, error: eventError } = await supabase.from('payment_webhook_events').upsert({ organization_id: provider.organization_id, provider_id: provider.id, event_id: eventId, event_type: String(payload?.event || payload?.type || payload?.name || payload?.status || 'payment.update'), payload, signature, processed: false }, { onConflict: 'provider_id,event_id' }).select('id').maybeSingle()
+      if (eventError) return NextResponse.json({ error: eventError.message }, { status: 500 })
 
       try {
         const verification = await verifyProvider(provider, reference, transaction)
@@ -110,7 +107,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
         const txStatus = status === 'succeeded' ? 'succeeded' : status
         const orderStatus = status === 'succeeded' ? 'paid' : status === 'refunded' ? 'refunded' : status === 'cancelled' ? 'cancelled' : status === 'failed' ? 'failed' : 'processing'
         const paidAt = status === 'succeeded' ? new Date().toISOString() : status === 'refunded' ? null : transaction.order?.paid_at || null
-
         await supabase.from('payment_transactions').update({ status: txStatus, raw_response: verification.raw, updated_at: new Date().toISOString() }).eq('id', transaction.id)
         await supabase.from('payment_orders').update({ status: orderStatus, paid_at: paidAt, updated_at: new Date().toISOString() }).eq('id', transaction.order_id)
         if (eventRow?.id) await supabase.from('payment_webhook_events').update({ processed: true, processed_at: new Date().toISOString(), error_message: null }).eq('id', eventRow.id)
@@ -122,8 +118,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       }
     }
 
-    if (!handled) return NextResponse.json({ received: true, ignored: true }, { status: 200 })
-    return NextResponse.json({ received: true }, { status: 200 })
+    return NextResponse.json({ received: true, ignored: true }, { status: 200 })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Webhook error' }, { status: 500 })
   }
