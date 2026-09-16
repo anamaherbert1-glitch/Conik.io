@@ -46,7 +46,10 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
                   <img
                     src={logoUrl}
                     alt={`${g.name} logo officiel`}
-                    style={{ maxWidth: '100%', maxHeight: 36, objectFit: 'contain' }}
+                    referrerPolicy="no-referrer"
+                    width={40}
+                    height={40}
+                    style={{ maxWidth: '100%', maxHeight: 36, width: 'auto', height: 'auto', objectFit: 'contain' }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
                       const sib = e.currentTarget.nextElementSibling as HTMLElement | null
