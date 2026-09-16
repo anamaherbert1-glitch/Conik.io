@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const supabase = createAdminClient()
     let funnel: any = null
     let paymentPage: any = null
+
     if (pageSlug) {
       const { data, error } = await supabase.from('payment_pages').select('id,organization_id,funnel_id,name,slug,status,currency,amount_type,fixed_amount,checkout_config,success_url,cancel_url').eq('slug', pageSlug).eq('status', 'published').maybeSingle()
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -24,7 +25,12 @@ export async function GET(request: Request) {
     } else {
       const { data: f } = await supabase.from('funnels').select('id,name,slug,organization_id,payment_enabled,payment_html,payment_css,payment_js,payment_provider_id,status').eq('slug', funnelSlug).maybeSingle()
       funnel = f
+      if (funnel) {
+        const { data: pages } = await supabase.from('payment_pages').select('id,organization_id,funnel_id,name,slug,status,currency,amount_type,fixed_amount,checkout_config,success_url,cancel_url').eq('funnel_id', funnel.id).eq('organization_id', funnel.organization_id).eq('status', 'published').order('created_at', { ascending: true }).limit(1)
+        paymentPage = pages?.[0] || null
+      }
     }
+
     if (!funnel || funnel.status !== 'published' || !funnel.payment_enabled) return NextResponse.json({ error: 'Tunnel introuvable, non publié ou paiement désactivé' }, { status: 404 })
 
     const { data: tariff } = await supabase.from('payment_tariffs').select('id,name,amount_cents,currency,slug,product_label,active,funnel_id,organization_id').eq('funnel_id', funnel.id).eq('organization_id', funnel.organization_id).eq('slug', tariffSlug).eq('active', true).maybeSingle()
