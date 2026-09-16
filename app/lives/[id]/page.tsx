@@ -6,9 +6,6 @@ import {
   Copy,
   Radio,
   Trash2,
-  Users,
-  CircleCheck,
-  Clock3,
   Send,
   Smartphone,
   Link2,
@@ -234,117 +231,88 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
   }
 
   const allowed = new Set(participants.map((p) => p.contact_id))
-  const connected = attendees.filter((a) => a.connected)
-  const notConnected = participants.filter((p) => !connected.some((a) => a.participant_id === p.id))
   const contactName = (contactId: string, email: string) => {
     const c = contacts.find((x) => x.id === contactId)
     return c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || email : email
   }
 
+  /** Panneau compact : pas de stats invités/connectés */
   const inviteSidebar = (
-    <div style={{ display: 'grid', gap: 9 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <Users size={15} />
-        <b style={{ fontSize: 12 }}>Invités</b>
-        <span className="muted" style={{ fontSize: 10 }}>
-          {participants.length}
-        </span>
-      </div>
-      <div style={{ display: 'grid', gap: 6 }}>
-        <div className="choice" style={{ padding: '7px 8px', fontSize: 11 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <CircleCheck size={13} />
-            <b>Connectés</b>
-            <span className="muted">{connected.length}</span>
-          </div>
-          {connected.length > 0 && (
-            <div style={{ marginTop: 5, display: 'grid', gap: 4 }}>
-              {connected.slice(0, 4).map((a) => (
-                <div
-                  key={a.participant_id}
-                  style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  {a.display_name || a.email}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="choice" style={{ padding: '7px 8px', fontSize: 11 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Clock3 size={13} />
-            <b>En attente</b>
-            <span className="muted">{notConnected.length}</span>
-          </div>
-          {notConnected.length > 0 && (
-            <div style={{ marginTop: 5, display: 'grid', gap: 4 }}>
-              {notConnected.slice(0, 4).map((p) => (
-                <div
-                  key={p.id}
-                  style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  {contactName(p.contact_id, p.email)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-        <div className="muted" style={{ fontSize: 10, fontWeight: 800, marginBottom: 5 }}>
+    <div style={{ display: 'grid', gap: 6 }}>
+      {/* Organisateurs : icône invite + copier lien sur la même ligne */}
+      <div>
+        <div className="muted" style={{ fontSize: 9, fontWeight: 800, marginBottom: 4, letterSpacing: '.04em' }}>
           ORGANISATEURS
         </div>
-        <button
-          type="button"
-          onClick={() => void createCohostInvite()}
-          disabled={cohostLoading || live.status === 'ended' || !live.id}
-          className="primary"
-          style={{
-            width: '100%',
-            minHeight: 38,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 7,
-            fontSize: 11,
-            fontWeight: 800,
-          }}
-        >
-          <UserPlus size={14} />
-          {cohostLoading ? 'Création…' : 'Inviter un organisateur'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => void createCohostInvite()}
+            disabled={cohostLoading || live.status === 'ended' || !live.id}
+            className="primary"
+            title={cohostLoading ? 'Création…' : 'Inviter un organisateur'}
+            aria-label="Inviter un organisateur"
+            style={{
+              width: 36,
+              minWidth: 36,
+              height: 36,
+              minHeight: 36,
+              padding: 0,
+              display: 'grid',
+              placeItems: 'center',
+              flex: '0 0 auto',
+            }}
+          >
+            <UserPlus size={16} />
+          </button>
+          <button
+            type="button"
+            className="outline"
+            disabled={!cohostLink}
+            onClick={() => {
+              if (!cohostLink) return
+              navigator.clipboard?.writeText(cohostLink)
+              setNotice('Lien organisateur copié.')
+            }}
+            title={cohostLink ? 'Copier le lien organisateur' : 'Créez d’abord un lien'}
+            style={{
+              flex: 1,
+              minHeight: 36,
+              fontSize: 11,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              opacity: cohostLink ? 1 : 0.55,
+            }}
+          >
+            <Copy size={13} />
+            Copier le lien
+          </button>
+        </div>
         {cohostLink && (
-          <div style={{ display: 'grid', gap: 6, marginTop: 7 }}>
-            <div className="choice" style={{ fontSize: 10, wordBreak: 'break-all' }}>
-              {cohostLink}
-            </div>
-            <button
-              type="button"
-              className="outline"
-              onClick={() => {
-                navigator.clipboard?.writeText(cohostLink)
-                setNotice('Lien organisateur copié.')
-              }}
-              style={{
-                minHeight: 34,
-                fontSize: 11,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-            >
-              <Copy size={13} />
-              Copier le lien
-            </button>
+          <div
+            className="choice"
+            style={{
+              marginTop: 5,
+              fontSize: 9,
+              wordBreak: 'break-all',
+              padding: '6px 8px',
+              lineHeight: 1.35,
+              maxHeight: 48,
+              overflow: 'hidden',
+            }}
+            title={cohostLink}
+          >
+            {cohostLink}
           </div>
         )}
       </div>
 
-      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-        <div className="muted" style={{ fontSize: 10, fontWeight: 800, marginBottom: 5 }}>
-          CHAT DES FOLLOWERS
+      {/* Chat on/off */}
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 6 }}>
+        <div className="muted" style={{ fontSize: 9, fontWeight: 800, marginBottom: 4, letterSpacing: '.04em' }}>
+          CHAT
         </div>
         <button
           type="button"
@@ -353,38 +321,39 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
           className={live.chat_enabled ? 'outline' : 'primary'}
           style={{
             width: '100%',
-            minHeight: 38,
+            minHeight: 34,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 7,
+            gap: 6,
             fontSize: 11,
-            fontWeight: 800,
+            fontWeight: 700,
           }}
         >
           {live.chat_enabled ? (
             <>
-              <MessageSquareOff size={14} />
-              {chatSaving ? 'Modification…' : 'Couper le chat'}
+              <MessageSquareOff size={13} />
+              {chatSaving ? '…' : 'Couper le chat'}
             </>
           ) : (
             <>
-              <MessageSquare size={14} />
-              {chatSaving ? 'Modification…' : 'Réactiver le chat'}
+              <MessageSquare size={13} />
+              {chatSaving ? '…' : 'Réactiver le chat'}
             </>
           )}
         </button>
       </div>
 
-      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-        <div className="muted" style={{ fontSize: 10, fontWeight: 800, marginBottom: 5 }}>
+      {/* Ajouter contact — remonté */}
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 6 }}>
+        <div className="muted" style={{ fontSize: 9, fontWeight: 800, marginBottom: 4, letterSpacing: '.04em' }}>
           AJOUTER UN CONTACT
         </div>
         <select
           className="form-input"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          style={{ width: '100%', fontSize: 11, minHeight: 36 }}
+          style={{ width: '100%', fontSize: 11, minHeight: 32, padding: '4px 8px' }}
         >
           <option value="">Choisir…</option>
           {contacts
@@ -399,14 +368,14 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
           className="primary"
           onClick={add}
           disabled={!selected || !live.id}
-          style={{ width: '100%', minHeight: 35, marginTop: 6, fontSize: 11 }}
+          style={{ width: '100%', minHeight: 32, marginTop: 5, fontSize: 11 }}
         >
           Autoriser
         </button>
       </div>
 
       {participants.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'grid', gap: 5 }}>
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 6, display: 'grid', gap: 4 }}>
           {participants.slice(0, 8).map((p) => (
             <div
               key={p.id}
@@ -425,9 +394,9 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
                 className="outline"
                 onClick={() => remove(p.contact_id)}
                 aria-label="Retirer"
-                style={{ width: 28, height: 28, padding: 0, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}
+                style={{ width: 26, height: 26, padding: 0, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}
               >
-                <Trash2 size={12} />
+                <Trash2 size={11} />
               </button>
             </div>
           ))}
@@ -440,7 +409,15 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
 
   return (
     <AppShell active="Live Events" compact={inStudio}>
-      <div className="page" style={{ maxWidth: inStudio ? 'none' : 1180, width: '100%', margin: inStudio ? 0 : undefined, padding: inStudio ? 0 : undefined }}>
+      <div
+        className="page"
+        style={{
+          maxWidth: inStudio ? 'none' : 1180,
+          width: '100%',
+          margin: inStudio ? 0 : undefined,
+          padding: inStudio ? 0 : undefined,
+        }}
+      >
         {!inStudio && (
           <Link href="/lives" className="back">
             <ArrowLeft size={16} />
@@ -448,12 +425,12 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
           </Link>
         )}
         {error && (
-          <div className="error" style={{ marginBottom: 16 }}>
+          <div className="error" style={{ marginBottom: 12 }}>
             {error}
           </div>
         )}
         {notice && (
-          <div className="notice" style={{ marginBottom: 16 }}>
+          <div className="notice" style={{ marginBottom: 12 }}>
             {notice}
           </div>
         )}
@@ -505,28 +482,39 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
             {inStudio && (
               <div className="live-studio-workspace">
                 <div className="live-studio-main">
-                  <section className="panel" style={{ marginBottom: 0 }}>
+                  <section className="panel" style={{ marginBottom: 0, padding: 12 }}>
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 9,
-                        marginBottom: 12,
+                        gap: 8,
+                        marginBottom: 8,
                         flexWrap: 'wrap',
                         justifyContent: 'space-between',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <Radio size={18} />
-                        <h3 style={{ margin: 0 }}>{live.title}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Radio size={16} />
+                        <h3 style={{ margin: 0, fontSize: 15 }}>{live.title}</h3>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="outline" onClick={copy} style={{ minHeight: 36 }}>
-                          <Copy size={14} />
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button className="outline" onClick={copy} style={{ minHeight: 32, fontSize: 11 }}>
+                          <Copy size={13} />
                           Lien
                         </button>
-                        <Link href="/lives" className="outline" style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px' }}>
-                          <ArrowLeft size={14} />
+                        <Link
+                          href="/lives"
+                          className="outline"
+                          style={{
+                            minHeight: 32,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '0 10px',
+                            fontSize: 11,
+                          }}
+                        >
+                          <ArrowLeft size={13} />
                           Quitter
                         </Link>
                       </div>
@@ -543,7 +531,6 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
                   </section>
                 </div>
 
-                {/* Chat = colonne droite séparée du bloc studio */}
                 <aside className="live-studio-chat">
                   <LiveChat liveId={live.id} host chatEnabled={live.chat_enabled} />
                 </aside>
