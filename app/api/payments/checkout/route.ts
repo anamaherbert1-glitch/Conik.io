@@ -40,6 +40,12 @@ export async function GET(request: Request) {
     if (paymentPage?.id) {
       const { data } = await supabase.from('payment_page_methods').select('id,provider_id,method_code,display_name,enabled,sort_order,config').eq('payment_page_id', paymentPage.id).eq('enabled', true).order('sort_order', { ascending: true })
       methods = data || []
+      const providerIds = [...new Set(methods.map(method => method.provider_id).filter(Boolean))]
+      if (providerIds.length) {
+        const { data: methodProviders } = await supabase.from('payment_providers').select('id,provider,label,status').in('id', providerIds).eq('organization_id', funnel.organization_id)
+        const providerById = new Map((methodProviders || []).map(item => [item.id, item]))
+        methods = methods.map(method => ({ ...method, provider: providerById.get(method.provider_id)?.provider || null, provider_label: providerById.get(method.provider_id)?.label || null }))
+      }
     }
 
     return NextResponse.json({ funnel: { id: funnel.id, name: funnel.name, slug: funnel.slug }, paymentPage, tariff, provider, methods, page: { html: funnel.payment_html || '', css: funnel.payment_css || '', js: funnel.payment_js || '' } })
