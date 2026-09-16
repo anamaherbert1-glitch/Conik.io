@@ -646,12 +646,14 @@ export default function MultiLiveRoom({
             />
           )}
 
-          {/* Mode plein : caméra occupe tout le stage */}
-          {!screenTrack && mode === 'full' && featuredItem && (
-            <div style={{ position: 'absolute', inset: 8, zIndex: 2 }}>{renderTile(featuredItem)}</div>
+          {/* Composition synchronisée : le partage d'écran reste le fond et la caméra suit exactement le mode choisi par l'organisateur. */}
+          {mode === 'full' && featuredItem && (
+            <div style={{ position: 'absolute', inset: 8, zIndex: 12 }}>
+              {renderTile(featuredItem)}
+            </div>
           )}
 
-          {/* Modes petit / moyen : pastille positionnable */}
+          {/* Petit / moyen : la caméra reste au-dessus du partage d'écran et conserve sa position. */}
           {featuredItem && mode !== 'full' && (
             <div
               style={{
@@ -660,7 +662,7 @@ export default function MultiLiveRoom({
                 top: `${stage.y}%`,
                 width: pipW,
                 height: pipH,
-                zIndex: 10,
+                zIndex: 12,
                 transform: 'translate(-50%, -50%)',
                 touchAction: moveMode && host ? 'none' : 'auto',
                 transition: moveMode ? 'none' : 'width .18s ease, height .18s ease',
