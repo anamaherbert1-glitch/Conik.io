@@ -43,12 +43,14 @@ export async function initializeProviderPayment(input: PaymentInput): Promise<Pa
   switch (provider.provider) {
     case 'cinetpay': {
       if (!creds.apikey || !creds.site_id) throw new Error('CinetPay: API Key et Site ID requis.')
+      const normalizedMethod = methodCode.toLowerCase()
+      const isCard = ['visa', 'mastercard', 'cinetpay_card', 'card', 'credit_card'].includes(normalizedMethod) || normalizedMethod.includes('card')
       const response = await fetch('https://api-checkout.cinetpay.com/v2/payment', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           apikey: creds.apikey, site_id: creds.site_id, transaction_id: orderNumber, amount, currency,
           description: productLabel.replace(/[#$,_&/]/g, ' ').slice(0, 255), notify_url: callbackUrl, return_url: returnUrl,
-          channels: methodCode.toLowerCase().includes('card') ? 'CREDIT_CARD' : 'MOBILE_MONEY', lang: 'FR', metadata: orderNumber,
+          channels: isCard ? 'CREDIT_CARD' : 'MOBILE_MONEY', lang: 'FR', metadata: orderNumber,
           customer_id: input.orderId, customer_name: customer?.lastName || customer?.name || 'Client', customer_surname: customer?.firstName || '',
           customer_email: customer?.email || '', customer_phone_number: customer?.phone || '',
         }),
@@ -60,12 +62,14 @@ export async function initializeProviderPayment(input: PaymentInput): Promise<Pa
 
     case 'flutterwave': {
       if (!creds.secret_key) throw new Error('Flutterwave: Secret Key requise.')
+      const normalizedMethod = methodCode.toLowerCase()
+      const paymentOptions = ['visa', 'mastercard', 'card', 'credit_card'].includes(normalizedMethod) || normalizedMethod.includes('card') ? 'card' : undefined
       const response = await fetch('https://api.flutterwave.com/v3/payments', {
         method: 'POST', headers: { Authorization: `Bearer ${creds.secret_key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tx_ref: orderNumber, amount, currency, redirect_url: returnUrl, payment_options: methodCode || undefined,
+          tx_ref: orderNumber, amount, currency, redirect_url: returnUrl, payment_options: paymentOptions,
           customer: { email: customer?.email || 'customer@conik.io', phonenumber: customer?.phone || '', name: customer?.name || `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() || 'Client' },
-          customizations: { title: 'Conik', description: productLabel }, meta: { order_id: input.orderId },
+          customizations: { title: 'Conik', description: productLabel }, meta: { order_id: input.orderId, method_code: methodCode },
         }),
       })
       const data = await readJson(response)
@@ -79,7 +83,7 @@ export async function initializeProviderPayment(input: PaymentInput): Promise<Pa
       const endpoint = sandbox ? 'https://app.paydunya.com/sandbox-api/v1/checkout-invoice/create' : 'https://app.paydunya.com/api/v1/checkout-invoice/create'
       const response = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'PAYDUNYA-MASTER-KEY': creds.master_key, 'PAYDUNYA-PRIVATE-KEY': creds.private_key, 'PAYDUNYA-TOKEN': creds.token },
-        body: JSON.stringify({ invoice: { total_amount: amount, description: productLabel, customer: { name: customer?.name || `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim(), email: customer?.email || '', phone: customer?.phone || '' } }, store: { name: 'Conik' }, actions: { callback_url: callbackUrl, return_url: returnUrl }, custom_data: { order_id: input.orderId, order_number: orderNumber } }),
+        body: JSON.stringify({ invoice: { total_amount: amount, description: productLabel, customer: { name: customer?.name || `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim(), email: customer?.email || '', phone: customer?.phone || '' } }, store: { name: 'Conik' }, actions: { callback_url: callbackUrl, return_url: returnUrl }, custom_data: { order_id: input.orderId, order_number: orderNumber, method_code: methodCode } }),
       })
       const data = await readJson(response)
       if (!response.ok || data?.response_code !== '00' || !data?.response_text) throw new Error(`PayDunya: ${data?.response_text || data?.description || 'initialisation échouée'}`)
@@ -92,7 +96,7 @@ export async function initializeProviderPayment(input: PaymentInput): Promise<Pa
       const apiBase = environment === 'sandbox' ? 'https://sandbox-api.fedapay.com/v1' : 'https://api.fedapay.com/v1'
       const createResponse = await fetch(`${apiBase}/transactions`, {
         method: 'POST', headers: { Authorization: `Bearer ${creds.secret_key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: productLabel, amount, currency: { iso: currency }, callback_url: returnUrl, merchant_reference: orderNumber, custom_metadata: { order_id: input.orderId }, customer: { email: customer?.email || undefined, firstname: customer?.firstName || undefined, lastname: customer?.lastName || undefined } }),
+        body: JSON.stringify({ description: productLabel, amount, currency: { iso: currency }, callback_url: returnUrl, merchant_reference: orderNumber, custom_metadata: { order_id: input.orderId, method_code: methodCode }, customer: { email: customer?.email || undefined, firstname: customer?.firstName || undefined, lastname: customer?.lastName || undefined } }),
       })
       const created = await readJson(createResponse)
       const transactionId = created?.id || created?.transaction?.id
