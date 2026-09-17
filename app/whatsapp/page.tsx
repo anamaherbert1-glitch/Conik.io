@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { WhatsAppGreenApi } from '@/components/whatsapp-green-api'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
@@ -17,9 +16,9 @@ export default async function WhatsAppPage() {
       </div>
     </header>
     <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-      <Link className="outline" href="/integrations">Solutions de paiement</Link>
-      <Link className="outline" href="/whatsapp">WhatsApp</Link>
-      <Link className="outline" href="/whatsapp/conversations">Conversations</Link>
+      <a className="outline" href="https://console.green-api.com/registration" target="_blank" rel="noreferrer">Créer un compte Green API</a>
+      <a className="outline" href="https://console.green-api.com/" target="_blank" rel="noreferrer">J’ai déjà un compte Green API</a>
+      <a className="outline" href="/whatsapp/conversations">Conversations</a>
     </nav>
     <WhatsAppGreenApi />
   </AppShell>
