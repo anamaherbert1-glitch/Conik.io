@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PublicPaymentCheckout } from '@/components/public-payment-checkout'
 
-type PublishedPage = { funnel_id:string; funnel_name?:string; page_id:string; page_name:string; page_slug?:string; html:string; css:string; js:string; external_scripts?:string[]; capture_enabled?:boolean; capture_delay_ms?:number; capture_html?:string; capture_css?:string; capture_js?:string; is_first_page?:boolean }
+type PublishedPage = { funnel_id:string; funnel_name?:string; page_id:string; page_name:string; page_slug?:string; html:string; css:string; js:string; metadata?:Record<string,unknown>; capture_enabled?:boolean; capture_delay_ms?:number; capture_html?:string; capture_css?:string; capture_js?:string; is_first_page?:boolean }
 type PaymentMeta = { id:string; name:string; slug:string; status:string; funnel_id:string; tariff_slug:string|null }
 
 const VISITOR_KEY='conik_visitor_id', SESSION_KEY='conik_session_id', CAPTURE_SHOWN_PREFIX='conik_capture_shown:'
@@ -28,8 +28,8 @@ export function FunnelRuntime({funnelSlug,pageSlug}:{funnelSlug:string;pageSlug:
   if(missing)return <main style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:24}}><div><h1>Page introuvable</h1><p>Ce tunnel ou cette page n’existe pas ou n’est pas publiée.</p></div></main>
   if(!page)return <main style={{minHeight:'100vh',display:'grid',placeItems:'center'}}>Chargement…</main>
 
-  const scripts=(page.external_scripts||[]).filter(validExternalScript)
-  const externalScripts=scripts.map(src=>`<script src="${src.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></script>`).join('')
+  const metadataScripts=Array.isArray(page.metadata?.external_scripts)?page.metadata.external_scripts.filter((value):value is string=>typeof value==='string'):[]
+  const externalScripts=metadataScripts.filter(validExternalScript).map(src=>`<script src="${src.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></script>`).join('')
   const srcDoc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0}${page.css||''}</style></head><body>${page.html||''}${externalScripts}<script>${page.js||''}</script><script>${BRIDGE}</script></body></html>`
   const captureSrc=page.capture_html?`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0}${page.capture_css||''}</style></head><body>${page.capture_html}<script>${page.capture_js||''}</script><script>${BRIDGE}</script></body></html>`:''
   return <main style={{minHeight:'100vh',margin:0,padding:0,width:'100%',background:'#f8fafc'}}>
