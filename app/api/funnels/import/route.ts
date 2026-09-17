@@ -4,15 +4,15 @@ import { z } from 'zod'
 import { createHash } from 'crypto'
 import { parseZip, textFrom, assetMime } from '@/lib/zip'
 import { getSupabaseConfig } from '@/lib/supabase/config'
-import { extractBody, extractScripts, extractStyles, pickHtmlEntries, rewriteCssUrls, rewriteHtmlRefs, rewriteScriptRefs, slugifyPath, titleFromHtml, type PreparedPage } from '@/lib/funnel/import'
+import { buildPagePathIndex, extractBody, extractScripts, extractStyles, pickHtmlEntries, rewriteCssUrls, rewriteHtmlRefs, rewriteScriptRefs, sanitizeProjectHtml, slugifyPath, titleFromHtml, type PreparedPage } from '@/lib/funnel/import'
 
 export const runtime = 'nodejs'
 const MAX_UPLOAD = 25 * 1024 * 1024
 const MAX_HTML_BYTES = 5 * 1024 * 1024
-const MAX_PAGES = 30
-const MAX_ASSETS = 180
+const MAX_PAGES = 40
+const MAX_ASSETS = 220
 const schema = z.object({ name: z.string().trim().min(1).max(120) })
-const RESERVED_SLUGS = new Set(['dashboard','login','signup','auth','onboarding','funnels','contacts','campaigns','automations','whatsapp','emails','links','analytics','domains','settings','integrations','api','_next','r','segments','tunnel'])
+const RESERVED_SLUGS = new Set(['dashboard','login','signup','auth','onboarding','funnels','contacts','campaigns','automations','whatsapp','emails','links','analytics','domains','settings','integrations','api','_next','r','segments','tunnel','pay','payment','revenus','lives','live','official','tutorial'])
 
 function slugifyName(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '') || 'tunnel'
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
 
     const pageSlugs = new Map<string, string>(); const usedSlugs = new Set<string>()
     htmlEntries.forEach((entry, index) => { let candidate = index === 0 ? 'home' : slugifyPath(entry.name); if (candidate === 'home' && index !== 0) candidate = `home-${index}`; let unique = candidate; let n = 2; while (usedSlugs.has(unique)) unique = `${candidate}-${n++}`; usedSlugs.add(unique); pageSlugs.set(entry.name, unique) })
+    const pathIndex = buildPagePathIndex(pageSlugs)
 
     const htmlNames = new Set(htmlEntries.map((e) => e.name)); const cssByPath = new Map<string, string>()
     for (const entry of entries) if (/\.css$/i.test(entry.name)) { try { cssByPath.set(entry.name, textFrom(entry.data, MAX_HTML_BYTES)) } catch {} }
@@ -55,21 +56,29 @@ export async function POST(request: NextRequest) {
         assetUrls.set(entry.name, `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path.split('/').map(encodeURIComponent).join('/')}`)
       }
 
-      const assetUrl = (path: string) => assetUrls.get(path) || null
-      const pageUrl = (path: string) => { const target = pageSlugs.get(path); return target ? `/${funnel.slug}/${target}` : null }
+      const assetUrl = (path: string) => {
+        if (assetUrls.has(path)) return assetUrls.get(path)!
+        const base = path.split('/').pop()
+        if (base) { for (const [k, u] of assetUrls) if (k === base || k.endsWith('/' + base)) return u }
+        return null
+      }
+      const pageUrl = (path: string) => {
+        const target = pathIndex.get(path) || pageSlugs.get(path)
+        return target ? `/${funnel.slug}/${target}` : null
+      }
       const prepared: PreparedPage[] = htmlEntries.map((entry, index) => {
-        // Keep the original HTML intact long enough to extract every script.
         const raw = textFrom(entry.data, MAX_HTML_BYTES)
         const styles = extractStyles(raw, entry.name, (cssPath) => { const body = cssByPath.get(cssPath); return body === undefined ? null : rewriteCssUrls(body, cssPath, assetUrl) })
         const extracted = extractScripts(styles.html, entry.name, assetUrl)
         const scripts = extracted.scripts.map((script) => script.code ? { ...script, code: rewriteScriptRefs(script.code, entry.name, assetUrl) } : script)
-        return { slug: pageSlugs.get(entry.name)!, name: titleFromHtml(raw, index === 0 ? 'Accueil' : entry.name), source: entry.name, isHome: index === 0, html: rewriteHtmlRefs(extractBody(extracted.html), entry.name, assetUrl, pageUrl), css: rewriteCssUrls(styles.css, entry.name, assetUrl), scripts }
+        const cleaned = sanitizeProjectHtml(extracted.html)
+        return { slug: pageSlugs.get(entry.name)!, name: titleFromHtml(raw, index === 0 ? 'Accueil' : entry.name), source: entry.name, isHome: index === 0, html: rewriteHtmlRefs(extractBody(cleaned), entry.name, assetUrl, pageUrl), css: rewriteCssUrls(styles.css, entry.name, assetUrl), scripts }
       })
 
       for (const [index, page] of prepared.entries()) {
         const { data: row, error: pageError } = await supabase.from('funnel_pages').insert({ funnel_id: funnel.id, name: page.name, title: page.name, slug: page.slug, page_type: 'landing', position: index, is_home: page.isHome, html_content: page.html }).select('id').single()
         if (pageError || !row) throw new Error(pageError?.message || 'Création de la page impossible')
-        const { data: version, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: row.id, version_number: 1, html: page.html, css: page.css, js: '', metadata: { imported: true, source: page.source, runtime_scripts: page.scripts, scriptsRemoved: false } }).select('id').single()
+        const { data: version, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: row.id, version_number: 1, html: page.html, css: page.css, js: '', metadata: { imported: true, source: page.source, project_import: true, runtime_scripts: page.scripts, scriptsRemoved: false, assets: assetUrls.size } }).select('id').single()
         if (versionError || !version) throw new Error(versionError?.message || 'Version illisible')
         const { error: publishError } = await supabase.rpc('publish_funnel_page', { target_page: row.id, target_version: version.id }); if (publishError) throw new Error(`Publication impossible : ${publishError.message}`)
       }
@@ -77,7 +86,7 @@ export async function POST(request: NextRequest) {
       const forms = prepared.reduce((n, p) => n + (p.html.match(/<form\b/gi)?.length || 0), 0)
       const ctas = prepared.reduce((n, p) => n + (p.html.match(/<(?:button|a)\b[^>]*>/gi)?.length || 0), 0)
       const scripts = prepared.reduce((n, p) => n + p.scripts.length, 0)
-      return NextResponse.json({ ok: true, funnel: { id: funnel.id, slug: funnel.slug, name: funnel.name }, pages: prepared.map((p) => ({ slug: p.slug, name: p.name, source: p.source })), analysis: { assets: assetUrls.size, forms, ctas, scripts, pages: prepared.length } })
+      return NextResponse.json({ ok: true, funnel: { id: funnel.id, slug: funnel.slug, name: funnel.name }, pages: prepared.map((p) => ({ slug: p.slug, name: p.name, source: p.source, isHome: p.isHome })), analysis: { assets: assetUrls.size, forms, ctas, scripts, pages: prepared.length } })
     } catch (e) {
       await supabase.storage.from('funnel-assets').remove(Array.from(assetUrls.keys()).map((n) => `${organization.id}/${funnel.id}/${n}`)).catch(() => {})
       await supabase.from('funnels').delete().eq('id', funnel.id); throw e
