@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, Check, Copy, Eye, EyeOff, FileCode2, FileType2, Globe2, ImageIcon, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { CodeEditor } from '@/components/code-editor'
 
 type Page = { id: string; name: string; slug: string; page_type: string; position: number; published_version_id: string | null }
 type Version = { id: string; version_number: number; html: string; css: string; js: string; metadata: Record<string, unknown> }
@@ -213,7 +214,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
 
   async function saveVersion() {
     if (!selected) return
-    // For already-imported large pages: skip re-upload if user just needs to publish
     if (version && (html.length + css.length + js.length) > 400000) {
       setMessage('Page volumineuse déjà importée. Cliquez sur Publier (pas besoin d\'Enregistrer).')
       setBusy(false)
@@ -396,7 +396,23 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
               <button className={activeCodeTab === 'css' ? 'active' : ''} onClick={() => setActiveCodeTab('css')}>CSS</button>
               <button className={activeCodeTab === 'js' ? 'active' : ''} onClick={() => setActiveCodeTab('js')}>JS</button>
             </div>
-            <textarea className="code-editor code-input-large" value={codeValue} onChange={(e) => { setCodeValue(e.target.value); if (activeCodeTab === 'html') { const detected = detectRedirectControls(e.target.value); setRedirectControls(detected.map((d, i) => ({ ...d, target: redirectControls[i]?.target || d.target || '', existing: Boolean(redirectControls[i]?.target || d.existing || d.target) }))) } }} spellCheck={false} style={{ background: '#0d1117', color: '#e6edf3', caretColor: '#ea580c', fontFamily: 'ui-monospace, monospace', fontSize: 13, lineHeight: 1.55 }} />
+            <CodeEditor
+              language={activeCodeTab === 'js' ? 'js' : activeCodeTab}
+              value={codeValue}
+              onChange={(next) => {
+                setCodeValue(next)
+                if (activeCodeTab === 'html') {
+                  const detected = detectRedirectControls(next)
+                  setRedirectControls(
+                    detected.map((d, i) => ({
+                      ...d,
+                      target: redirectControls[i]?.target || d.target || '',
+                      existing: Boolean(redirectControls[i]?.target || d.existing || d.target),
+                    })),
+                  )
+                }
+              }}
+            />
           </section>
         )}
       </div>
