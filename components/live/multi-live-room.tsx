@@ -37,6 +37,40 @@ const BACKGROUNDS: Record<string, { label: string; value: string }> = {
   dark: { label: 'Sombre', value: 'linear-gradient(135deg,#05060a 0%,#111827 55%,#273449 100%)' },
 }
 
+function VideoTile({ item, host }: { item: VideoItem; host: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !item.track) return
+    const video = item.track.attach() as HTMLVideoElement
+    video.autoplay = true
+    video.playsInline = true
+    video.muted = item.local || host
+    video.style.width = '100%'
+    video.style.height = '100%'
+    video.style.objectFit = 'cover'
+    video.style.display = 'block'
+    container.appendChild(video)
+    void video.play().catch(() => {})
+
+    return () => {
+      try {
+        item.track.detach(video)
+      } catch {}
+      video.remove()
+    }
+  }, [item.track, item.local, host])
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', borderRadius: 12, background: '#171922', border: item.local ? '2px solid rgba(255,255,255,.9)' : '1px solid rgba(255,255,255,.35)', boxShadow: '0 8px 24px rgba(0,0,0,.28)' }}>
+      <div style={{ position: 'absolute', left: 8, bottom: 8, zIndex: 3, padding: '5px 8px', borderRadius: 7, background: 'rgba(0,0,0,.68)', color: '#fff', fontSize: 11, fontWeight: 800 }}>
+        {item.label}
+      </div>
+    </div>
+  )
+}
+
 export default function MultiLiveRoom({
   tokenUrl,
   tokenBody,
@@ -60,23 +94,18 @@ export default function MultiLiveRoom({
 
   useEffect(() => {
     let cancelled = false
-    const room = new Room({
-      adaptiveStream: true,
-      dynacast: true,
-    })
+    const room = new Room({ adaptiveStream: true, dynacast: true })
     roomRef.current = room
 
     const upsert = (item: VideoItem) => {
       setItems((current) => {
         const existing = current.find((x) => x.id === item.id)
-        if (existing?.track === item.track && existing.label === item.label) return current
+        if (existing?.track === item.track && existing.label === item.label && existing.local === item.local) return current
         return [...current.filter((x) => x.id !== item.id), item]
       })
     }
 
-    const remove = (id: string) => {
-      setItems((current) => current.filter((x) => x.id !== id))
-    }
+    const remove = (id: string) => setItems((current) => current.filter((x) => x.id !== id))
 
     const participantLabel = (participant: any) => {
       if (participant.name) return participant.name
@@ -107,12 +136,7 @@ export default function MultiLiveRoom({
         return
       }
       if (publication.source !== Track.Source.Camera) return
-      upsert({
-        id: participant.identity,
-        label: participantLabel(participant),
-        track,
-        local: false,
-      })
+      upsert({ id: participant.identity, label: participantLabel(participant), track, local: false })
     }
 
     room.on(RoomEvent.TrackSubscribed, handleSubscribed)
@@ -124,15 +148,11 @@ export default function MultiLiveRoom({
     })
 
     room.on(RoomEvent.TrackPublished, (publication, participant) => {
-      if (publication.source !== Track.Source.Camera) return
-      if (publication.isSubscribed && publication.track) {
-        upsert({
-          id: participant.identity,
-          label: participantLabel(participant),
-          track: publication.track,
-          local: false,
-        })
+      if (publication.source === Track.Source.ScreenShare && publication.isSubscribed && publication.track) {
+        setScreenTrack(publication.track)
       }
+      if (publication.source !== Track.Source.Camera || !publication.isSubscribed || !publication.track) return
+      upsert({ id: participant.identity, label: participantLabel(participant), track: publication.track, local: false })
     })
 
     room.on(RoomEvent.TrackUnpublished, (publication, participant) => {
@@ -140,19 +160,12 @@ export default function MultiLiveRoom({
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(null)
     })
 
-    room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-      remove(participant.identity)
-    })
+    room.on(RoomEvent.ParticipantDisconnected, (participant) => remove(participant.identity))
 
     room.on(RoomEvent.LocalTrackPublished, (publication) => {
       if (!host || !publication.track) return
       if (publication.source === Track.Source.Camera) {
-        upsert({
-          id: room.localParticipant.identity,
-          label: label || 'Organisateur principal',
-          track: publication.track,
-          local: true,
-        })
+        upsert({ id: room.localParticipant.identity, label: label || 'Organisateur principal', track: publication.track, local: true })
       }
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(publication.track)
     })
@@ -160,7 +173,6 @@ export default function MultiLiveRoom({
     room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
       if (publication.source === Track.Source.Camera) remove(room.localParticipant.identity)
       if (publication.source === Track.Source.ScreenShare) setScreenTrack(null)
-      publication.track?.detach().forEach((el: any) => el.remove())
     })
 
     ;(async () => {
@@ -193,13 +205,9 @@ export default function MultiLiveRoom({
             if (!cancelled) {
               const name = err instanceof Error ? err.name : ''
               const msg = err instanceof Error ? err.message : ''
-              if (name === 'NotAllowedError' || /Permission|NotAllowed/i.test(msg)) {
-                setMessage('Autorisez la caméra dans le navigateur, puis activez la caméra.')
-              } else if (name === 'NotFoundError' || /NotFound|device/i.test(msg)) {
-                setMessage('Aucune caméra détectée sur cet appareil.')
-              } else {
-                setMessage(msg || 'Caméra non disponible.')
-              }
+              if (name === 'NotAllowedError' || /Permission|NotAllowed/i.test(msg)) setMessage('Autorisez la caméra dans le navigateur, puis activez la caméra.')
+              else if (name === 'NotFoundError' || /NotFound|device/i.test(msg)) setMessage('Aucune caméra détectée sur cet appareil.')
+              else setMessage(msg || 'Caméra non disponible.')
             }
           }
         } else {
@@ -211,16 +219,13 @@ export default function MultiLiveRoom({
           }
         }
 
-        // Récupère aussi les publications déjà présentes au moment de la connexion.
         room.remoteParticipants.forEach((participant: any) => {
           participant.trackPublications.forEach((publication: any) => {
             if (publication.source === Track.Source.Camera && publication.isSubscribed && publication.track) {
-              upsert({
-                id: participant.identity,
-                label: participantLabel(participant),
-                track: publication.track,
-                local: false,
-              })
+              upsert({ id: participant.identity, label: participantLabel(participant), track: publication.track, local: false })
+            }
+            if (publication.source === Track.Source.ScreenShare && publication.isSubscribed && publication.track) {
+              setScreenTrack(publication.track)
             }
           })
         })
@@ -242,7 +247,6 @@ export default function MultiLiveRoom({
   useEffect(() => {
     const container = screenRef.current
     if (!container || !screenTrack) return
-    container.querySelectorAll('video').forEach((v) => v.remove())
     const el = screenTrack.attach() as HTMLVideoElement
     el.autoplay = true
     el.playsInline = true
@@ -252,7 +256,10 @@ export default function MultiLiveRoom({
     el.style.objectFit = 'contain'
     el.style.display = 'block'
     container.appendChild(el)
-    return () => screenTrack.detach().forEach((node: any) => node.remove())
+    return () => {
+      try { screenTrack.detach(el) } catch {}
+      el.remove()
+    }
   }, [screenTrack])
 
   const sortedItems = useMemo(() => {
@@ -260,23 +267,6 @@ export default function MultiLiveRoom({
     const remote = items.filter((item) => !item.local)
     return [...local, ...remote]
   }, [items])
-
-  const attachVideo = (el: HTMLDivElement | null, item: VideoItem) => {
-    if (!el || !item.track) return
-    el.querySelectorAll('video').forEach((v) => v.remove())
-    try {
-      const video = item.track.attach() as HTMLVideoElement
-      video.autoplay = true
-      video.playsInline = true
-      video.muted = item.local || host
-      video.style.width = '100%'
-      video.style.height = '100%'
-      video.style.objectFit = 'cover'
-      video.style.display = 'block'
-      el.appendChild(video)
-      void video.play().catch(() => {})
-    } catch {}
-  }
 
   async function toggleMic() {
     const room = roomRef.current
@@ -310,9 +300,7 @@ export default function MultiLiveRoom({
         setScreenTrack(null)
         return
       }
-      if (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia) {
-        throw new Error("Le partage d'écran nécessite HTTPS et un navigateur compatible.")
-      }
+      if (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia) throw new Error("Le partage d'écran nécessite HTTPS et un navigateur compatible.")
       await room.localParticipant.setScreenShareEnabled(true, {
         audio: false,
         video: true,
@@ -337,11 +325,7 @@ export default function MultiLiveRoom({
         </div>
       )}
 
-      {status === 'error' && (
-        <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.35)', fontSize: 13, fontWeight: 600 }}>
-          {message}
-        </div>
-      )}
+      {status === 'error' && <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.35)', fontSize: 13, fontWeight: 600 }}>{message}</div>}
 
       <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', overflow: 'hidden', borderRadius: 14, background: stageBackground, border: '1px solid var(--line)' }}>
         {!screenTrack && sortedItems.length === 0 && (
@@ -353,54 +337,22 @@ export default function MultiLiveRoom({
         {screenTrack && <div ref={screenRef} style={{ position: 'absolute', inset: 0, zIndex: 1, background: '#000', padding: 4, overflow: 'hidden' }} />}
 
         {sortedItems.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: screenTrack ? 'auto 8px 8px 8px' : 8,
-              bottom: screenTrack ? 8 : 8,
-              zIndex: 5,
-              display: 'grid',
-              gridTemplateColumns: sortedItems.length === 1 ? 'minmax(0,1fr)' : 'repeat(2,minmax(0,1fr))',
-              gridAutoRows: sortedItems.length <= 2 ? 'minmax(0,1fr)' : 'minmax(0,1fr)',
-              gap: 8,
-              height: screenTrack ? 'clamp(96px,22%,180px)' : 'calc(100% - 16px)',
-            }}
-          >
-            {sortedItems.slice(0, 4).map((item) => (
-              <div key={item.id} ref={(el) => attachVideo(el, item)} style={{ position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', borderRadius: 12, background: '#171922', border: item.local ? '2px solid rgba(255,255,255,.9)' : '1px solid rgba(255,255,255,.35)', boxShadow: '0 8px 24px rgba(0,0,0,.28)' }}>
-                <div style={{ position: 'absolute', left: 8, bottom: 8, zIndex: 3, padding: '5px 8px', borderRadius: 7, background: 'rgba(0,0,0,.68)', color: '#fff', fontSize: 11, fontWeight: 800 }}>
-                  {item.label}
-                </div>
-              </div>
-            ))}
+          <div style={{ position: 'absolute', inset: screenTrack ? 'auto 8px 8px 8px' : 8, zIndex: 5, display: 'grid', gridTemplateColumns: sortedItems.length === 1 ? 'minmax(0,1fr)' : 'repeat(2,minmax(0,1fr))', gap: 8, height: screenTrack ? 'clamp(96px,22%,180px)' : 'calc(100% - 16px)' }}>
+            {sortedItems.slice(0, 4).map((item) => <VideoTile key={`${item.id}-${item.track?.sid || ''}`} item={item} host={host} />)}
           </div>
         )}
       </div>
 
       {host && status === 'connected' && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className="outline" onClick={() => void toggleMic()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            {mic ? <Mic size={17} /> : <MicOff size={17} />} {mic ? 'Couper le micro' : 'Activer le micro'}
-          </button>
-          <button className="outline" onClick={() => void toggleCamera()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            {camera ? <Camera size={17} /> : <CameraOff size={17} />} {camera ? 'Couper la caméra' : 'Activer la caméra'}
-          </button>
-          <button className="outline" onClick={() => void toggleScreen()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            {screenTrack ? <MonitorStop size={17} /> : <MonitorUp size={17} />} {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}
-          </button>
-          {onEndLive && (
-            <button type="button" onClick={onEndLive} disabled={endingLive} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid rgba(239,68,68,.5)', background: 'rgba(127,29,29,.16)', color: '#f87171', fontWeight: 800, cursor: endingLive ? 'wait' : 'pointer', borderRadius: 8, padding: '0 12px' }}>
-              <Square size={16} fill="currentColor" /> {endingLive ? 'Arrêt…' : 'Couper le Live'}
-            </button>
-          )}
+          <button className="outline" onClick={() => void toggleMic()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>{mic ? <Mic size={17} /> : <MicOff size={17} />} {mic ? 'Couper le micro' : 'Activer le micro'}</button>
+          <button className="outline" onClick={() => void toggleCamera()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>{camera ? <Camera size={17} /> : <CameraOff size={17} />} {camera ? 'Couper la caméra' : 'Activer la caméra'}</button>
+          <button className="outline" onClick={() => void toggleScreen()} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7 }}>{screenTrack ? <MonitorStop size={17} /> : <MonitorUp size={17} />} {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}</button>
+          {onEndLive && <button type="button" onClick={onEndLive} disabled={endingLive} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid rgba(239,68,68,.5)', background: 'rgba(127,29,29,.16)', color: '#f87171', fontWeight: 800, cursor: endingLive ? 'wait' : 'pointer', borderRadius: 8, padding: '0 12px' }}><Square size={16} fill="currentColor" /> {endingLive ? 'Arrêt…' : 'Couper le Live'}</button>}
         </div>
       )}
 
-      {!host && audioBlocked && status === 'connected' && (
-        <button onClick={() => void roomRef.current?.startAudio().then(() => setAudioBlocked(false)).catch(() => {})} style={{ minHeight: 44, border: 0, borderRadius: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Volume2 size={17} /> Activer le son
-        </button>
-      )}
+      {!host && audioBlocked && status === 'connected' && <button onClick={() => void roomRef.current?.startAudio().then(() => setAudioBlocked(false)).catch(() => {})} style={{ minHeight: 44, border: 0, borderRadius: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Volume2 size={17} /> Activer le son</button>}
     </div>
   )
 }
