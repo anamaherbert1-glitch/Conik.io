@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import { parseZip, textFrom, assetMime } from '@/lib/zip'
 import { getSupabaseConfig } from '@/lib/supabase/config'
 import {
+  buildPagePathIndex,
   extractBody,
   extractScripts,
   extractStyles,
@@ -12,25 +13,52 @@ import {
   rewriteCssUrls,
   rewriteHtmlRefs,
   rewriteScriptRefs,
+  sanitizeProjectHtml,
   slugifyPath,
   titleFromHtml,
   type PreparedPage,
 } from '@/lib/funnel/import'
 
 export const runtime = 'nodejs'
+/** Allow long ZIP imports on Vercel without cutting off mid-upload. */
 export const maxDuration = 60
 
 const MAX_UPLOAD = 25 * 1024 * 1024
 const MAX_HTML_BYTES = 5 * 1024 * 1024
 const MAX_PAGES = 40
 const MAX_ASSETS = 220
+/** Parallel storage uploads — keeps import fast without exhausting connections. */
 const UPLOAD_CONCURRENCY = 8
 const schema = z.object({ name: z.string().trim().min(1).max(120) })
 const RESERVED_SLUGS = new Set([
-  'dashboard', 'login', 'signup', 'auth', 'onboarding', 'funnels', 'contacts',
-  'campaigns', 'automations', 'whatsapp', 'emails', 'links', 'analytics',
-  'domains', 'settings', 'integrations', 'api', '_next', 'r', 'segments',
-  'tunnel', 'pay', 'payment', 'revenus', 'lives', 'live', 'official', 'tutorial',
+  'dashboard',
+  'login',
+  'signup',
+  'auth',
+  'onboarding',
+  'funnels',
+  'contacts',
+  'campaigns',
+  'automations',
+  'whatsapp',
+  'emails',
+  'links',
+  'analytics',
+  'domains',
+  'settings',
+  'integrations',
+  'api',
+  '_next',
+  'r',
+  'segments',
+  'tunnel',
+  'pay',
+  'payment',
+  'revenus',
+  'lives',
+  'live',
+  'official',
+  'tutorial',
 ])
 
 function slugifyName(value: string) {
@@ -46,17 +74,21 @@ function slugifyName(value: string) {
   )
 }
 
-async function mapPool<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
   const results: R[] = new Array(items.length)
   let next = 0
-  async function worker() {
+  async function run() {
     while (next < items.length) {
       const i = next++
-      results[i] = await fn(items[i], i)
+      results[i] = await worker(items[i], i)
     }
   }
-  const workers = Array.from({ length: Math.min(limit, items.length) || 1 }, () => worker())
-  await Promise.all(workers)
+  const runners = Array.from({ length: Math.min(concurrency, items.length) || 1 }, () => run())
+  await Promise.all(runners)
   return results
 }
 
@@ -67,7 +99,10 @@ export async function POST(request: NextRequest) {
     const file = form.get('file')
     const parsed = schema.safeParse({ name: String(form.get('name') || '').trim() })
     if (!parsed.success || !(file instanceof File)) {
-      return NextResponse.json({ error: 'Le nom du tunnel et le fichier ZIP sont obligatoires.' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Le nom du tunnel et le fichier ZIP sont obligatoires.' },
+        { status: 400 },
+      )
     }
     if (file.size <= 0 || file.size > MAX_UPLOAD) {
       return NextResponse.json({ error: 'Le ZIP doit peser entre 1 octet et 25 Mo.' }, { status: 413 })
@@ -95,6 +130,7 @@ export async function POST(request: NextRequest) {
       usedSlugs.add(unique)
       pageSlugs.set(entry.name, unique)
     })
+    const pathIndex = buildPagePathIndex(pageSlugs)
 
     const htmlNames = new Set(htmlEntries.map((e) => e.name))
     const cssByPath = new Map<string, string>()
@@ -128,17 +164,16 @@ export async function POST(request: NextRequest) {
     if (funnelError || !funnel) throw new Error(funnelError?.message || 'Création du tunnel impossible')
 
     try {
-      const assetRows: {
-        funnel_id: string
-        storage_path: string
-        file_type: string
-        size_bytes: number
-        original_name: string
-        mime_type: string
-        sha256: string
-      }[] = []
+      type AssetRow = {
+        original: string
+        path: string
+        mime: string
+        size: number
+        sha: string
+        publicUrl: string
+      }
 
-      await mapPool(assetEntries, UPLOAD_CONCURRENCY, async (entry) => {
+      const uploaded = await mapPool(assetEntries, UPLOAD_CONCURRENCY, async (entry) => {
         const mime = assetMime(entry.name)!
         const safeName = entry.name
           .replace(/[^a-zA-Z0-9._/-]/g, '-')
@@ -148,36 +183,45 @@ export async function POST(request: NextRequest) {
           throw new Error(`Chemin d'asset non sûr : ${entry.name}`)
         }
         const path = `${organization.id}/${funnel.id}/${safeName}`
-        const upload = await supabase.storage
-          .from('funnel-assets')
-          .upload(path, Buffer.from(entry.data), {
-            contentType: mime,
-            upsert: true,
-            cacheControl: '31536000',
-          })
+        const bytes = Buffer.from(entry.data)
+        const upload = await supabase.storage.from('funnel-assets').upload(path, bytes, {
+          contentType: mime,
+          upsert: true,
+          cacheControl: '31536000',
+        })
         if (upload.error) {
           throw new Error(`Envoi de « ${entry.name} » impossible : ${upload.error.message}`)
         }
-        assetUrls.set(
-          entry.name,
-          `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path
-            .split('/')
-            .map(encodeURIComponent)
-            .join('/')}`,
-        )
-        assetRows.push({
-          funnel_id: funnel.id,
-          storage_path: path,
-          file_type: mime,
-          size_bytes: entry.data.length,
-          original_name: entry.name,
-          mime_type: mime,
-          sha256: createHash('sha256').update(entry.data).digest('hex'),
-        })
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path
+          .split('/')
+          .map(encodeURIComponent)
+          .join('/')}`
+        return {
+          original: entry.name,
+          path,
+          mime,
+          size: entry.data.length,
+          sha: createHash('sha256').update(entry.data).digest('hex'),
+          publicUrl,
+        } satisfies AssetRow
       })
 
-      if (assetRows.length) {
-        const { error: assetError } = await supabase.from('funnel_assets').insert(assetRows)
+      for (const row of uploaded) {
+        assetUrls.set(row.original, row.publicUrl)
+      }
+
+      if (uploaded.length) {
+        const { error: assetError } = await supabase.from('funnel_assets').insert(
+          uploaded.map((row) => ({
+            funnel_id: funnel.id,
+            storage_path: row.path,
+            file_type: row.mime,
+            size_bytes: row.size,
+            original_name: row.original,
+            mime_type: row.mime,
+            sha256: row.sha,
+          })),
+        )
         if (assetError) {
           throw new Error(`Enregistrement des assets impossible : ${assetError.message}`)
         }
@@ -194,14 +238,8 @@ export async function POST(request: NextRequest) {
         return null
       }
       const pageUrl = (path: string) => {
-        const target = pageSlugs.get(path)
-        if (target) return `/${funnel.slug}/${target}`
-        for (const [src, slugVal] of pageSlugs) {
-          if (src.replace(/\.(x?html?)$/i, '') === path.replace(/\.(x?html?)$/i, '')) {
-            return `/${funnel.slug}/${slugVal}`
-          }
-        }
-        return null
+        const target = pathIndex.get(path) || pageSlugs.get(path)
+        return target ? `/${funnel.slug}/${target}` : null
       }
 
       const prepared: PreparedPage[] = htmlEntries.map((entry, index) => {
@@ -214,18 +252,21 @@ export async function POST(request: NextRequest) {
         const scripts = extracted.scripts.map((script) =>
           script.code ? { ...script, code: rewriteScriptRefs(script.code, entry.name, assetUrl) } : script,
         )
+        const cleaned = sanitizeProjectHtml(extracted.html)
         return {
           slug: pageSlugs.get(entry.name)!,
           name: titleFromHtml(raw, index === 0 ? 'Accueil' : entry.name),
           source: entry.name,
           isHome: index === 0,
-          html: rewriteHtmlRefs(extractBody(extracted.html), entry.name, assetUrl, pageUrl),
+          html: rewriteHtmlRefs(extractBody(cleaned), entry.name, assetUrl, pageUrl),
           css: rewriteCssUrls(styles.css, entry.name, assetUrl),
           scripts,
         }
       })
 
-      await mapPool(prepared, 4, async (page, index) => {
+      const publishJobs: { pageId: string; versionId: string }[] = []
+
+      for (const [index, page] of prepared.entries()) {
         const { data: row, error: pageError } = await supabase
           .from('funnel_pages')
           .insert({
@@ -262,23 +303,41 @@ export async function POST(request: NextRequest) {
           .select('id')
           .single()
         if (versionError || !version) throw new Error(versionError?.message || 'Version illisible')
+        publishJobs.push({ pageId: row.id, versionId: version.id })
+      }
 
+      await mapPool(publishJobs, 6, async (job) => {
         const { error: publishError } = await supabase.rpc('publish_funnel_page', {
-          target_page: row.id,
-          target_version: version.id,
+          target_page: job.pageId,
+          target_version: job.versionId,
         })
         if (publishError) throw new Error(`Publication impossible : ${publishError.message}`)
+        return true
       })
 
       const forms = prepared.reduce((n, p) => n + (p.html.match(/<form\b/gi)?.length || 0), 0)
-      const ctas = prepared.reduce((n, p) => n + (p.html.match(/<(?:button|a)\b[^>]*>/gi)?.length || 0), 0)
+      const ctas = prepared.reduce(
+        (n, p) => n + (p.html.match(/<(?:button|a)\b[^>]*>/gi)?.length || 0),
+        0,
+      )
       const scripts = prepared.reduce((n, p) => n + p.scripts.length, 0)
 
       return NextResponse.json({
         ok: true,
         funnel: { id: funnel.id, slug: funnel.slug, name: funnel.name },
-        pages: prepared.map((p) => ({ slug: p.slug, name: p.name, source: p.source, isHome: p.isHome })),
-        analysis: { assets: assetUrls.size, forms, ctas, scripts, pages: prepared.length },
+        pages: prepared.map((p) => ({
+          slug: p.slug,
+          name: p.name,
+          source: p.source,
+          isHome: p.isHome,
+        })),
+        analysis: {
+          assets: assetUrls.size,
+          forms,
+          ctas,
+          scripts,
+          pages: prepared.length,
+        },
       })
     } catch (e) {
       await supabase.storage
