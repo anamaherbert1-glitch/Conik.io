@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { z } from 'zod'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { getSupabaseConfig } from '@/lib/supabase/config'
 
 export const runtime = 'nodejs'
@@ -18,6 +17,13 @@ const schema = z.object({
   redirects: z.array(z.object({ key: z.string(), target: z.string() })).optional(),
   shareImageUrl: z.string().optional(),
 })
+
+function publicUrl(supabaseUrl: string, path: string) {
+  return `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,62 +53,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
     }
 
-    let html = parsed.data.html ?? ''
-    let css = parsed.data.css ?? ''
-    let js = parsed.data.js ?? ''
+    const { url: supabaseUrl } = getSupabaseConfig()
     const contentMeta: Record<string, string> = {}
 
-    const admin = createAdminClient()
-    const { url: supabaseUrl } = getSupabaseConfig()
-
-    async function loadPath(path: string | undefined, kind: string) {
-      if (!path) return null
+    function acceptPath(path: string | undefined, kind: 'html' | 'css' | 'js') {
+      if (!path) return
       if (!path.startsWith(`${organization.id}/`) || path.includes('..')) {
         throw new Error(`Chemin ${kind} invalide.`)
       }
-      const { data, error } = await admin.storage.from('funnel-assets').download(path)
-      if (error || !data) throw new Error(error?.message || `Fichier ${kind} introuvable.`)
-      const text = await data.text()
-      contentMeta[`${kind}_url`] =
-        `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path.split('/').map(encodeURIComponent).join('/')}`
       contentMeta[`${kind}_path`] = path
-      return text
+      contentMeta[`${kind}_url`] = publicUrl(supabaseUrl, path)
     }
 
-    if (parsed.data.htmlPath) html = (await loadPath(parsed.data.htmlPath, 'html')) || ''
-    if (parsed.data.cssPath) css = (await loadPath(parsed.data.cssPath, 'css')) || ''
-    if (parsed.data.jsPath) js = (await loadPath(parsed.data.jsPath, 'js')) || ''
+    // Prefer storage paths (large pages) — NEVER re-download multi-MB files here
+    acceptPath(parsed.data.htmlPath, 'html')
+    acceptPath(parsed.data.cssPath, 'css')
+    acceptPath(parsed.data.jsPath, 'js')
 
-    const LARGE = 400_000
-    let storeHtml = html
-    let storeCss = css
-    let storeJs = js
-    if (html.length > LARGE || css.length > LARGE || js.length > LARGE) {
-      const base = `${organization.id}/${funnel.id}/${page.id}/content`
-      const uploads: { key: string; body: string; mime: string }[] = []
-      if (html.length > LARGE) {
-        uploads.push({ key: 'html', body: html, mime: 'text/html; charset=utf-8' })
-        storeHtml = '<!-- content in storage -->'
-      }
-      if (css.length > LARGE) {
-        uploads.push({ key: 'css', body: css, mime: 'text/css; charset=utf-8' })
-        storeCss = '/* content in storage */'
-      }
-      if (js.length > LARGE) {
-        uploads.push({ key: 'js', body: js, mime: 'text/javascript; charset=utf-8' })
-        storeJs = '/* content in storage */'
-      }
-      for (const u of uploads) {
-        const path = `${base}/${u.key}-${Date.now()}.${u.key === 'html' ? 'html' : u.key}`
-        const up = await admin.storage.from('funnel-assets').upload(path, Buffer.from(u.body, 'utf8'), {
-          contentType: u.mime,
-          upsert: true,
-          cacheControl: '60',
-        })
-        if (up.error) throw new Error(up.error.message)
-        contentMeta[`${u.key}_url`] =
-          `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path.split('/').map(encodeURIComponent).join('/')}`
-        contentMeta[`${u.key}_path`] = path
+    const hasStorage = Boolean(contentMeta.html_path || contentMeta.css_path || contentMeta.js_path)
+
+    // DB keeps light placeholders when content lives in Storage
+    let storeHtml = hasStorage && contentMeta.html_path ? '<!-- content in storage -->' : parsed.data.html ?? ''
+    let storeCss = hasStorage && contentMeta.css_path ? '/* content in storage */' : parsed.data.css ?? ''
+    let storeJs = hasStorage && contentMeta.js_path ? '/* content in storage */' : parsed.data.js ?? ''
+
+    // Soft size guard only when inline body is used (no storage paths)
+    if (!hasStorage) {
+      const total = storeHtml.length + storeCss.length + storeJs.length
+      if (total > 1_500_000) {
+        return NextResponse.json(
+          {
+            error:
+              'Contenu trop volumineux pour un enregistrement direct. Réessayez : le système enverra le fichier vers le stockage automatiquement.',
+          },
+          { status: 413 },
+        )
       }
     }
 
@@ -128,7 +113,7 @@ export async function POST(request: NextRequest) {
           redirects,
           ...(shareImageUrl ? { share_image_url: shareImageUrl } : {}),
           ...contentMeta,
-          large_content: Object.keys(contentMeta).length > 0,
+          large_content: hasStorage,
         },
       })
       .select('id,version_number,html,css,js,metadata')
@@ -138,9 +123,16 @@ export async function POST(request: NextRequest) {
       throw new Error(versionError?.message || 'Enregistrement impossible.')
     }
 
+    // Echo back whatever the client already has in memory for the editor UI
     return NextResponse.json({
       ok: true,
-      version: { ...version, html, css, js, metadata: version.metadata },
+      version: {
+        ...version,
+        html: parsed.data.html ?? storeHtml,
+        css: parsed.data.css ?? storeCss,
+        js: parsed.data.js ?? storeJs,
+        metadata: version.metadata,
+      },
     })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Enregistrement impossible.' }, { status: 400 })
