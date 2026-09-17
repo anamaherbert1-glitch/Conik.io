@@ -70,11 +70,39 @@ export async function GET(request: Request) {
     }
   }
 
+  try {
+    const meta =
+      page.metadata && typeof page.metadata === 'object'
+        ? (page.metadata as Record<string, unknown>)
+        : {}
+    const admin = createAdminClient()
+    async function pull(urlOrPath: unknown, current: string) {
+      if (typeof urlOrPath !== 'string' || !urlOrPath) return current
+      if (urlOrPath.startsWith('http')) {
+        const res = await fetch(urlOrPath, { cache: 'force-cache' })
+        if (res.ok) return await res.text()
+        return current
+      }
+      const { data } = await admin.storage.from('funnel-assets').download(urlOrPath)
+      if (data) return await data.text()
+      return current
+    }
+    if (meta.html_url || meta.html_path) {
+      page.html = await pull(meta.html_url || meta.html_path, page.html || '')
+    }
+    if (meta.css_url || meta.css_path) {
+      page.css = await pull(meta.css_url || meta.css_path, page.css || '')
+    }
+    if (meta.js_url || meta.js_path) {
+      page.js = await pull(meta.js_url || meta.js_path, page.js || '')
+    }
+  } catch {}
+
   return NextResponse.json(
     { page, payment },
     {
       headers: {
-        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
       },
     },
   )
