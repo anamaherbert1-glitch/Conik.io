@@ -27,6 +27,7 @@ type Props = { children: React.ReactNode; active: string; compact?: boolean }
 export function AppShell({ children, active, compact = false }: Props) {
   const { dict } = usePreferences()
   const [integrationsOpen, setIntegrationsOpen] = useState(false)
+  const integrationsActive = active === 'Integrations' || active === 'WhatsApp'
 
   return (
     <div className={`shell${compact ? ' shell-compact' : ''}`}>
@@ -47,12 +48,18 @@ export function AppShell({ children, active, compact = false }: Props) {
           <div className="sidebar-group">
             <button
               type="button"
-              className={`sidebar-group-trigger ${active === 'Integrations' || active === 'WhatsApp' ? 'active' : ''}`}
+              className="sidebar-group-trigger"
               onClick={() => setIntegrationsOpen((value) => !value)}
               title="Intégrations"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 10px', border: 0,
+                borderRadius: 8, color: integrationsActive ? '#fff' : 'var(--sidebar-muted)',
+                background: integrationsActive ? 'var(--sidebar-hover)' : 'transparent', fontSize: 12,
+                textAlign: 'left', cursor: 'pointer',
+              }}
             >
               <Plug size={17} />
-              {!compact && <><span style={{ flex: 1, textAlign: 'left' }}>Intégrations</span><ChevronDown size={15} style={{ transform: integrationsOpen ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} /></>}
+              {!compact && <><span style={{ flex: 1 }}>Intégrations</span><ChevronDown size={15} style={{ transform: integrationsOpen ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} /></>}
             </button>
             {!compact && integrationsOpen && (
               <div className="sidebar-group-children">
