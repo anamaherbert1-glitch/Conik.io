@@ -47,20 +47,19 @@ export function AppShell({ children, active, compact = false }: Props) {
           <div className="sidebar-group">
             <button
               type="button"
-              className={active === 'Integrations' || active === 'WhatsApp' ? 'active' : ''}
+              className={`sidebar-group-trigger ${active === 'Integrations' || active === 'WhatsApp' ? 'active' : ''}`}
               onClick={() => setIntegrationsOpen((value) => !value)}
               title="Intégrations"
-              style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}
             >
               <Plug size={17} />
               {!compact && <><span style={{ flex: 1, textAlign: 'left' }}>Intégrations</span><ChevronDown size={15} style={{ transform: integrationsOpen ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} /></>}
             </button>
             {!compact && integrationsOpen && (
-              <div style={{ marginLeft: 34, display: 'grid', gap: 2, marginTop: 2, marginBottom: 4 }}>
-                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" style={{ fontSize: 13 }}>
+              <div className="sidebar-group-children">
+                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations">
                   <CreditCard size={15} /><span>Solutions de paiement</span>
                 </Link>
-                <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp" style={{ fontSize: 13 }}>
+                <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp">
                   <MessageSquare size={15} /><span>WhatsApp</span>
                 </Link>
               </div>
