@@ -18,10 +18,7 @@ async function getPublishedPageMetadata(funnelSlug: string, pageSlug: string) {
   const metadata = page.metadata && typeof page.metadata === 'object'
     ? page.metadata as Record<string, unknown>
     : {}
-
-  const shareImage = typeof metadata.share_image_url === 'string'
-    ? metadata.share_image_url
-    : ''
+  const shareImage = typeof metadata.share_image_url === 'string' ? metadata.share_image_url : ''
 
   return {
     title: typeof page.page_name === 'string' && page.page_name.trim()
@@ -29,9 +26,7 @@ async function getPublishedPageMetadata(funnelSlug: string, pageSlug: string) {
       : typeof page.funnel_name === 'string' && page.funnel_name.trim()
         ? page.funnel_name.trim()
         : 'Conik',
-    description: typeof metadata.share_description === 'string'
-      ? metadata.share_description
-      : '',
+    description: typeof metadata.share_description === 'string' ? metadata.share_description : '',
     shareImage,
   }
 }
@@ -45,8 +40,7 @@ export async function generateMetadata({
   const page = await getPublishedPageMetadata(funnelSlug, pageSlug)
   const title = page?.title || 'Conik'
   const description = page?.description || `Découvrez ${title}`
-  const fallbackImage = APP_URL ? `${APP_URL}/api/funnels/og?title=${encodeURIComponent(title)}` : undefined
-  const image = page?.shareImage || fallbackImage
+  const image = page?.shareImage || (APP_URL ? `${APP_URL}/apple-icon` : undefined)
 
   return {
     title,
