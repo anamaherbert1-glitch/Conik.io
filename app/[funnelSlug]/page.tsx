@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { FunnelRuntime } from '@/components/funnel-runtime'
 import { PublicPaymentCheckout } from '@/components/public-payment-checkout'
+import { loadPublishedFunnelPage } from '@/lib/funnel/public-page'
 import { createClient } from '@/lib/supabase/server'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
@@ -75,9 +76,17 @@ export default async function PublicFunnelHome({
   const { funnelSlug } = await params
   const query = await searchParams
   const tariffSlug = query.tarif || query.tariff || ''
+  const { page, payment, missing } = await loadPublishedFunnelPage(funnelSlug, 'home')
+
   return (
     <>
-      <FunnelRuntime funnelSlug={funnelSlug} pageSlug="home" />
+      <FunnelRuntime
+        funnelSlug={funnelSlug}
+        pageSlug="home"
+        initialPage={page}
+        initialPayment={payment}
+        initialMissing={missing}
+      />
       {tariffSlug && (
         <PublicPaymentCheckout
           funnelSlug={funnelSlug}
