@@ -252,13 +252,19 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
     setCameraExpanded((current) => !current)
   }
 
+  function moveSelectedCamera() {
+    if (!activeCameraId) return
+    setFeaturedId(activeCameraId)
+    setCameraExpanded(true)
+  }
+
   const stageBackground = screenTrack ? '#000' : background.value
   const hasFeatured = Boolean(featuredId && sortedItems.some((item) => item.id === featuredId))
   const stageStyle = cameraExpanded
-    ? { maxWidth: 1180, minHeight: 360, maxHeight: '78vh', aspectRatio: '16/9' }
+    ? { maxWidth: 1120, minHeight: 340, maxHeight: '70vh', aspectRatio: '16/9' }
     : { maxWidth: 980, minHeight: 300, maxHeight: '62vh', aspectRatio: '16/8.2' }
 
-  const controlButtonStyle = { minHeight: 34, padding: '0 9px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 10, whiteSpace: 'nowrap' as const }
+  const controlButtonStyle = { minHeight: 36, padding: '0 10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 10, whiteSpace: 'nowrap' as const }
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -291,17 +297,18 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       </div>
 
       {host && status === 'connected' && (
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center', padding: 4 }}>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center', padding: '6px 4px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel)' }}>
           <button className="outline" onClick={() => void toggleCamera()} title={camera ? 'Couper la caméra' : 'Mettre la caméra'} aria-label={camera ? 'Couper la caméra' : 'Mettre la caméra'} style={controlButtonStyle}>{camera ? <CameraOff size={14} /> : <Camera size={14} />} {camera ? 'Couper la caméra' : 'Mettre la caméra'}</button>
           <button className="outline" onClick={() => void toggleMic()} title={mic ? 'Couper le micro' : 'Mettre le micro'} aria-label={mic ? 'Couper le micro' : 'Mettre le micro'} style={controlButtonStyle}>{mic ? <MicOff size={14} /> : <Mic size={14} />} {mic ? 'Couper le micro' : 'Mettre le micro'}</button>
-          <button className="outline" onClick={toggleFeature} disabled={!activeCameraId} title={featuredId === activeCameraId ? 'Retirer la caméra de la mise en avant' : 'Mettre la caméra sélectionnée en avant'} aria-label={featuredId === activeCameraId ? 'Retirer la caméra de la mise en avant' : 'Mettre la caméra sélectionnée en avant'} style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5, cursor: activeCameraId ? 'pointer' : 'not-allowed' }}><Maximize2 size={14} /> {featuredId === activeCameraId ? 'Retirer la caméra' : 'Mettre en avant'}</button>
+          <button className="outline" onClick={moveSelectedCamera} disabled={!activeCameraId} title="Déplacer la caméra sélectionnée" aria-label="Déplacer la caméra sélectionnée" style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5, cursor: activeCameraId ? 'pointer' : 'not-allowed' }}><Maximize2 size={14} /> Déplacer</button>
+          <button className="outline" onClick={toggleFeature} disabled={!activeCameraId} title={featuredId === activeCameraId ? 'Retirer la caméra de la mise en avant' : 'Mettre la caméra sélectionnée en avant'} aria-label={featuredId === activeCameraId ? 'Retirer la caméra de la mise en avant' : 'Mettre la caméra sélectionnée en avant'} style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5, cursor: activeCameraId ? 'pointer' : 'not-allowed' }}><Maximize2 size={14} /> {featuredId === activeCameraId ? 'Retirer de l’avant' : 'Mettre en avant'}</button>
           <button className="outline" onClick={toggleCameraSize} title={cameraExpanded ? 'Réduire la caméra' : 'Agrandir la caméra'} aria-label={cameraExpanded ? 'Réduire la caméra' : 'Agrandir la caméra'} style={controlButtonStyle}>{cameraExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />} {cameraExpanded ? 'Réduire' : 'Agrandir'}</button>
           <button className="outline" onClick={() => void toggleScreen()} title={screenTrack ? "Arrêter le partage d'écran" : "Partager mon écran"} aria-label={screenTrack ? "Arrêter le partage d'écran" : "Partager mon écran"} style={controlButtonStyle}>{screenTrack ? <MonitorStop size={14} /> : <MonitorUp size={14} />} {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}</button>
-          {onEndLive && <button type="button" onClick={onEndLive} disabled={endingLive} title="Couper le Live" aria-label="Couper le Live" style={{ ...controlButtonStyle, border: '1px solid rgba(239,68,68,.5)', background: 'rgba(127,29,29,.16)', color: '#f87171', fontWeight: 800, cursor: endingLive ? 'wait' : 'pointer', borderRadius: 8 }}>{<Square size={13} fill="currentColor" />} {endingLive ? 'Arrêt…' : 'Couper le Live'}</button>}
+          {onEndLive && <button type="button" onClick={onEndLive} disabled={endingLive} title="Couper le Live" aria-label="Couper le Live" style={{ ...controlButtonStyle, border: '1px solid rgba(239,68,68,.5)', background: 'rgba(127,29,29,.16)', color: '#f87171', fontWeight: 800, cursor: endingLive ? 'wait' : 'pointer', borderRadius: 8 }}><Square size={13} fill="currentColor" /> {endingLive ? 'Arrêt…' : 'Couper le Live'}</button>}
         </div>
       )}
 
-      {host && status === 'connected' && selectedItem && <div className="muted" style={{ textAlign: 'center', fontSize: 10 }}>Caméra sélectionnée : {selectedItem.label} · utilisez « Mettre en avant » pour la placer en grand.</div>}
+      {host && status === 'connected' && selectedItem && <div className="muted" style={{ textAlign: 'center', fontSize: 10 }}>Caméra sélectionnée : {selectedItem.label} · « Déplacer » la place en avant, « Mettre en avant » active/désactive la mise en avant, et « Agrandir / Réduire » change sa taille.</div>}
 
       {!host && audioBlocked && status === 'connected' && (
         <button className="outline" onClick={() => void roomRef.current?.startAudio().then(() => setAudioBlocked(false)).catch(() => {})} style={{ justifySelf: 'center', minHeight: 34, padding: '0 10px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
