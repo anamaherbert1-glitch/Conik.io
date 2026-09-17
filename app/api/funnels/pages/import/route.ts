@@ -23,6 +23,24 @@ function extractInlineScripts(html: string) {
   return { html: clean, js: scripts.join('\n\n') }
 }
 
+function extractExternalScripts(html: string) {
+  const urls: string[] = []
+  const seen = new Set<string>()
+  const re = /<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi
+  let match: RegExpExecArray | null
+  while ((match = re.exec(html)) !== null) {
+    const value = String(match[2] || '').trim()
+    try {
+      const url = new URL(value)
+      if ((url.protocol === 'https:' || url.protocol === 'http:') && !seen.has(url.toString())) {
+        seen.add(url.toString())
+        urls.push(url.toString())
+      }
+    } catch {}
+  }
+  return urls.slice(0, 20)
+}
+
 async function getAuthorizedPage(request: NextRequest) {
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
   const form = await request.formData()
@@ -73,6 +91,7 @@ export async function POST(request: NextRequest) {
     let css = ''
     let js = ''
     let sourceName = file.name
+    let externalScripts: string[] = []
     const assetUrls = new Map<string, string>()
 
     if (isZip) {
@@ -104,6 +123,7 @@ export async function POST(request: NextRequest) {
         assetUrls.set(entry.name, `${supabaseUrl}/storage/v1/object/public/funnel-assets/${path.split('/').map(encodeURIComponent).join('/')}`)
       }
       const source = textFrom(htmlEntry.data, MAX_HTML_BYTES)
+      externalScripts = extractExternalScripts(source)
       const extractedScript = extractInlineScripts(source)
       const raw = sanitizeImportedHtml(extractedScript.html)
       const withStyles = extractStyles(raw, htmlEntry.name, cssPath => { const body = cssByPath.get(cssPath); return body === undefined ? null : rewriteCssUrls(body, cssPath, p => assetUrls.get(p) || null) })
@@ -115,6 +135,7 @@ export async function POST(request: NextRequest) {
       if (!/\.html?$/i.test(file.name) && file.type !== 'text/html') return NextResponse.json({ error: 'Envoyez un fichier .html ou un fichier .zip contenant un HTML.' }, { status: 400 })
       if (file.size > MAX_HTML_BYTES) return NextResponse.json({ error: 'Le fichier HTML dépasse 5 Mo.' }, { status: 413 })
       const source = textFrom(Buffer.from(await file.arrayBuffer()), MAX_HTML_BYTES)
+      externalScripts = extractExternalScripts(source)
       const extractedScript = extractInlineScripts(source)
       const raw = sanitizeImportedHtml(extractedScript.html)
       const withStyles = extractStyles(raw, file.name, () => null)
@@ -127,7 +148,7 @@ export async function POST(request: NextRequest) {
     const name = titleFromHtml(rawHtml, page.name || 'Page')
     const { data: latest } = await supabase.from('funnel_versions').select('version_number').eq('page_id', page.id).order('version_number', { ascending: false }).limit(1).maybeSingle()
     const next = (latest?.version_number || 0) + 1
-    const { data: version, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: page.id, version_number: next, html: rawHtml, css, js, metadata: { imported: true, scriptsRemovedFromPreview: true, source: sourceName, assets: assetUrls.size, interactive_elements: interactiveElements } }).select('id,version_number,html,css,js,metadata').single()
+    const { data: version, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: page.id, version_number: next, html: rawHtml, css, js, metadata: { imported: true, scriptsRemovedFromPreview: false, source: sourceName, assets: assetUrls.size, interactive_elements: interactiveElements, external_scripts: externalScripts } }).select('id,version_number,html,css,js,metadata').single()
     if (versionError || !version) throw new Error(versionError?.message || 'Création de la version impossible')
     const { error: pageUpdateError } = await supabase.from('funnel_pages').update({ html_content: rawHtml, name, title: name }).eq('id', page.id)
     if (pageUpdateError) throw new Error(pageUpdateError.message)
