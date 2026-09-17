@@ -98,20 +98,27 @@ function escapeScriptCode(value: string) {
 export function FunnelRuntime({
   funnelSlug,
   pageSlug,
+  initialPage = null,
+  initialPayment = null,
+  initialMissing = false,
 }: {
   funnelSlug: string
   pageSlug: string
+  initialPage?: PublishedPage | null
+  initialPayment?: PaymentMeta | null
+  initialMissing?: boolean
 }) {
   const router = useRouter()
   const frame = useRef<HTMLIFrameElement>(null)
   const captureFrame = useRef<HTMLIFrameElement>(null)
   const paymentRef = useRef<HTMLDivElement>(null)
-  const [page, setPage] = useState<PublishedPage | null>(null)
-  const [payment, setPayment] = useState<PaymentMeta | null>(null)
-  const [missing, setMissing] = useState(false)
+  const [page, setPage] = useState<PublishedPage | null>(initialPage)
+  const [payment, setPayment] = useState<PaymentMeta | null>(initialPayment)
+  const [missing, setMissing] = useState(Boolean(initialMissing))
   const [showCapture, setShowCapture] = useState(false)
 
   useEffect(() => {
+    if (initialPage || initialMissing) return
     let cancelled = false
     ;(async () => {
       try {
@@ -135,7 +142,7 @@ export function FunnelRuntime({
     return () => {
       cancelled = true
     }
-  }, [funnelSlug, pageSlug])
+  }, [funnelSlug, pageSlug, initialPage, initialMissing])
 
   useEffect(() => {
     const f = frame.current
@@ -273,19 +280,7 @@ export function FunnelRuntime({
   }
 
   if (!page) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          margin: 0,
-          padding: 0,
-          width: '100%',
-          background: '#ffffff',
-        }}
-        aria-busy="true"
-        aria-label="Chargement de la page"
-      />
-    )
+    return null
   }
 
   const runtimeScripts: RuntimeScript[] = Array.isArray(page.metadata?.runtime_scripts)
