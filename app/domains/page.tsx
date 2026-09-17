@@ -43,15 +43,13 @@ export default function DomainsPage() {
       const r = await fetch('/api/domains', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ hostname, funnelId: funnelId || null }),
+        body: JSON.stringify({ hostname: hostname.trim(), funnelId: funnelId || null }),
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j.error || 'Ajout impossible.')
       setHostname('')
       setFunnelId('')
-      setMessage(
-        'Domaine ajouté. Configurez maintenant le DNS (CNAME → cname.vercel-dns.com), puis cliquez sur « Vérifier DNS ».',
-      )
+      setMessage('Domaine ajouté. Vous pouvez maintenant vérifier son DNS.')
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ajout impossible.')
@@ -71,17 +69,9 @@ export default function DomainsPage() {
         body: JSON.stringify({ id }),
       })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok && j.verified !== false) {
-        throw new Error(j.error || 'Vérification impossible.')
-      }
-      if (j.verified) {
-        setMessage(j.message || 'DNS vérifié avec succès : le domaine pointe bien vers Vercel.')
-      } else {
-        setError(
-          j.error ||
-            'Le DNS ne pointe pas encore vers Vercel. Ajoutez un CNAME vers cname.vercel-dns.com, attendez la propagation, puis réessayez.',
-        )
-      }
+      if (!r.ok && j.verified !== false) throw new Error(j.error || 'Vérification impossible.')
+      if (j.verified) setMessage(j.message || 'DNS vérifié avec succès.')
+      else setError(j.error || 'Le DNS ne pointe pas encore vers Vercel. Vérifiez votre configuration DNS puis réessayez.')
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Vérification impossible.')
@@ -94,10 +84,12 @@ export default function DomainsPage() {
     if (!confirm('Supprimer ce domaine ?')) return
     setBusy(true)
     setError('')
+    setMessage('')
     try {
       const r = await fetch(`/api/domains?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j.error || 'Suppression impossible.')
+      setMessage('Domaine supprimé.')
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Suppression impossible.')
@@ -142,9 +134,7 @@ export default function DomainsPage() {
             <select className="form-input" value={funnelId} onChange={(e) => setFunnelId(e.target.value)}>
               <option value="">Aucun</option>
               {funnels.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
+                <option key={f.id} value={f.id}>{f.name}</option>
               ))}
             </select>
           </label>
@@ -152,35 +142,10 @@ export default function DomainsPage() {
             {busy ? 'Traitement…' : 'Ajouter'}
           </button>
         </form>
-
-        <div className="panel" style={{ marginTop: 14, background: 'var(--code-bg, #f8f9fb)', border: '1px solid var(--line)' }}>
-          <b style={{ display: 'block', marginBottom: 6 }}>Comment configurer le DNS ?</b>
-          <ol style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 14, lineHeight: 1.55 }}>
-            <li>
-              Chez votre registrar (Namecheap, OVH, Cloudflare…), créez un enregistrement{' '}
-              <b>CNAME</b> : hôte = <code>www</code> (ou le sous-domaine) → cible ={' '}
-              <code>cname.vercel-dns.com</code>
-            </li>
-            <li>
-              Pour un domaine racine (exemple.com), utilisez plutôt un enregistrement <b>A</b> vers{' '}
-              <code>76.76.21.21</code>, ou un CNAME aplati si votre DNS le permet.
-            </li>
-            <li>Attendez la propagation DNS (souvent 5 à 30 minutes, parfois jusqu’à 24 h).</li>
-            <li>Revenez ici et cliquez sur <b>Vérifier DNS</b>.</li>
-          </ol>
-        </div>
       </section>
 
-      {error && (
-        <div className="error" style={{ marginBottom: 12, whiteSpace: 'pre-wrap' }}>
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="notice" style={{ marginBottom: 12 }}>
-          {message}
-        </div>
-      )}
+      {error && <div className="error" style={{ marginBottom: 12, whiteSpace: 'pre-wrap' }}>{error}</div>}
+      {message && <div className="notice" style={{ marginBottom: 12 }}>{message}</div>}
 
       <section className="panel">
         {domains.length === 0 ? (
@@ -191,29 +156,17 @@ export default function DomainsPage() {
         ) : (
           <div className="funnel-table">
             {domains.map((d) => (
-              <div
-                className="funnel-row"
-                key={d.id}
-                style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}
-              >
+              <div className="funnel-row" key={d.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                 <div>
                   <b>{d.hostname}</b>
                   <span>
                     {STATUS_FR[d.status] || d.status} ·{' '}
-                    {d.funnel_id
-                      ? funnels.find((f) => f.id === d.funnel_id)?.name || 'Tunnel associé'
-                      : 'Aucun tunnel'}
+                    {d.funnel_id ? funnels.find((f) => f.id === d.funnel_id)?.name || 'Tunnel associé' : 'Aucun tunnel'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {d.status !== 'verified' && (
-                    <button className="outline" onClick={() => verify(d.id)} disabled={busy}>
-                      Vérifier DNS
-                    </button>
-                  )}
-                  <button className="outline" onClick={() => remove(d.id)} disabled={busy}>
-                    Supprimer
-                  </button>
+                  {d.status !== 'verified' && <button className="outline" onClick={() => verify(d.id)} disabled={busy}>Vérifier DNS</button>}
+                  <button className="outline" onClick={() => remove(d.id)} disabled={busy}>Supprimer</button>
                 </div>
               </div>
             ))}
