@@ -109,43 +109,64 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
 
   async function importHtmlOrZip(file: File) {
     if (!selected) return
-    const MAX_MB = 4.5
-    if (file.size > MAX_MB * 1024 * 1024) {
-      setMessage(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum : ${MAX_MB} Mo. Compressez le ZIP ou retirez des images/vidéos.`)
+    const MAX_BYTES = 25 * 1024 * 1024
+    if (file.size <= 0 || file.size > MAX_BYTES) {
+      setMessage(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum : 25 Mo.`)
       return
     }
     setBusy(true)
-    setMessage(`Envoi de « ${file.name} »… 0 %`)
+    setMessage(`Préparation de l'envoi… 0 %`)
     try {
-      const body = new FormData()
-      body.append('file', file)
-      body.append('pageId', selected.id)
-      const data: any = await new Promise((resolve, reject) => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Session expirée. Reconnectez-vous.')
+      const { data: member, error: memErr } = await supabase.from('organization_members').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle()
+      if (memErr) throw new Error(memErr.message)
+      if (!member?.organization_id) throw new Error('Espace de travail introuvable.')
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Session expirée. Reconnectez-vous.')
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 80) || 'upload.zip'
+      const storagePath = `${member.organization_id}/import-temp/${crypto.randomUUID()}-${safeName}`
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ndsksabyzxfmhnyykcfb.supabase.co'
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_-adOy-Xd9Xuqugx74Cjklg_CV9EzTfF'
+      await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/funnels/pages/import')
+        xhr.open('POST', `${supabaseUrl}/storage/v1/object/funnel-assets/${storagePath}`)
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        xhr.setRequestHeader('apikey', anonKey)
+        xhr.setRequestHeader('x-upsert', 'true')
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
         xhr.upload.onprogress = (e) => {
           if (!e.lengthComputable) return
           const pct = Math.min(99, Math.round((e.loaded / e.total) * 100))
           setMessage(`Téléversement… ${pct} % · ${(e.loaded / 1024 / 1024).toFixed(1)} / ${(e.total / 1024 / 1024).toFixed(1)} Mo`)
         }
-        xhr.upload.onload = () => setMessage('Import serveur en cours (analyse HTML et assets)…')
         xhr.onload = () => {
-          const text = xhr.responseText || ''
-          let parsed: any = null
-          try { parsed = text ? JSON.parse(text) : null } catch {
-            if (/entity too large|request entity|413/i.test(text) || xhr.status === 413) {
-              reject(new Error(`Fichier trop volumineux pour le serveur (limite ~${MAX_MB} Mo). Réduisez le ZIP.`)); return
-            }
-            reject(new Error(text.replace(/<[^>]+>/g, ' ').trim().slice(0, 200) || `Erreur serveur (${xhr.status}).`)); return
+          if (xhr.status >= 200 && xhr.status < 300) resolve()
+          else {
+            let msg = `Échec de l'envoi (${xhr.status}).`
+            try { const j = JSON.parse(xhr.responseText); if (j?.message || j?.error) msg = j.message || j.error } catch {}
+            reject(new Error(msg))
           }
-          if (xhr.status >= 200 && xhr.status < 300) resolve(parsed)
-          else reject(new Error(parsed?.error || parsed?.message || `Import impossible (${xhr.status}).`))
         }
-        xhr.onerror = () => reject(new Error('Réseau interrompu pendant l’envoi.'))
-        xhr.ontimeout = () => reject(new Error('Délai dépassé. Réessayez avec un fichier plus léger.'))
-        xhr.timeout = 120000
-        xhr.send(body)
+        xhr.onerror = () => reject(new Error('Réseau interrompu pendant l\'envoi.'))
+        xhr.ontimeout = () => reject(new Error('Délai dépassé pendant l\'envoi.'))
+        xhr.timeout = 180000
+        xhr.send(file)
       })
+      setMessage('Analyse et import sur le serveur…')
+      const body = new FormData()
+      body.append('pageId', selected.id)
+      body.append('storagePath', storagePath)
+      body.append('fileName', file.name)
+      const response = await fetch('/api/funnels/pages/import', { method: 'POST', body })
+      const textRes = await response.text()
+      let data: any = {}
+      try { data = textRes ? JSON.parse(textRes) : {} } catch {
+        throw new Error(textRes.replace(/<[^>]+>/g, ' ').trim().slice(0, 200) || `Erreur serveur (${response.status}).`)
+      }
+      if (!response.ok) throw new Error(data.error || data.message || 'Import impossible.')
       setVersion(data.version); setHtml(data.version.html); setCss(data.version.css); setJs(data.version.js); setName(data.page.name)
       const detected = detectRedirectControls(data.version.html)
       setRedirectControls(detected); setSelectedControl(null); setActiveCodeTab('html'); setShowCode(true)
@@ -199,18 +220,18 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
 
   async function uploadShareImage(file: File) {
     if (!selected) return
-    setBusy(true); setMessage('Import de l’image de partage…')
+    setBusy(true); setMessage('Import de l\'image de partage…')
     try {
       const body = new FormData(); body.append('pageId', selected.id); body.append('file', file)
       const response = await fetch('/api/funnels/pages/share-image', { method: 'POST', body })
       const text = await response.text()
       let data: any = {}
       try { data = text ? JSON.parse(text) : {} } catch { throw new Error(text.slice(0, 180) || 'Réponse serveur illisible.') }
-      if (!response.ok) throw new Error(data.error || 'Import de l’image impossible.')
+      if (!response.ok) throw new Error(data.error || 'Import de l\'image impossible.')
       setShareImageUrl(data.imageUrl || '')
       setVersion((current) => current ? { ...current, metadata: { ...(current.metadata || {}), share_image_url: data.imageUrl } } : current)
       setMessage('Image de partage enregistrée.')
-    } catch (err) { setMessage(err instanceof Error ? err.message : 'Import de l’image impossible.') }
+    } catch (err) { setMessage(err instanceof Error ? err.message : 'Import de l\'image impossible.') }
     finally { setBusy(false) }
   }
 
@@ -220,7 +241,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   const codeValue = activeCodeTab === 'html' ? html : activeCodeTab === 'css' ? css : js, setCodeValue = activeCodeTab === 'html' ? setHtml : activeCodeTab === 'css' ? setCss : setJs
   const preview = `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`
 
-  if (!funnel) return <div className="page"><p>{message || 'Chargement de l’éditeur de tunnel…'}</p></div>
+  if (!funnel) return <div className="page"><p>{message || 'Chargement de l\'éditeur de tunnel…'}</p></div>
 
   return (
     <div className="page editor-page">
