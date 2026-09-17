@@ -3,8 +3,8 @@ import { requireWorkspaceRole } from '@/lib/auth/require-user'
 
 export const runtime = 'nodejs'
 
-/** IPs / cibles DNS connues de Vercel */
-const VERCEL_CNAME_SUFFIXES = ['cname.vercel-dns.com', 'vercel-dns.com', 'vercel-dns-017.com']
+const VERCEL_CNAME_SUFFIXES = ['cname.vercel-dns.com', 'vercel-dns.com']
+const VERCEL_PROJECT_CNAME_RE = /(^|\.)vercel-dns-\d+\.com$/
 const VERCEL_A_IPS = new Set(['76.76.21.21'])
 
 function normalizeDnsTarget(value: string) {
@@ -16,7 +16,10 @@ function normalizeDnsTarget(value: string) {
 
 function isVercelCname(target: string) {
   const t = normalizeDnsTarget(target)
-  return VERCEL_CNAME_SUFFIXES.some((suffix) => t === suffix || t.endsWith('.' + suffix))
+  return (
+    VERCEL_CNAME_SUFFIXES.some((suffix) => t === suffix || t.endsWith('.' + suffix)) ||
+    VERCEL_PROJECT_CNAME_RE.test(t)
+  )
 }
 
 export async function POST(request: Request) {
@@ -50,10 +53,16 @@ export async function POST(request: Request) {
     const aJson = await aRes.json().catch(() => ({}))
 
     const cnameAnswers: string[] = Array.isArray(cnameJson?.Answer)
-      ? cnameJson.Answer.map((a: any) => normalizeDnsTarget(String(a.data || ''))).filter(Boolean)
+      ? cnameJson.Answer
+          .filter((answer: any) => Number(answer?.type) === 5)
+          .map((answer: any) => normalizeDnsTarget(String(answer.data || '')))
+          .filter(Boolean)
       : []
     const addresses: string[] = Array.isArray(aJson?.Answer)
-      ? aJson.Answer.map((a: any) => String(a.data || '').trim()).filter(Boolean)
+      ? aJson.Answer
+          .filter((answer: any) => Number(answer?.type) === 1)
+          .map((answer: any) => String(answer.data || '').trim())
+          .filter(Boolean)
       : []
 
     const pointsToVercel =
@@ -73,13 +82,15 @@ export async function POST(request: Request) {
         verified: false,
         error:
           `Le DNS de « ${domain.hostname} » ne pointe pas encore vers Vercel. ` +
-          `Configurez un enregistrement CNAME vers cname.vercel-dns.com ` +
-          `(ou un enregistrement A vers 76.76.21.21), attendez la propagation (souvent 5–30 min), puis réessayez. ` +
+          `Pour un sous-domaine, utilisez le CNAME indiqué par Vercel ` +
+          `(cname.vercel-dns.com ou une cible *.vercel-dns-<numero>.com). ` +
+          `Pour le domaine racine, utilisez l'enregistrement A vers 76.76.21.21. ` +
+          `Attendez la propagation DNS puis réessayez. ` +
           `Actuellement détecté : CNAME = ${foundCname} · A = ${foundA}.`,
         cname: cnameAnswers,
         addresses,
         expected: {
-          cname: 'cname.vercel-dns.com',
+          cname: 'cname.vercel-dns.com ou cible Vercel *.vercel-dns-<numero>.com',
           a: '76.76.21.21',
         },
       })
