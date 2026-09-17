@@ -115,30 +115,24 @@ export function FunnelRuntime({
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const candidates =
-        pageSlug === 'home'
-          ? ['home', ...Array.from({ length: 20 }, (_, i) => `page-${i + 1}`)]
-          : [pageSlug]
-      for (const candidate of candidates) {
-        try {
-          const response = await fetch(
-            `/api/funnels/public?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(candidate)}`,
-          )
-          if (!response.ok) continue
-          const json = await response.json()
-          if (!cancelled) {
-            setPage(json.page)
-            setPayment(json.payment || null)
-            if (candidate !== 'home' && candidate !== pageSlug) {
-              window.history.replaceState(null, '', `/${funnelSlug}/${candidate}`)
-            }
-          }
+      // Single request only — no sequential page-1..page-20 fallback (was very slow).
+      try {
+        const response = await fetch(
+          `/api/funnels/public?funnel=${encodeURIComponent(funnelSlug)}&page=${encodeURIComponent(pageSlug || 'home')}`,
+          { cache: 'default' },
+        )
+        if (!response.ok) {
+          if (!cancelled) setMissing(true)
           return
-        } catch {
-          // try next candidate
         }
+        const json = await response.json()
+        if (!cancelled) {
+          setPage(json.page)
+          setPayment(json.payment || null)
+        }
+      } catch {
+        if (!cancelled) setMissing(true)
       }
-      if (!cancelled) setMissing(true)
     })()
     return () => {
       cancelled = true
@@ -321,10 +315,10 @@ export function FunnelRuntime({
     .map((script) => {
       const typeAttr =
         script.type && script.type.trim()
-          ? ` type="${script.type.replace(/"/g, '"')}"`
+          ? ` type="${script.type.replace(/"/g, '&quot;')}"`
           : ''
       if (script.src) {
-        const safeSrc = script.src.replace(/&/g, '&').replace(/"/g, '"')
+        const safeSrc = script.src.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
         return `<script${typeAttr} src="${safeSrc}"></script>`
       }
       return `<script${typeAttr}>${escapeScriptCode(script.code || '')}</script>`
