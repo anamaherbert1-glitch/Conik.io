@@ -4,6 +4,8 @@ import { useMemo } from 'react'
 
 type Lang = 'html' | 'css' | 'js'
 
+const HIGHLIGHT_LIMIT = 80_000
+
 function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -47,6 +49,8 @@ function highlight(code: string, lang: Lang) {
   return highlightHtml(code)
 }
 
+const mono = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+
 export function CodeEditor({
   value,
   onChange,
@@ -56,7 +60,50 @@ export function CodeEditor({
   onChange: (next: string) => void
   language: Lang
 }) {
-  const colored = useMemo(() => highlight(value || '', language), [value, language])
+  const large = (value || '').length > HIGHLIGHT_LIMIT
+  const colored = useMemo(() => {
+    if (large) return ''
+    try {
+      return highlight(value || '', language)
+    } catch {
+      return escapeHtml(value || '')
+    }
+  }, [value, language, large])
+
+  if (large) {
+    return (
+      <div style={{ width: 'calc(100% - 36px)', margin: '0 18px 14px' }}>
+        <div style={{ marginBottom: 8, fontSize: 12, color: '#8b949e' }}>
+          Fichier volumineux — coloration désactivée pour garder l’éditeur fluide.
+        </div>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+          style={{
+            width: '100%',
+            minHeight: 360,
+            height: 420,
+            margin: 0,
+            padding: '14px 16px',
+            boxSizing: 'border-box',
+            border: '1px solid #30363d',
+            borderRadius: 10,
+            outline: 'none',
+            resize: 'vertical',
+            background: '#0d1117',
+            color: '#e6edf3',
+            caretColor: '#ea580c',
+            fontFamily: mono,
+            fontSize: 13,
+            lineHeight: 1.55,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div
@@ -82,7 +129,7 @@ export function CodeEditor({
           overflow: 'auto',
           pointerEvents: 'none',
           color: '#e6edf3',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          fontFamily: mono,
           fontSize: 13,
           lineHeight: 1.55,
           whiteSpace: 'pre-wrap',
@@ -112,7 +159,7 @@ export function CodeEditor({
           background: 'transparent',
           color: 'transparent',
           caretColor: '#ea580c',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          fontFamily: mono,
           fontSize: 13,
           lineHeight: 1.55,
           whiteSpace: 'pre-wrap',
