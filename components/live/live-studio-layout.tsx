@@ -24,7 +24,15 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
   return (
     <>
       <style>{`
+        .live-studio-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,400px);gap:12px;align-items:start}
+        .live-studio-chat{position:sticky;top:8px;min-width:0}
+        .live-studio-chat>.panel{min-height:600px!important;height:calc(100vh - 120px);max-height:760px}
+        .conik-live-studio-sidebar .choice[title^="http"]{display:none!important}
+        @media (max-width:1180px){.live-studio-workspace{grid-template-columns:minmax(0,1fr) minmax(300px,340px)}}
         @media (max-width:980px){
+          .live-studio-workspace{grid-template-columns:1fr!important}
+          .live-studio-chat{position:relative;top:auto}
+          .live-studio-chat>.panel{height:auto;min-height:500px!important;max-height:none}
           .conik-live-studio-layout{grid-template-columns:1fr!important}
           .conik-live-studio-sidebar{position:relative!important;top:auto!important;right:auto!important;width:100%!important;max-height:none!important}
           .conik-live-studio-toggle{position:relative!important;top:auto!important;right:auto!important;margin-top:6px;width:100%!important;height:36px!important}
@@ -54,18 +62,7 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
             aria-label={sidebarOpen ? 'Masquer le panneau' : 'Afficher le panneau'}
             title={sidebarOpen ? 'Masquer' : 'Afficher'}
             onClick={() => setSidebarOpen((v) => !v)}
-            style={{
-              marginTop: 6,
-              width: 42,
-              height: 32,
-              borderRadius: 10,
-              border: '1px solid var(--line)',
-              background: 'var(--panel)',
-              color: 'var(--text)',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
-            }}
+            style={{ marginTop: 6, width: 42, height: 32, borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel)', color: 'var(--text)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
           >
             {sidebarOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
@@ -74,28 +71,9 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
         {sidebarOpen && (
           <aside
             className="conik-live-studio-sidebar"
-            style={{
-              ...panelStyle,
-              width: '100%',
-              maxHeight: 'min(820px, calc(100vh - 100px))',
-              overflowY: 'auto',
-              display: 'grid',
-              gap: 6,
-              minWidth: 0,
-              position: 'sticky',
-              top: 4,
-              boxShadow: '0 12px 32px rgba(0,0,0,.1)',
-            }}
+            style={{ ...panelStyle, width: '100%', maxHeight: 'min(820px, calc(100vh - 100px))', overflowY: 'auto', display: 'grid', gap: 6, minWidth: 0, position: 'sticky', top: 4, boxShadow: '0 12px 32px rgba(0,0,0,.1)' }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                paddingBottom: 4,
-                borderBottom: '1px solid var(--line)',
-              }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingBottom: 4, borderBottom: '1px solid var(--line)' }}>
               <GripVertical size={14} />
               <b style={{ fontSize: 12 }}>Outils du Live</b>
             </div>
