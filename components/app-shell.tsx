@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import {
   LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Wallet, Globe2,
-  Settings2, LogOut, Plug, BookOpen, Radio, CreditCard,
+  Settings2, LogOut, Plug, BookOpen, Radio, CreditCard, ChevronDown,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
+import { useState } from 'react'
 
 const items = [
   ['Dashboard', LayoutDashboard, '/dashboard'],
@@ -25,6 +26,7 @@ type Props = { children: React.ReactNode; active: string; compact?: boolean }
 
 export function AppShell({ children, active, compact = false }: Props) {
   const { dict } = usePreferences()
+  const [integrationsOpen, setIntegrationsOpen] = useState(false)
 
   return (
     <div className={`shell${compact ? ' shell-compact' : ''}`}>
@@ -43,11 +45,17 @@ export function AppShell({ children, active, compact = false }: Props) {
           ))}
 
           <div className="sidebar-group">
-            <Link className={active === 'Integrations' || active === 'WhatsApp' ? 'active' : ''} href="/integrations" title="Intégrations">
+            <button
+              type="button"
+              className={active === 'Integrations' || active === 'WhatsApp' ? 'active' : ''}
+              onClick={() => setIntegrationsOpen((value) => !value)}
+              title="Intégrations"
+              style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer' }}
+            >
               <Plug size={17} />
-              {!compact && <span>Intégrations</span>}
-            </Link>
-            {!compact && (
+              {!compact && <><span style={{ flex: 1, textAlign: 'left' }}>Intégrations</span><ChevronDown size={15} style={{ transform: integrationsOpen ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} /></>}
+            </button>
+            {!compact && integrationsOpen && (
               <div style={{ marginLeft: 34, display: 'grid', gap: 2, marginTop: 2, marginBottom: 4 }}>
                 <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" style={{ fontSize: 13 }}>
                   <CreditCard size={15} /><span>Solutions de paiement</span>
