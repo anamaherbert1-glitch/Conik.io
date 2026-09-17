@@ -8,18 +8,30 @@ const VERCEL_PROJECT_CNAME_RE = /(^|\.)vercel-dns-\d+\.com$/
 const VERCEL_A_IPS = new Set(['76.76.21.21'])
 
 function normalizeDnsTarget(value: string) {
-  return String(value || '')
-    .toLowerCase()
-    .trim()
-    .replace(/\.$/, '')
+  return String(value || '').toLowerCase().trim().replace(/\.$/, '')
 }
 
 function isVercelCname(target: string) {
   const t = normalizeDnsTarget(target)
-  return (
-    VERCEL_CNAME_SUFFIXES.some((suffix) => t === suffix || t.endsWith('.' + suffix)) ||
-    VERCEL_PROJECT_CNAME_RE.test(t)
-  )
+  return VERCEL_CNAME_SUFFIXES.some((suffix) => t === suffix || t.endsWith('.' + suffix)) || VERCEL_PROJECT_CNAME_RE.test(t)
+}
+
+async function queryDns(host: string, type: 'A' | 'CNAME') {
+  const urls = [
+    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${type}`,
+    `https://dns.google/resolve?name=${encodeURIComponent(host)}&type=${type}`,
+  ]
+  const results = await Promise.all(urls.map(async (url) => {
+    try {
+      const response = await fetch(url, { headers: { accept: 'application/dns-json' }, cache: 'no-store' })
+      if (!response.ok) return []
+      const json = await response.json().catch(() => ({}))
+      return Array.isArray(json?.Answer) ? json.Answer : []
+    } catch {
+      return []
+    }
+  }))
+  return results.flat()
 }
 
 export async function POST(request: Request) {
@@ -38,35 +50,24 @@ export async function POST(request: Request) {
   if (!domain) return NextResponse.json({ error: 'Domaine introuvable.' }, { status: 404 })
 
   try {
-    const [cnameRes, aRes] = await Promise.all([
-      fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain.hostname)}&type=CNAME`, {
-        headers: { accept: 'application/dns-json' },
-        cache: 'no-store',
-      }),
-      fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain.hostname)}&type=A`, {
-        headers: { accept: 'application/dns-json' },
-        cache: 'no-store',
-      }),
+    const [cnameAnswersRaw, aAnswersRaw] = await Promise.all([
+      queryDns(domain.hostname, 'CNAME'),
+      queryDns(domain.hostname, 'A'),
     ])
 
-    const cnameJson = await cnameRes.json().catch(() => ({}))
-    const aJson = await aRes.json().catch(() => ({}))
+    const cnameAnswers = cnameAnswersRaw
+      .filter((answer: any) => Number(answer?.type) === 5)
+      .map((answer: any) => normalizeDnsTarget(String(answer.data || '')))
+      .filter(Boolean)
+      .filter((value, index, array) => array.indexOf(value) === index)
 
-    const cnameAnswers: string[] = Array.isArray(cnameJson?.Answer)
-      ? cnameJson.Answer
-          .filter((answer: any) => Number(answer?.type) === 5)
-          .map((answer: any) => normalizeDnsTarget(String(answer.data || '')))
-          .filter(Boolean)
-      : []
-    const addresses: string[] = Array.isArray(aJson?.Answer)
-      ? aJson.Answer
-          .filter((answer: any) => Number(answer?.type) === 1)
-          .map((answer: any) => String(answer.data || '').trim())
-          .filter(Boolean)
-      : []
+    const addresses = aAnswersRaw
+      .filter((answer: any) => Number(answer?.type) === 1)
+      .map((answer: any) => String(answer.data || '').trim())
+      .filter(Boolean)
+      .filter((value, index, array) => array.indexOf(value) === index)
 
-    const pointsToVercel =
-      cnameAnswers.some(isVercelCname) || addresses.some((ip) => VERCEL_A_IPS.has(ip))
+    const pointsToVercel = cnameAnswers.some(isVercelCname) || addresses.some((ip) => VERCEL_A_IPS.has(ip))
 
     if (!pointsToVercel) {
       await supabase
@@ -80,19 +81,10 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         verified: false,
-        error:
-          `Le DNS de « ${domain.hostname} » ne pointe pas encore vers Vercel. ` +
-          `Pour un sous-domaine, utilisez le CNAME indiqué par Vercel ` +
-          `(cname.vercel-dns.com ou une cible *.vercel-dns-<numero>.com). ` +
-          `Pour le domaine racine, utilisez l'enregistrement A vers 76.76.21.21. ` +
-          `Attendez la propagation DNS puis réessayez. ` +
-          `Actuellement détecté : CNAME = ${foundCname} · A = ${foundA}.`,
+        error: `Le DNS de « ${domain.hostname} » ne pointe pas encore vers Vercel. CNAME détecté : ${foundCname}. A détecté : ${foundA}.`,
         cname: cnameAnswers,
         addresses,
-        expected: {
-          cname: 'cname.vercel-dns.com ou cible Vercel *.vercel-dns-<numero>.com',
-          a: '76.76.21.21',
-        },
+        expected: { cname: 'cname.vercel-dns.com ou cible Vercel *.vercel-dns-<numero>.com', a: '76.76.21.21' },
       })
     }
 
@@ -105,21 +97,8 @@ export async function POST(request: Request) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({
-      verified: true,
-      domain: updated,
-      message: `DNS vérifié : « ${domain.hostname} » pointe bien vers Vercel.`,
-    })
+    return NextResponse.json({ verified: true, domain: updated, message: `DNS vérifié : « ${domain.hostname} » pointe bien vers Vercel.` })
   } catch (error) {
-    return NextResponse.json(
-      {
-        verified: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Impossible de vérifier le DNS pour le moment. Réessayez dans quelques minutes.',
-      },
-      { status: 502 },
-    )
+    return NextResponse.json({ verified: false, error: error instanceof Error ? error.message : 'Impossible de vérifier le DNS pour le moment. Réessayez.' }, { status: 502 })
   }
 }
