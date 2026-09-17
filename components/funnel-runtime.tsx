@@ -91,7 +91,7 @@ function validExternalScript(value: string) {
   }
 }
 
-/** Prevent `</script>` inside injected code from closing the host script tag. */
+/** Prevent closing the host script tag when injecting user code. */
 function escapeScriptCode(value: string) {
   return value.split('</' + 'script').join('<' + '\\/' + 'script')
 }
@@ -290,7 +290,7 @@ export function FunnelRuntime({
     )
   }
 
-  const runtimeScripts = Array.isArray(page.metadata?.runtime_scripts)
+  const runtimeScripts: RuntimeScript[] = Array.isArray(page.metadata?.runtime_scripts)
     ? page.metadata.runtime_scripts
         .filter((value): value is RuntimeScript => !!value && typeof value === 'object')
         .map((value) => ({
@@ -309,25 +309,25 @@ export function FunnelRuntime({
         .filter((value) => value.src || value.code)
     : []
 
-  const legacyScripts = Array.isArray(page.metadata?.external_scripts)
+  const legacyScripts: RuntimeScript[] = Array.isArray(page.metadata?.external_scripts)
     ? page.metadata.external_scripts
         .filter((value): value is string => typeof value === 'string' && validExternalScript(value))
-        .map((src) => ({ src }))
+        .map((src) => ({ src } satisfies RuntimeScript))
     : []
 
-  const scripts = runtimeScripts.length ? runtimeScripts : legacyScripts
+  const scripts: RuntimeScript[] = runtimeScripts.length ? runtimeScripts : legacyScripts
 
   const scriptTags = scripts
     .map((script) => {
-      const type = script.type
-        ? ` type="${script.type.replace(/"/g, '"')}"`
-        : ''
+      const typeAttr =
+        script.type && script.type.trim()
+          ? ` type="${script.type.replace(/"/g, '"')}"`
+          : ''
       if (script.src) {
-        return `<script${type} src="${script.src
-          .replace(/&/g, '&')
-          .replace(/"/g, '"')}"></script>`
+        const safeSrc = script.src.replace(/&/g, '&').replace(/"/g, '"')
+        return `<script${typeAttr} src="${safeSrc}"></script>`
       }
-      return `<script${type}>${escapeScriptCode(script.code || '')}</script>`
+      return `<script${typeAttr}>${escapeScriptCode(script.code || '')}</script>`
     })
     .join('')
 
