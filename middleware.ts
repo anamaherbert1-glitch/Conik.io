@@ -42,13 +42,36 @@ const PUBLIC_FUNNEL_RESERVED = new Set([
   'live',
   'pay',
 ])
+const ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
 const PLATFORM_HOSTS = new Set([
   'conik-io.vercel.app',
   'conik-io-anamaherbert1-glitchs-projects.vercel.app',
   'conik-io-git-main-anamaherbert1-glitchs-projects.vercel.app',
-  'conik.io',
-  'www.conik.io',
+  ROOT_DOMAIN,
+  `www.${ROOT_DOMAIN}`,
 ])
+const RESERVED_SUBDOMAINS = new Set([
+  'www',
+  'app',
+  'api',
+  'admin',
+  'dashboard',
+  'login',
+  'signup',
+  'auth',
+  'domains',
+  'status',
+])
+const FUNNEL_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i
+const FUNNEL_SYSTEM_PATHS = new Set(['api', '_next', 'favicon.ico', 'r'])
+function getWildcardTenant(host: string) {
+  if (!host || PLATFORM_HOSTS.has(host)) return null
+  const suffix = `.${ROOT_DOMAIN}`
+  if (!host.endsWith(suffix)) return null
+  const subdomain = host.slice(0, -suffix.length)
+  if (!subdomain || subdomain.includes('.') || RESERVED_SUBDOMAINS.has(subdomain)) return null
+  return FUNNEL_SLUG.test(subdomain) ? subdomain.toLowerCase() : null
+}
 function isPublicPath(pathname: string) {
   if (PUBLIC_EXACT_PATHS.has(pathname)) return true
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true
@@ -86,11 +109,29 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const host = (request.headers.get('host') || '').split(':')[0].toLowerCase()
   const segments = pathname.split('/').filter(Boolean)
+  const wildcardTenant = getWildcardTenant(host)
+
+  // A wildcard tenant maps:
+  //   https://tenant.conik.io/           -> /tenant
+  //   https://tenant.conik.io/about     -> /tenant/about
+  // Keep API/system paths untouched so imported pages can still call Conik APIs.
+  if (wildcardTenant && !FUNNEL_SYSTEM_PATHS.has(segments[0]?.toLowerCase() || '')) {
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = segments.length
+      ? `/${wildcardTenant}/${segments.join('/')}`
+      : `/${wildcardTenant}`
+    const headers = new Headers(request.headers)
+    headers.set('x-conik-host', host)
+    headers.set('x-conik-tenant', wildcardTenant)
+    return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
+  }
+
   if (
     host &&
     !PLATFORM_HOSTS.has(host) &&
+    !wildcardTenant &&
     segments.length === 1 &&
-    /^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(segments[0])
+    FUNNEL_SLUG.test(segments[0])
   ) {
     const { data: verifiedDomain } = await supabase.rpc('is_verified_custom_domain', {
       target_host: host,
