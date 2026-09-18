@@ -129,6 +129,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   const [cameraSize, setCameraSize] = useState<CameraSize>('small')
   const [moveMode, setMoveMode] = useState(false)
   const [cameraPositions, setCameraPositions] = useState<Record<string, Position>>({})
+  const cameraPositionsRef = useRef<Record<string, Position>>({})
   const roomRef = useRef<Room | null>(null)
   const screenRef = useRef<HTMLDivElement>(null)
   const background = BACKGROUNDS[backgroundId] || BACKGROUNDS.blue
@@ -149,9 +150,48 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       setItems((current) => current.filter((x) => x.id !== id))
       setFeaturedId((current) => current === id ? null : current)
       setSelectedCameraId((current) => current === id ? null : current)
-      setCameraPositions((current) => { const next = { ...current }; delete next[id]; return next })
+      setCameraPositions((current) => {
+        const next = { ...current }
+        delete next[id]
+        cameraPositionsRef.current = next
+        return next
+      })
     }
     const participantLabel = (participant: any) => participant.name || (String(participant.identity).startsWith('cohost-') ? 'Co-organisateur' : 'Organisateur principal')
+    const publishLayout = (positions: Record<string, Position>) => {
+      const payload = new TextEncoder().encode(JSON.stringify({ type: 'camera-layout-sync', positions }))
+      void room.localParticipant.publishData(payload, { reliable: true, topic: 'conik-camera-layout' }).catch(() => {})
+    }
+    const handleLayoutData = (payload: Uint8Array, participant: any) => {
+      if (participant?.identity === room.localParticipant.identity) return
+      try {
+        const message = JSON.parse(new TextDecoder().decode(payload))
+        if (message?.type === 'camera-layout-request') {
+          publishLayout(cameraPositionsRef.current)
+          return
+        }
+        if (message?.type !== 'camera-layout-sync' || !message.positions || typeof message.positions !== 'object') return
+        const incoming: Record<string, Position> = {}
+        for (const [id, position] of Object.entries(message.positions as Record<string, Position>)) {
+          if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') continue
+          incoming[id] = {
+            x: Math.max(0, Math.min(100, position.x)),
+            y: Math.max(0, Math.min(100, position.y)),
+          }
+        }
+        if (!Object.keys(incoming).length) return
+        setCameraPositions((current) => {
+          const next = { ...current, ...incoming }
+          cameraPositionsRef.current = next
+          return next
+        })
+      } catch {}
+    }
+    const requestLayoutSync = () => {
+      const payload = new TextEncoder().encode(JSON.stringify({ type: 'camera-layout-request' }))
+      void room.localParticipant.publishData(payload, { reliable: true, topic: 'conik-camera-layout' }).catch(() => {})
+    }
+
     const attachAudio = (track: any) => {
       if (!track || track.kind !== Track.Kind.Audio) return
       const el = track.attach() as HTMLMediaElement
@@ -165,6 +205,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       if (publication.source === Track.Source.Camera) upsert({ id: participant.identity, label: participantLabel(participant), track, local: false })
     }
 
+    room.on(RoomEvent.DataReceived, handleLayoutData)
     room.on(RoomEvent.TrackSubscribed, handleSubscribed)
     room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
       track.detach().forEach((el) => el.remove())
@@ -199,6 +240,7 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         await room.connect(data.url, data.token)
         if (cancelled) return
         setStatus('connected')
+        requestLayoutSync()
         setMessage(host ? 'Vous êtes connecté au studio.' : 'Vous êtes connecté au Live.')
 
         if (host) {
@@ -290,7 +332,19 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   }
 
   function moveCamera(id: string, x: number, y: number) {
-    setCameraPositions((current) => ({ ...current, [id]: { x, y } }))
+    const nextPosition = { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) }
+    setCameraPositions((current) => {
+      const next = { ...current, [id]: nextPosition }
+      cameraPositionsRef.current = next
+      return next
+    })
+    const room = roomRef.current
+    if (!room) return
+    const payload = new TextEncoder().encode(JSON.stringify({
+      type: 'camera-layout-sync',
+      positions: { [id]: nextPosition },
+    }))
+    void room.localParticipant.publishData(payload, { reliable: true, topic: 'conik-camera-layout' }).catch(() => {})
   }
 
   const stageBackground = screenTrack ? '#000' : background.value
