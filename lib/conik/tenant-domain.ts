@@ -1,4 +1,4 @@
-export const CONIK_ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\\.+|\\.+$/g, '')
+export const CONIK_ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
 
 export const CONIK_TENANT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i
 
