@@ -42,7 +42,7 @@ const PUBLIC_FUNNEL_RESERVED = new Set([
   'live',
   'pay',
 ])
-const ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\\.+|\\.+$/g, '')
+const ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
 const PLATFORM_HOSTS = new Set([
   'conik-io.vercel.app',
   'conik-io-anamaherbert1-glitchs-projects.vercel.app',
