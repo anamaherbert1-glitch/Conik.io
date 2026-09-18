@@ -178,7 +178,8 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
       setSelectedControl(null)
       setActiveCodeTab('html')
       setShowCode(true)
-      setMessage(`Import terminé · ${data.assets ?? 0} asset(s). Publication automatique…`)
+      const unconfigured = detected.filter((d) => !d.existing).length
+      setMessage(`Import terminé · ${data.assets ?? 0} asset(s) · ${detected.length} bouton(s)/lien(s) détecté(s)${unconfigured ? ` · ${unconfigured} à configurer` : ''}. Publication automatique…`)
       try {
         const pub = await fetch('/api/funnels/pages/publish', {
           method: 'POST',
@@ -192,7 +193,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
         setFunnel((f) => (f ? { ...f, status: 'published' } : f))
         setPages((ps) => ps.map((p) => (p.id === selected.id ? { ...p, published_version_id: data.version.id } : p)))
         setSelected((p) => (p ? { ...p, published_version_id: data.version.id } : p))
-        setMessage(`Import + publication réussis · ${data.assets ?? 0} asset(s). Ouvrez le tunnel.`)
+        setMessage(`Import + publication réussis · ${data.assets ?? 0} asset(s) · ${detected.length} élément(s) interactif(s). Ouvrez le tunnel.`)
       } catch (pubErr) {
         setMessage(`Import OK. Cliquez sur Publier (sans Enregistrer) : ${pubErr instanceof Error ? pubErr.message : 'erreur'}`)
       }
@@ -215,7 +216,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   async function saveVersion() {
     if (!selected) return
     if (version && (html.length + css.length + js.length) > 400000) {
-      setMessage('Page volumineuse déjà importée. Cliquez sur Publier (pas besoin d\'Enregistrer).')
+      setMessage('Page volumineuse déjà importée. Configurez les boutons si besoin, puis Publier (pas besoin d\'Enregistrer pour le gros HTML).')
       setBusy(false)
       return
     }
@@ -262,10 +263,30 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     setBusy(true)
     setMessage('Publication en cours…')
     try {
+      // Apply button redirects into HTML before publish when content is small enough to re-save
+      const finalHtml = applyButtonRedirects(html, redirectControls)
+      const needsRedirectApply = redirectControls.some((c) => c.target) && finalHtml !== html
+      let versionId = version.id
+      if (needsRedirectApply && (finalHtml.length + css.length + js.length) <= 400000) {
+        const normalized = redirectControls.filter((c) => c.target).map((c) => ({ key: c.key, target: safeRedirect(c.target) || c.target }))
+        const saveRes = await fetch('/api/funnels/pages/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: selected.id, html: finalHtml, css, js, redirects: normalized, ...(shareImageUrl ? { shareImageUrl } : {}) }),
+        })
+        const saveText = await saveRes.text()
+        let saveData: any = {}
+        try { saveData = saveText ? JSON.parse(saveText) : {} } catch {}
+        if (saveRes.ok && saveData.version?.id) {
+          setVersion(saveData.version)
+          setHtml(saveData.version.html)
+          versionId = saveData.version.id
+        }
+      }
       const response = await fetch('/api/funnels/pages/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pageId: selected.id, versionId: version.id }),
+        body: JSON.stringify({ pageId: selected.id, versionId }),
       })
       const textRes = await response.text()
       let data: any = {}
@@ -274,8 +295,8 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
       }
       if (!response.ok) throw new Error(data.error || 'Publication impossible.')
       setFunnel((f) => (f ? { ...f, status: 'published' } : f))
-      setPages((ps) => ps.map((p) => (p.id === selected.id ? { ...p, published_version_id: version.id } : p)))
-      setSelected((p) => (p ? { ...p, published_version_id: version.id } : p))
+      setPages((ps) => ps.map((p) => (p.id === selected.id ? { ...p, published_version_id: versionId } : p)))
+      setSelected((p) => (p ? { ...p, published_version_id: versionId } : p))
       setMessage('Page publiée avec succès. Ouvrez le tunnel.')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Publication impossible.')
@@ -297,23 +318,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   function pagePublicPath(pageSlug: string) { return funnel ? `/${funnel.slug}/${pageSlug}` : '' }
   function pagePublicUrl(pageSlug: string) { return typeof window === 'undefined' ? pagePublicPath(pageSlug) : `${window.location.origin}${pagePublicPath(pageSlug)}` }
   async function copyPageLink() { if (!selected || !funnel) return; try { await navigator.clipboard.writeText(pagePublicUrl(selected.slug)); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { setMessage('Impossible de copier le lien.') } }
-
-  async function uploadShareImage(file: File) {
-    if (!selected) return
-    setBusy(true); setMessage('Import de l\'image de partage…')
-    try {
-      const body = new FormData(); body.append('pageId', selected.id); body.append('file', file)
-      const response = await fetch('/api/funnels/pages/share-image', { method: 'POST', body })
-      const text = await response.text()
-      let data: any = {}
-      try { data = text ? JSON.parse(text) : {} } catch { throw new Error(text.slice(0, 180) || 'Réponse serveur illisible.') }
-      if (!response.ok) throw new Error(data.error || 'Import de l\'image impossible.')
-      setShareImageUrl(data.imageUrl || '')
-      setVersion((current) => current ? { ...current, metadata: { ...(current.metadata || {}), share_image_url: data.imageUrl } } : current)
-      setMessage('Image de partage enregistrée.')
-    } catch (err) { setMessage(err instanceof Error ? err.message : 'Import de l\'image impossible.') }
-    finally { setBusy(false) }
-  }
 
   function setRedirectTarget(index: number, value: string) { setRedirectControls((cs) => cs.map((x, n) => n === index ? { ...x, target: value, existing: Boolean(value.trim()), actionType: value.trim() ? 'url' : 'none' } : x)) }
   function onSelectInternalPage(index: number, pageSlug: string) { if (!funnel) return; if (pageSlug === '__custom__') return; setRedirectTarget(index, pageSlug ? `/${funnel.slug}/${pageSlug}` : '') }
@@ -413,6 +417,76 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
                 }
               }}
             />
+
+            <div className="field redirect-field" style={{ margin: '16px 18px 20px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: 14 }}>Redirections des boutons</h4>
+              <p className="muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+                Conik détecte automatiquement les boutons et liens. Configurez ici ceux qui n’ont pas encore de destination.
+              </p>
+              {redirectControls.length ? (
+                redirectControls.map((c, i) => {
+                  const internalSlug = selectedInternalSlug(c.target)
+                  const custom = internalSlug === '__custom__'
+                  return (
+                    <div
+                      key={c.key}
+                      className="redirect-fields"
+                      style={{
+                        marginBottom: 10,
+                        padding: 12,
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 10,
+                        background: c.existing ? '#f8fafc' : '#fff7ed',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>
+                          {c.label}{' '}
+                          <small style={{ fontWeight: 400, color: '#6b7280' }}>({c.tag})</small>
+                        </span>
+                        <strong style={{ fontSize: 11, color: c.existing ? '#15803d' : '#c2410c' }}>
+                          {c.existing ? 'Configuré' : 'À configurer'}
+                        </strong>
+                      </div>
+                      <select
+                        value={internalSlug}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === '__custom__') {
+                            if (c.target && internalSlug !== '__custom__') setRedirectTarget(i, '')
+                          } else {
+                            onSelectInternalPage(i, val)
+                          }
+                        }}
+                        style={{ width: '100%', marginBottom: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                      >
+                        <option value="">— Aucune —</option>
+                        {pages
+                          .filter((p) => p.id !== selected?.id)
+                          .map((p) => (
+                            <option key={p.id} value={p.slug}>
+                              Page {p.position + 1} — {p.name} (/{p.slug})
+                            </option>
+                          ))}
+                        <option value="__custom__">URL personnalisée…</option>
+                      </select>
+                      {custom && (
+                        <input
+                          value={c.target}
+                          onChange={(e) => setRedirectTarget(i, e.target.value)}
+                          placeholder="https://exemple.com ou /chemin"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', boxSizing: 'border-box' }}
+                        />
+                      )}
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="muted" style={{ fontSize: 12 }}>
+                  Aucun bouton ou lien interactif détecté sur cette page.
+                </div>
+              )}
+            </div>
           </section>
         )}
       </div>
