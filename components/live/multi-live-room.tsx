@@ -59,7 +59,7 @@ function VideoTile({ item, featured, selected, moveMode, size, position, onSelec
     }
   }, [item.track])
 
-  const width = featured ? 'clamp(260px,42%,460px)' : size === 'medium' ? 'clamp(210px,30%,320px)' : 'clamp(130px,18%,190px)'
+  const width = featured ? 'clamp(260px,42%,460px)' : size === 'medium' ? 'clamp(210px,30%,360px)' : 'clamp(130px,30%,360px)'
 
   function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     onSelect()
@@ -310,14 +310,14 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
         {!screenTrack && !sortedItems.length && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', opacity: .8, zIndex: 2, textAlign: 'center', padding: 20 }}>{status === 'connected' ? 'En attente des caméras…' : message}</div>}
         {screenTrack && <div ref={screenRef} style={{ position: 'absolute', inset: 0, zIndex: 1, background: '#000', padding: 4, overflow: 'hidden' }} />}
         {sortedItems.length > 0 && <div style={{ position: 'absolute', inset: 0, zIndex: 5, overflow: 'hidden' }}>
-          {sortedItems.slice(0, 4).map((item, index) => <VideoTile
+          {sortedItems.map((item, index) => <VideoTile
             key={`${item.id}-${item.track?.sid || ''}`}
             item={item}
             featured={featuredId === item.id}
             selected={selectedCameraId === item.id}
             moveMode={moveMode && selectedCameraId === item.id}
             size={cameraSize}
-            position={cameraPositions[item.id] || { x: 2 + (index % 2) * 20, y: screenTrack ? 76 + Math.floor(index / 2) * 12 : 2 + Math.floor(index / 2) * 20 }}
+            position={cameraPositions[item.id] || { x: 2 + (index % 3) * 33, y: screenTrack ? 72 + Math.floor(index / 3) * 14 : 2 + Math.floor(index / 3) * 32 }}
             onSelect={() => setSelectedCameraId(item.id)}
             onMove={(x, y) => moveCamera(item.id, x, y)}
           />)}
