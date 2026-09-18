@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { createHash } from 'crypto'
 import { parseZip, textFrom, assetMime, sanitizeImportedHtml } from '@/lib/zip'
 import { getSupabaseConfig } from '@/lib/supabase/config'
-import { extractBody, extractStyles, rewriteCssUrls, rewriteHtmlRefs, titleFromHtml } from '@/lib/funnel/import'
+import { extractBody, extractScripts, extractStyles, rewriteCssUrls, rewriteHtmlRefs, titleFromHtml } from '@/lib/funnel/import'
 import { detectInteractiveElements } from '@/lib/funnel/interactive-elements'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -15,42 +15,6 @@ const MAX_UPLOAD = 25 * 1024 * 1024
 const MAX_HTML_BYTES = 20 * 1024 * 1024
 const MAX_ASSETS = 180
 const schema = z.object({ pageId: z.string().uuid() })
-
-type RuntimeScript = { src?: string; code?: string; type?: string }
-
-function extractInlineScripts(html: string) {
-  const scripts: string[] = []
-  const clean = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (whole, attrs: string, body: string) => {
-    if (/\bsrc\s*=/i.test(attrs || '')) return ''
-    if (body.trim()) scripts.push(body.trim())
-    return ''
-  })
-  return { html: clean, js: scripts.join('\n\n') }
-}
-
-function extractExternalScripts(html: string) {
-  const urls: string[] = []
-  const seen = new Set<string>()
-  const re = /<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi
-  let match: RegExpExecArray | null
-  while ((match = re.exec(html)) !== null) {
-    const value = String(match[2] || '').trim()
-    try {
-      const url = new URL(value)
-      if ((url.protocol === 'https:' || url.protocol === 'http:') && !seen.has(url.toString())) {
-        seen.add(url.toString())
-        urls.push(url.toString())
-      }
-    } catch {}
-  }
-  return urls.slice(0, 20)
-}
-
-function buildRuntimeScripts(externalScripts: string[], inlineJs: string): RuntimeScript[] {
-  const list: RuntimeScript[] = externalScripts.map((src) => ({ src }))
-  if (inlineJs.trim()) list.push({ code: inlineJs })
-  return list
-}
 
 async function getAuthorizedPage(request: NextRequest) {
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
@@ -171,6 +135,7 @@ export async function POST(request: NextRequest) {
     let css = ''
     let js = ''
     let externalScripts: string[] = []
+    let runtimeScripts: Array<{ src?: string; code?: string; type?: string }> = []
     const assetUrls = new Map<string, string>()
 
     if (isZip) {
@@ -192,9 +157,7 @@ export async function POST(request: NextRequest) {
           } catch {}
         }
         if (/\.js$/i.test(entry.name) && entry.data.length <= MAX_HTML_BYTES) {
-          try {
-            jsByPath.push(textFrom(entry.data, MAX_HTML_BYTES))
-          } catch {}
+          jsByPath.push(entry.name)
         }
       }
 
@@ -241,16 +204,28 @@ export async function POST(request: NextRequest) {
 
       const raw = textFrom(htmlEntry.data, MAX_HTML_BYTES)
       sourceName = htmlEntry.name
-      externalScripts = extractExternalScripts(raw)
       const styles = extractStyles(raw, htmlEntry.name, (cssPath) => {
         const body = cssByPath.get(cssPath)
         return body === undefined ? null : rewriteCssUrls(body, cssPath, assetUrl)
       })
-      const extractedScript = extractInlineScripts(styles.html)
-      const cleaned = sanitizeImportedHtml(extractedScript.html)
+      const extractedScripts = extractScripts(styles.html, htmlEntry.name, assetUrl)
+      const cleaned = sanitizeImportedHtml(extractedScripts.html)
       rawHtml = rewriteHtmlRefs(extractBody(cleaned), htmlEntry.name, assetUrl, () => null)
       css = rewriteCssUrls(styles.css, htmlEntry.name, assetUrl)
-      js = [extractedScript.js, ...jsByPath].filter(Boolean).join('\n\n')
+      runtimeScripts = extractedScripts.scripts
+      if (!runtimeScripts.length) {
+        runtimeScripts = jsByPath
+          .map((path) => assetUrl(path))
+          .filter((src): src is string => Boolean(src))
+          .map((src) => ({ src }))
+      }
+      externalScripts = runtimeScripts
+        .filter((script) => typeof script.src === 'string')
+        .map((script) => script.src as string)
+      js = extractedScripts.scripts
+        .filter((script) => typeof script.code === 'string')
+        .map((script) => script.code as string)
+        .join('\n\n')
     } else {
       if (!/\.html?$/i.test(sourceName) && fileMime !== 'text/html') {
         return NextResponse.json(
@@ -262,16 +237,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Le fichier HTML dépasse 20 Mo.' }, { status: 413 })
       }
       const source = textFrom(fileBuffer, MAX_HTML_BYTES)
-      externalScripts = extractExternalScripts(source)
-      const extractedScript = extractInlineScripts(source)
-      const raw = sanitizeImportedHtml(extractedScript.html)
+      const extractedScripts = extractScripts(source, sourceName, () => null)
+      const raw = sanitizeImportedHtml(extractedScripts.html)
       const withStyles = extractStyles(raw, sourceName, () => null)
       rawHtml = extractBody(withStyles.html)
       css = withStyles.css
-      js = extractedScript.js
+      runtimeScripts = extractedScripts.scripts
+      externalScripts = runtimeScripts
+        .filter((script) => typeof script.src === 'string')
+        .map((script) => script.src as string)
+      js = extractedScripts.scripts
+        .filter((script) => typeof script.code === 'string')
+        .map((script) => script.code as string)
+        .join('\n\n')
     }
-
-    const runtimeScripts = buildRuntimeScripts(externalScripts, js)
     const interactiveElements = detectInteractiveElements(rawHtml)
     const name = titleFromHtml(rawHtml, page.name || 'Page')
 
