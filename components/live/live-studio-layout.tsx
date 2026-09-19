@@ -26,19 +26,20 @@ export default function LiveStudioLayout({ children, host = false, sidebarConten
       <style>{`
         .live-studio-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
         .live-studio-chat{min-width:0;width:100%;margin-top:0}
-        .live-studio-chat>.panel{min-height:680px!important;height:calc(100vh - 100px);max-height:820px}
+        .live-studio-chat>.panel{min-height:420px!important;height:calc(100vh - 120px);max-height:720px}
         .conik-live-studio-sidebar .choice[title^="http"]{display:none!important}
         @media (max-width:980px){
-          .live-studio-workspace{grid-template-columns:1fr!important}
-          .live-studio-chat{position:relative;top:auto;margin-top:0}
-          .live-studio-chat>.panel{height:auto;min-height:520px!important;max-height:none}
+          .live-studio-workspace{grid-template-columns:1fr!important;display:flex!important;flex-direction:column!important}
+          .live-studio-chat{position:relative;top:auto;margin-top:0;display:block!important;width:100%!important;order:2}
+          .live-studio-chat>.panel{height:auto;min-height:280px!important;max-height:420px;overflow:auto}
           .conik-live-studio-layout{grid-template-columns:1fr!important}
-          .conik-live-studio-sidebar{position:relative!important;top:auto!important;right:auto!important;width:100%!important;max-height:none!important}
+          .conik-live-studio-sidebar{position:relative!important;top:auto!important;right:auto!important;width:100%!important;max-height:none!important;order:3}
           .conik-live-studio-toggle{position:relative!important;top:auto!important;right:auto!important;margin-top:4px;width:42px!important;height:32px!important}
         }
         @media (max-width:760px){
           .conik-live-studio-stage{aspect-ratio:16/9!important;min-height:0!important;height:auto!important}
           .conik-live-studio-sidebar{width:100%!important}
+          .live-studio-chat>.panel{min-height:260px!important;max-height:380px}
         }
       `}</style>
 
