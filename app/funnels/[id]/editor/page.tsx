@@ -358,7 +358,30 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      <div className="editor-grid">
+      <div className="editor-workspace">
+        <aside className="panel editor-sidebar">
+          <div className="editor-sidebar-head">
+            <div><small>PAGE</small><h3>Structure</h3></div>
+            <button className="outline" onClick={() => void createPage()} disabled={busy}><Plus size={14} /> Ajouter</button>
+          </div>
+          <div className="editor-page-list">
+            {pages.map((p) => (
+              <button key={p.id} className={`editor-page-item${selected?.id === p.id ? ' active' : ''}`} onClick={() => void selectPage(p)}>
+                <span><b>Page {p.position + 1}</b><small>/{p.slug}</small></span>
+                <span className="editor-page-status">{p.published_version_id ? 'Publié' : 'Brouillon'}</span>
+              </button>
+            ))}
+          </div>
+          <div className="editor-sidebar-section">
+            <small>CONFIGURATION</small>
+            <div className="editor-config-card">
+              <div><span>Page</span><b>{selected?.name || '—'}</b></div>
+              <div><span>URL</span><code>{selected ? pagePublicPath(selected.slug) : '—'}</code></div>
+              <div><span>État</span><b>{selected?.published_version_id ? 'Publié' : 'Brouillon'}</b></div>
+            </div>
+          </div>
+        </aside>
+
         <section className="panel preview-panel">
           <div className="section-head">
             <h3>Aperçu</h3>
@@ -374,8 +397,13 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
 
         {selected && showCode && (
           <section className="panel code-panel">
-            <div className="section-head">
-              <h3>Page : Page {selected.position + 1}</h3>
+            <div className="code-panel-header">
+              <div>
+                <small>ÉDITEUR</small>
+                <h3>Code & configuration</h3>
+                <p className="muted">Gérez le contenu, les fichiers et les redirections depuis un seul espace.</p>
+              </div>
+              <div className="button-row editor-actions">
               <div className="button-row editor-actions">
                 <label className="outline upload-label import-button"><UploadCloud size={16} />Importer HTML / ZIP
                   <input ref={htmlInputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importHtmlOrZip(f); e.currentTarget.value = '' }} />
@@ -389,7 +417,13 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
                 <button className="danger-button page-delete-button" onClick={() => void deletePage()} disabled={busy}><Trash2 size={15} /></button>
               </div>
             </div>
-            <div className="field" style={{ margin: '12px 18px' }}>
+            <div className="code-toolbar">
+              <div className="code-page-meta"><span>Page {selected.position + 1}</span><code>{pagePublicUrl(selected.slug)}</code></div>
+              <div className="button-row">
+                <button className="outline" onClick={() => void copyPageLink()}>{copied ? <><Check size={14} /> Copié</> : <><Copy size={14} /> Copier le lien</>}</button>
+              </div>
+            </div>
+            <div className="field" style={{ display: 'none' }}>
               <div className="button-row">
                 <code style={{ flex: 1, fontSize: 12 }}>{pagePublicUrl(selected.slug)}</code>
                 <button className="outline" onClick={() => void copyPageLink()}>{copied ? <><Check size={14} /> Copié</> : <><Copy size={14} /> Copier</>}</button>
