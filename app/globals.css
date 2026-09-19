@@ -323,3 +323,34 @@ header h1{font-size:24px}
   .code-page-meta code{max-width:100%}
   .preview-frame{min-height:480px !important}
 }
+
+/* Funnel editor overlap protection */
+.editor-workspace > *{min-width:0;max-width:100%}
+.editor-workspace .panel{box-sizing:border-box}
+.editor-workspace .section-head,.editor-workspace .code-panel-header{min-width:0}
+.editor-workspace .button-row{min-width:0;flex-wrap:wrap}
+.editor-workspace button,.editor-workspace .outline,.editor-workspace .primary{max-width:100%;box-sizing:border-box}
+.editor-workspace .preview-panel{display:flex;flex-direction:column}
+.editor-workspace .preview-panel .preview-frame{display:block;flex:0 1 auto;width:100%;max-width:100%;box-sizing:border-box}
+.editor-workspace .code-panel{display:flex;flex-direction:column}
+.editor-workspace .code-panel textarea,.editor-workspace .code-panel pre{max-width:100%;box-sizing:border-box}
+.editor-workspace .code-panel .code-tabs{display:flex;gap:4px;flex-wrap:wrap;max-width:100%;overflow-x:auto}
+.editor-workspace .redirect-field{min-width:0;max-width:100%;box-sizing:border-box}
+.editor-workspace .redirect-fields{box-sizing:border-box;width:100%}
+.editor-workspace .redirect-fields select,.editor-workspace .redirect-fields input{max-width:100%;box-sizing:border-box}
+@media (max-width:1100px){
+  .editor-workspace{grid-template-columns:190px minmax(0,1fr)}
+  .editor-workspace .code-panel{grid-column:1 / -1}
+}
+@media (max-width:680px){
+  .editor-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+  .editor-workspace .editor-sidebar,.editor-workspace .preview-panel,.editor-workspace .code-panel{width:100%;min-width:0}
+  .editor-workspace .editor-sidebar-head,.editor-workspace .code-panel-header{flex-wrap:wrap}
+  .editor-workspace .editor-actions{width:100%;justify-content:flex-start}
+  .editor-workspace .editor-actions > *{flex:0 1 auto}
+  .editor-workspace .preview-panel .section-head{flex-wrap:wrap}
+  .editor-workspace .preview-panel .preview-frame{min-height:440px !important}
+  .editor-workspace .code-panel .code-tabs{overflow-x:auto;flex-wrap:nowrap}
+  .editor-workspace .code-panel .code-tabs button{flex:0 0 auto}
+  .editor-workspace .code-toolbar{width:auto;max-width:calc(100% - 24px);box-sizing:border-box}
+}
