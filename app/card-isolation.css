@@ -1,0 +1,47 @@
+/* Global card / panel isolation — prevent overlap across app */
+.card,.panel,.choice,.emptybox,.funnel-row,.metric-card,.settings-section{
+  position:relative;
+  z-index:1;
+  isolation:isolate;
+  overflow:hidden;
+  min-width:0;
+  max-width:100%;
+}
+.stats,.grid,.choices,.form-grid,.funnel-table,.revenus-layout{
+  min-width:0;
+  width:100%;
+  box-sizing:border-box;
+}
+.stats > *,.grid > *,.choices > *{
+  min-width:0;
+  max-width:100%;
+}
+.funnel-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  padding:12px 0;
+  border-bottom:1px solid var(--line);
+  overflow:hidden;
+}
+.funnel-list .funnel-row:last-child{border-bottom:0}
+.editor-config-card{
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--panel) 92%,var(--bg));
+  margin-top:12px;
+}
+.editor-config-card + .editor-config-card{margin-top:10px}
+.code-panel .code-tabs button{
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+@media (max-width:900px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+  .grid,.choices{grid-template-columns:minmax(0,1fr) !important}
+}
+@media (max-width:520px){
+  .stats{grid-template-columns:minmax(0,1fr) !important}
+}
