@@ -93,14 +93,10 @@ export function AppShell({ children, active, compact = false }: Props) {
         </div>
         <Link href="/dashboard" className="brand" title={dict.brand} onClick={closeMenu}>
           <b>C</b>
-          {!compact && (
-            <>
-              <strong>{dict.brand}</strong>
-              <small>{dict.tagline}</small>
-            </>
-          )}
+          <strong className="shell-label">{dict.brand}</strong>
+          <small className="shell-label">{dict.tagline}</small>
         </Link>
-        {!compact && <div className="workspace">C&nbsp; {dict.workspace}</div>}
+        <div className="workspace shell-label">C&nbsp; {dict.workspace}</div>
         <nav>
           {itemsBefore.map(([name, Icon, href]) => (
             <Link
@@ -111,7 +107,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               onClick={closeMenu}
             >
               <Icon size={17} />
-              {!compact && <span>{(dict.nav as Record<string, string>)[name] || name}</span>}
+              <span className="shell-label">{(dict.nav as Record<string, string>)[name] || name}</span>
             </Link>
           ))}
 
@@ -137,28 +133,25 @@ export function AppShell({ children, active, compact = false }: Props) {
               }}
             >
               <BarChart3 size={17} />
-              {!compact && (
-                <>
-                  <span style={{ flex: 1 }}>Performance</span>
-                  <ChevronDown
-                    size={15}
-                    style={{
-                      transform: performanceOpen ? 'rotate(180deg)' : undefined,
-                      transition: 'transform .15s',
-                    }}
-                  />
-                </>
-              )}
+              <span className="shell-label" style={{ flex: 1 }}>Performance</span>
+              <ChevronDown
+                className="shell-label"
+                size={15}
+                style={{
+                  transform: performanceOpen ? 'rotate(180deg)' : undefined,
+                  transition: 'transform .15s',
+                }}
+              />
             </button>
-            {!compact && performanceOpen && (
+            {performanceOpen && (
               <div className="sidebar-group-children">
                 <Link className={active === 'Analytics' ? 'active' : ''} href="/analytics" onClick={closeMenu}>
                   <LineChart size={15} />
-                  <span>Analytics</span>
+                  <span className="shell-label">Analytics</span>
                 </Link>
                 <Link className={active === 'Revenus' ? 'active' : ''} href="/revenus" onClick={closeMenu}>
                   <Wallet size={15} />
-                  <span>Revenus</span>
+                  <span className="shell-label">Revenus</span>
                 </Link>
               </div>
             )}
@@ -173,7 +166,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               onClick={closeMenu}
             >
               <Icon size={17} />
-              {!compact && <span>{(dict.nav as Record<string, string>)[name] || name}</span>}
+              <span className="shell-label">{(dict.nav as Record<string, string>)[name] || name}</span>
             </Link>
           ))}
 
@@ -199,28 +192,25 @@ export function AppShell({ children, active, compact = false }: Props) {
               }}
             >
               <Plug size={17} />
-              {!compact && (
-                <>
-                  <span style={{ flex: 1 }}>Intégrations</span>
-                  <ChevronDown
-                    size={15}
-                    style={{
-                      transform: integrationsOpen ? 'rotate(180deg)' : undefined,
-                      transition: 'transform .15s',
-                    }}
-                  />
-                </>
-              )}
+              <span className="shell-label" style={{ flex: 1 }}>Intégrations</span>
+              <ChevronDown
+                className="shell-label"
+                size={15}
+                style={{
+                  transform: integrationsOpen ? 'rotate(180deg)' : undefined,
+                  transition: 'transform .15s',
+                }}
+              />
             </button>
-            {!compact && integrationsOpen && (
+            {integrationsOpen && (
               <div className="sidebar-group-children">
                 <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" onClick={closeMenu}>
                   <CreditCard size={15} />
-                  <span>Solutions de paiement</span>
+                  <span className="shell-label">Solutions de paiement</span>
                 </Link>
                 <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp" onClick={closeMenu}>
                   <MessageSquare size={15} />
-                  <span>WhatsApp</span>
+                  <span className="shell-label">WhatsApp</span>
                 </Link>
               </div>
             )}
@@ -228,7 +218,7 @@ export function AppShell({ children, active, compact = false }: Props) {
 
           <Link className={active === 'Tutorial' ? 'active' : ''} href="/tutorial" title={dict.nav.Tutorial} onClick={closeMenu}>
             <BookOpen size={17} />
-            {!compact && <span>{dict.nav.Tutorial}</span>}
+            <span className="shell-label">{dict.nav.Tutorial}</span>
           </Link>
         </nav>
         <Link
@@ -238,12 +228,12 @@ export function AppShell({ children, active, compact = false }: Props) {
           onClick={closeMenu}
         >
           <Settings2 size={17} />
-          {!compact && <span>{dict.nav.Settings}</span>}
+          <span className="shell-label">{dict.nav.Settings}</span>
         </Link>
         <form action={signOut} className="logout-form">
           <button type="submit" className="logout" title={dict.nav.Logout}>
             <LogOut size={17} />
-            {!compact && <span>{dict.nav.Logout}</span>}
+            <span className="shell-label">{dict.nav.Logout}</span>
           </button>
         </form>
       </aside>
