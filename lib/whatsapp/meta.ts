@@ -1,4 +1,11 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto'
 
 const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v23.0'
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`
@@ -19,11 +26,47 @@ export function getMetaConfig() {
   }
 }
 
+/**
+ * Resolve a stable 32-byte AES key from env.
+ * Accepts:
+ * - base64 that decodes to 32 bytes
+ * - hex (64 chars) that decodes to 32 bytes
+ * - any other non-empty string → SHA-256 (always 32 bytes)
+ * Fallback: WHATSAPP_SERVER_SECRET, then META_APP_SECRET.
+ */
 export function getEncryptionKey() {
-  const raw = required('WHATSAPP_TOKEN_ENCRYPTION_KEY')
-  const key = Buffer.from(raw, 'base64')
-  if (key.length !== 32) throw new Error('WHATSAPP_TOKEN_ENCRYPTION_KEY must be a base64 encoded 32-byte key')
-  return key
+  const candidates = [
+    process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY,
+    process.env.WHATSAPP_SERVER_SECRET,
+    process.env.META_APP_SECRET,
+  ]
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .filter(Boolean)
+
+  if (!candidates.length) {
+    throw new Error(
+      'Clé de chiffrement WhatsApp manquante. Définissez WHATSAPP_TOKEN_ENCRYPTION_KEY (ou WHATSAPP_SERVER_SECRET) dans Vercel.',
+    )
+  }
+
+  for (const raw of candidates) {
+    try {
+      const fromB64 = Buffer.from(raw, 'base64')
+      if (fromB64.length === 32) return fromB64
+    } catch {
+      // ignore
+    }
+
+    if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+      const fromHex = Buffer.from(raw, 'hex')
+      if (fromHex.length === 32) return fromHex
+    }
+
+    // Any string → SHA-256 (always 32 bytes)
+    return createHash('sha256').update(raw, 'utf8').digest()
+  }
+
+  return createHash('sha256').update('conik-whatsapp-fallback', 'utf8').digest()
 }
 
 export function encryptAccessToken(token: string) {
