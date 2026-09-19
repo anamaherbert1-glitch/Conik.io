@@ -6,6 +6,7 @@ const schema = z.object({
   fullName: z.string().trim().max(120).optional(),
   phone: z.string().trim().max(40).optional(),
   country: z.string().trim().max(80).optional(),
+  countryCode: z.string().trim().max(8).optional(),
   city: z.string().trim().max(80).optional(),
   company: z.string().trim().max(120).optional(),
   avatarUrl: z.string().url().optional().or(z.literal('')),
@@ -20,6 +21,7 @@ export async function GET() {
     fullName: meta.full_name || meta.name || '',
     phone: meta.phone || '',
     country: meta.country || '',
+    countryCode: meta.country_code || '',
     city: meta.city || '',
     company: meta.company || '',
     avatarUrl: meta.avatar_url || '',
@@ -38,6 +40,7 @@ export async function PATCH(request: Request) {
     if (parsed.data.fullName !== undefined) meta.full_name = parsed.data.fullName
     if (parsed.data.phone !== undefined) meta.phone = parsed.data.phone
     if (parsed.data.country !== undefined) meta.country = parsed.data.country
+    if (parsed.data.countryCode !== undefined) meta.country_code = parsed.data.countryCode
     if (parsed.data.city !== undefined) meta.city = parsed.data.city
     if (parsed.data.company !== undefined) meta.company = parsed.data.company
     if (parsed.data.avatarUrl !== undefined) meta.avatar_url = parsed.data.avatarUrl || null
@@ -46,7 +49,10 @@ export async function PATCH(request: Request) {
     if (authError) return NextResponse.json({ error: authError.message }, { status: 400 })
 
     if (parsed.data.orgName) {
-      await supabase.from('organizations').update({ name: parsed.data.orgName.trim(), updated_at: new Date().toISOString() }).eq('id', organization.id)
+      await supabase
+        .from('organizations')
+        .update({ name: parsed.data.orgName.trim(), updated_at: new Date().toISOString() })
+        .eq('id', organization.id)
     }
 
     return NextResponse.json({ ok: true })
