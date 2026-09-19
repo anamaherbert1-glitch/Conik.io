@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import {
-  LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Wallet, Globe2,
+  LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Globe2,
   Settings2, LogOut, Plug, BookOpen, Radio, CreditCard, ChevronDown,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
@@ -17,8 +17,7 @@ const items = [
   ['Automations', Bot, '/automations'],
   ['Live Events', Radio, '/lives'],
   ['Links', MousePointer2, '/links'],
-  ['Revenus', Wallet, '/revenus'],
-  ['Analytics', BarChart3, '/analytics'],
+  ['Performance', BarChart3, '/performance'],
   ['Domains', Globe2, '/domains'],
 ] as const
 
