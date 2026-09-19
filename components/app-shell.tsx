@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Globe2,
   Settings2, LogOut, Plug, BookOpen, Radio, CreditCard, ChevronDown, Wallet, LineChart,
+  Menu, X,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const itemsBefore = [
   ['Dashboard', LayoutDashboard, '/dashboard'],
@@ -27,6 +29,8 @@ type Props = { children: React.ReactNode; active: string; compact?: boolean }
 
 export function AppShell({ children, active, compact = false }: Props) {
   const { dict } = usePreferences()
+  const pathname = usePathname()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [integrationsOpen, setIntegrationsOpen] = useState(false)
   const [performanceOpen, setPerformanceOpen] = useState(
     active === 'Analytics' || active === 'Revenus' || active === 'Performance',
@@ -34,10 +38,60 @@ export function AppShell({ children, active, compact = false }: Props) {
   const integrationsActive = active === 'Integrations' || active === 'WhatsApp'
   const performanceActive = active === 'Analytics' || active === 'Revenus' || active === 'Performance'
 
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [menuOpen])
+
+  function closeMenu() {
+    setMenuOpen(false)
+  }
+
   return (
-    <div className={`shell${compact ? ' shell-compact' : ''}`}>
-      <aside className={compact ? 'shell-aside-compact' : undefined}>
-        <Link href="/dashboard" className="brand" title={dict.brand}>
+    <div className={`shell${compact ? ' shell-compact' : ''}${menuOpen ? ' shell-menu-open' : ''}`}>
+      <div className="mobile-topbar">
+        <button
+          type="button"
+          className="mobile-menu-btn"
+          aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+        <Link href="/dashboard" className="mobile-brand" onClick={closeMenu}>
+          <b>C</b>
+          <strong>{dict.brand}</strong>
+        </Link>
+        <Link href="/settings" className="mobile-settings-btn" title={dict.nav.Settings} onClick={closeMenu}>
+          <Settings2 size={20} />
+        </Link>
+      </div>
+
+      <button
+        type="button"
+        className="mobile-nav-backdrop"
+        aria-label="Fermer le menu"
+        tabIndex={menuOpen ? 0 : -1}
+        onClick={closeMenu}
+      />
+
+      <aside className={`${compact ? 'shell-aside-compact' : ''} ${menuOpen ? 'aside-open' : ''}`.trim()}>
+        <div className="aside-mobile-close">
+          <span className="muted" style={{ color: 'var(--sidebar-muted)', fontSize: 12 }}>Menu</span>
+          <button type="button" className="mobile-menu-btn" aria-label="Fermer" onClick={closeMenu}>
+            <X size={20} />
+          </button>
+        </div>
+        <Link href="/dashboard" className="brand" title={dict.brand} onClick={closeMenu}>
           <b>C</b>
           {!compact && (
             <>
@@ -54,6 +108,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               href={href}
               key={name}
               title={(dict.nav as Record<string, string>)[name] || name}
+              onClick={closeMenu}
             >
               <Icon size={17} />
               {!compact && <span>{(dict.nav as Record<string, string>)[name] || name}</span>}
@@ -97,11 +152,11 @@ export function AppShell({ children, active, compact = false }: Props) {
             </button>
             {!compact && performanceOpen && (
               <div className="sidebar-group-children">
-                <Link className={active === 'Analytics' ? 'active' : ''} href="/analytics">
+                <Link className={active === 'Analytics' ? 'active' : ''} href="/analytics" onClick={closeMenu}>
                   <LineChart size={15} />
                   <span>Analytics</span>
                 </Link>
-                <Link className={active === 'Revenus' ? 'active' : ''} href="/revenus">
+                <Link className={active === 'Revenus' ? 'active' : ''} href="/revenus" onClick={closeMenu}>
                   <Wallet size={15} />
                   <span>Revenus</span>
                 </Link>
@@ -115,6 +170,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               href={href}
               key={name}
               title={(dict.nav as Record<string, string>)[name] || name}
+              onClick={closeMenu}
             >
               <Icon size={17} />
               {!compact && <span>{(dict.nav as Record<string, string>)[name] || name}</span>}
@@ -158,11 +214,11 @@ export function AppShell({ children, active, compact = false }: Props) {
             </button>
             {!compact && integrationsOpen && (
               <div className="sidebar-group-children">
-                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations">
+                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" onClick={closeMenu}>
                   <CreditCard size={15} />
                   <span>Solutions de paiement</span>
                 </Link>
-                <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp">
+                <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp" onClick={closeMenu}>
                   <MessageSquare size={15} />
                   <span>WhatsApp</span>
                 </Link>
@@ -170,7 +226,7 @@ export function AppShell({ children, active, compact = false }: Props) {
             )}
           </div>
 
-          <Link className={active === 'Tutorial' ? 'active' : ''} href="/tutorial" title={dict.nav.Tutorial}>
+          <Link className={active === 'Tutorial' ? 'active' : ''} href="/tutorial" title={dict.nav.Tutorial} onClick={closeMenu}>
             <BookOpen size={17} />
             {!compact && <span>{dict.nav.Tutorial}</span>}
           </Link>
@@ -179,6 +235,7 @@ export function AppShell({ children, active, compact = false }: Props) {
           href="/settings"
           className={active === 'Settings' ? 'settings active' : 'settings'}
           title={dict.nav.Settings}
+          onClick={closeMenu}
         >
           <Settings2 size={17} />
           {!compact && <span>{dict.nav.Settings}</span>}
