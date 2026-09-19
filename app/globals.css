@@ -241,3 +241,25 @@ header h1{font-size:24px}
 :root[data-theme="light"] .muted,
 :root[data-theme="light"] .hint,
 :root[data-theme="light"] p.muted{color:var(--muted)!important;opacity:1!important}
+
+/* Settings profile controls */
+.settings-section{margin-bottom:16px}
+.settings-choice-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.profile-photo-row{grid-column:1 / -1;display:flex;align-items:center;gap:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel) 88%,var(--bg))}
+.profile-avatar-large{width:76px;height:76px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:var(--input-bg);border:1px solid var(--line);flex:0 0 auto}
+.profile-avatar-large img{width:100%;height:100%;object-fit:cover}
+.profile-photo-actions{display:grid;gap:8px;min-width:0}
+.profile-photo-actions b{font-size:13px;color:var(--ink)}
+.profile-photo-actions p{margin:2px 0 0}
+.country-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:var(--input-bg);color:var(--ink);text-align:left}
+.phone-field{display:flex;align-items:stretch}
+.phone-prefix{display:flex;align-items:center;padding:0 11px;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;background:var(--panel);font-size:12px;font-weight:800;color:var(--ink)}
+.phone-input{border-radius:0 9px 9px 0!important}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.48);display:grid;place-items:center;padding:16px;z-index:100}
+.country-modal{width:min(460px,100%);max-height:min(680px,90vh);overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.25);display:grid;gap:12px}
+.country-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.country-modal-head>div{display:grid;gap:3px}.country-modal-head b{font-size:16px}.country-list{overflow:auto;display:grid;gap:3px}
+.country-option{display:flex;align-items:center;justify-content:space-between;padding:11px;border:0;border-radius:9px;background:transparent;color:var(--ink);cursor:pointer}
+.country-option:hover{background:color-mix(in srgb,var(--accent) 9%,var(--panel))}
+.country-main{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:650}.country-flag{font-size:20px}.country-dial{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-weight:700}
+@media(max-width:520px){.profile-photo-row{align-items:flex-start}.profile-avatar-large{width:64px;height:64px}.profile-photo-actions{flex:1}.country-modal{padding:13px}.phone-field{width:100%}}
