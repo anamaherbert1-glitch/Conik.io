@@ -58,6 +58,13 @@ export function AppShell({ children, active, compact = false }: Props) {
   return (
     <div className={`shell${compact ? ' shell-compact' : ''}${menuOpen ? ' shell-menu-open' : ''}`}>
       <div className="mobile-topbar">
+        <Link href="/dashboard" className="mobile-brand" onClick={closeMenu}>
+          <b>C</b>
+        </Link>
+        <div className="mobile-topbar-spacer" />
+        <Link href="/settings" className="mobile-settings-btn" title={dict.nav.Settings} onClick={closeMenu}>
+          <Settings2 size={20} />
+        </Link>
         <button
           type="button"
           className="mobile-menu-btn"
@@ -67,13 +74,6 @@ export function AppShell({ children, active, compact = false }: Props) {
         >
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
-        <Link href="/dashboard" className="mobile-brand" onClick={closeMenu}>
-          <b>C</b>
-          <strong>{dict.brand}</strong>
-        </Link>
-        <Link href="/settings" className="mobile-settings-btn" title={dict.nav.Settings} onClick={closeMenu}>
-          <Settings2 size={20} />
-        </Link>
       </div>
 
       <button
