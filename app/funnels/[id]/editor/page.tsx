@@ -404,7 +404,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
                 <p className="muted">Gérez le contenu, les fichiers et les redirections depuis un seul espace.</p>
               </div>
               <div className="button-row editor-actions">
-              <div className="button-row editor-actions">
                 <label className="outline upload-label import-button"><UploadCloud size={16} />Importer HTML / ZIP
                   <input ref={htmlInputRef} type="file" accept=".html,.htm,.zip,text/html,application/zip" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importHtmlOrZip(f); e.currentTarget.value = '' }} />
                 </label>
