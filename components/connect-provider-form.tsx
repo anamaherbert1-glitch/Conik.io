@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ExternalLink, Link2, UserPlus, KeyRound } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Link2, UserPlus, KeyRound, Copy, Check } from 'lucide-react'
 import type { GatewayDef } from '@/lib/payment-gateways'
+import { OFFICIAL_PAYMENT_LOGOS } from '@/lib/payment-provider-logos'
 
 export function ConnectProviderForm({ gateway }: { gateway: GatewayDef }) {
   const router = useRouter()
@@ -13,9 +14,10 @@ export function ConnectProviderForm({ gateway }: { gateway: GatewayDef }) {
   const [creds, setCreds] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://conik-io.vercel.app'
-  const webhookUrl = `${origin}/api/payments/webhook/${gateway.id}`
+  const webhookUrl = `${origin}/api/payments/webhooks/${gateway.id}`
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -65,7 +67,7 @@ export function ConnectProviderForm({ gateway }: { gateway: GatewayDef }) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={gateway.logoUrl}
+              src={OFFICIAL_PAYMENT_LOGOS[gateway.id] || gateway.logoUrl}
               alt={gateway.name}
               style={{ maxWidth: '100%', maxHeight: 44, objectFit: 'contain' }}
               onError={(e) => {
@@ -89,16 +91,12 @@ export function ConnectProviderForm({ gateway }: { gateway: GatewayDef }) {
             </span>
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22 }}>{gateway.name}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, color: gateway.color }}>{gateway.name}</h1>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
               {gateway.countries}
             </p>
           </div>
         </div>
-
-        <p className="muted" style={{ marginTop: 0 }}>
-          {gateway.description}
-        </p>
 
         {step === 'choice' && (
           <div style={{ display: 'grid', gap: 12, marginTop: 8 }}>
@@ -133,11 +131,6 @@ export function ConnectProviderForm({ gateway }: { gateway: GatewayDef }) {
               Non — créer un compte sur {gateway.name}
               <ExternalLink size={14} />
             </a>
-
-            <p className="muted" style={{ fontSize: 12, margin: 0, textAlign: 'center' }}>
-              « Créer un compte » ouvre le site officiel {gateway.name} dans un nouvel onglet.
-              Revenez ici ensuite pour coller vos identifiants.
-            </p>
           </div>
         )}
 
@@ -186,7 +179,25 @@ export function ConnectProviderForm({ gateway }: { gateway: GatewayDef }) {
                 <Link2 size={13} />
                 <b>Webhook Conik à coller chez {gateway.name}</b>
               </div>
-              <code style={{ fontSize: 11 }}>{webhookUrl}</code>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 6 }}>
+                <code style={{ fontSize: 12, flex: 1, wordBreak: 'break-all' }}>{webhookUrl}</code>
+                <button
+                  type="button"
+                  className="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(webhookUrl)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+                >
+                  {copied ? (<><Check size={14} /> Copié</>) : (<><Copy size={14} /> Copier</>)}
+                </button>
+              </div>
             </div>
 
             {error && <div className="error">{error}</div>}
