@@ -35,14 +35,14 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
         return (
           <div
             key={g.id}
-            className="panel"
+            className="panel payment-provider-row"
             style={{
               margin: 0,
-              padding: '12px 16px',
+              padding: '10px 14px',
               display: 'flex',
               alignItems: 'center',
-              gap: 14,
-              flexWrap: 'wrap',
+              gap: 12,
+              flexWrap: 'nowrap',
             }}
           >
             <div
@@ -90,7 +90,7 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
               </span>
             </div>
 
-            <div style={{ flex: 1, minWidth: 140 }}>
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span
                   style={{
@@ -145,7 +145,15 @@ export function PaymentProvidersPanel({ initial }: { initial: Provider[] }) {
             <Link
               href={`/integrations/payments/${g.id}`}
               className={connected.length ? 'outline' : 'primary'}
-              style={{ textDecoration: 'none', padding: '10px 16px', borderRadius: 10, fontWeight: 700, whiteSpace: 'nowrap' }}
+              style={{
+                textDecoration: 'none',
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                marginLeft: 'auto',
+              }}
             >
               {connected.length ? 'Ajouter / reconnecter' : 'Connecter'}
             </Link>
