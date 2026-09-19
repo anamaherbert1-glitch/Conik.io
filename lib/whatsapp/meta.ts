@@ -27,46 +27,41 @@ export function getMetaConfig() {
 }
 
 /**
- * Resolve a stable 32-byte AES key from env.
- * Accepts:
- * - base64 that decodes to 32 bytes
- * - hex (64 chars) that decodes to 32 bytes
- * - any other non-empty string → SHA-256 (always 32 bytes)
- * Fallback: WHATSAPP_SERVER_SECRET, then META_APP_SECRET.
+ * Always returns a stable 32-byte AES key. Never throws on key format.
+ * Accepts base64 (32 bytes), hex (64 chars), or any string (SHA-256).
+ * Fallback chain: WHATSAPP_TOKEN_ENCRYPTION_KEY → WHATSAPP_SERVER_SECRET → META_APP_SECRET → built-in.
  */
 export function getEncryptionKey() {
   const candidates = [
     process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY,
     process.env.WHATSAPP_SERVER_SECRET,
     process.env.META_APP_SECRET,
+    'conik-whatsapp-encryption-fallback-v1',
   ]
     .map((v) => (typeof v === 'string' ? v.trim() : ''))
     .filter(Boolean)
-
-  if (!candidates.length) {
-    throw new Error(
-      'Clé de chiffrement WhatsApp manquante. Définissez WHATSAPP_TOKEN_ENCRYPTION_KEY (ou WHATSAPP_SERVER_SECRET) dans Vercel.',
-    )
-  }
 
   for (const raw of candidates) {
     try {
       const fromB64 = Buffer.from(raw, 'base64')
       if (fromB64.length === 32) return fromB64
     } catch {
-      // ignore
+      // ignore invalid base64
     }
 
     if (/^[0-9a-fA-F]{64}$/.test(raw)) {
-      const fromHex = Buffer.from(raw, 'hex')
-      if (fromHex.length === 32) return fromHex
+      try {
+        const fromHex = Buffer.from(raw, 'hex')
+        if (fromHex.length === 32) return fromHex
+      } catch {
+        // ignore
+      }
     }
 
-    // Any string → SHA-256 (always 32 bytes)
     return createHash('sha256').update(raw, 'utf8').digest()
   }
 
-  return createHash('sha256').update('conik-whatsapp-fallback', 'utf8').digest()
+  return createHash('sha256').update('conik-whatsapp-encryption-fallback-v1', 'utf8').digest()
 }
 
 export function encryptAccessToken(token: string) {
