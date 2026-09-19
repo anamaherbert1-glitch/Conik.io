@@ -214,35 +214,94 @@
     font-size:16px !important;
     min-height:44px;
   }
-  .funnel-table, .table-wrap, table{
-    display:block;width:100%;max-width:100%;
-    overflow-x:auto;-webkit-overflow-scrolling:touch;
-  }
+  body{overflow-x:hidden}
+
+  /* Charts: allow horizontal pan */
+  .panel svg{max-width:none}
+  .panel{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* Compact list rows (funnels, campaigns, domains) */
+  .funnel-table{display:grid!important;gap:0!important}
   .funnel-row{
-    flex-direction:column !important;
-    align-items:stretch !important;
-    gap:10px !important;
+    display:grid!important;
+    grid-template-columns:1fr auto!important;
+    align-items:center!important;
+    column-gap:10px!important;
+    row-gap:8px!important;
+    padding:12px 0!important;
+    flex-direction:unset!important;
+    min-height:0!important;
   }
+  .funnel-row > div:first-child{grid-column:1 / -1;flex:unset!important;min-width:0}
+  .funnel-row .status{justify-self:start;width:fit-content}
+  .funnel-row .outline,
+  .funnel-row a.outline,
+  .funnel-row button.outline{
+    justify-self:end;
+    min-height:36px!important;
+    padding:6px 10px!important;
+  }
+
+  /* Payments: logo + name + Connect same line */
+  .payment-provider-row{
+    flex-wrap:nowrap!important;
+    padding:10px 12px!important;
+    gap:10px!important;
+  }
+  .payment-provider-row a.primary,
+  .payment-provider-row a.outline{
+    flex-shrink:0!important;
+    margin-left:auto!important;
+    padding:8px 12px!important;
+    min-height:36px!important;
+  }
+
+  /* Live chat visible under video */
+  .live-studio-workspace{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:10px!important;
+  }
+  .live-studio-main{order:1;width:100%}
+  .live-studio-chat{
+    order:2!important;
+    display:block!important;
+    width:100%!important;
+    margin-top:0!important;
+  }
+  .live-studio-chat .panel,
+  .live-studio-chat > .panel{
+    min-height:260px!important;
+    max-height:380px!important;
+    height:auto!important;
+  }
+  .conik-live-studio-sidebar{
+    order:3;
+    width:100%!important;
+    max-height:none!important;
+    position:relative!important;
+  }
+
   .editor-workspace{
-    grid-template-columns:1fr !important;
-    gap:12px !important;
+    grid-template-columns:1fr!important;
+    gap:12px!important;
   }
   .editor-workspace .editor-sidebar,
   .editor-workspace .preview-panel,
   .editor-workspace .code-panel{
-    width:100% !important;
-    min-width:0 !important;
+    width:100%!important;
+    min-width:0!important;
   }
-  body{overflow-x:hidden}
 }
 
 @media (max-width:480px){
-  main{padding:14px 12px 28px !important}
-  h1, header h1{font-size:24px !important}
+  main{padding:14px 12px 28px!important}
+  h1, header h1{font-size:24px!important}
   .shell > aside,
   aside,
   .shell-compact aside.shell-aside-compact{
-    width:min(240px, 82vw) !important;
-    max-width:240px !important;
+    width:min(240px, 82vw)!important;
+    max-width:240px!important;
   }
+  .funnel-row{padding:10px 0!important}
 }
