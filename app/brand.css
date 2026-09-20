@@ -1,21 +1,53 @@
-/* Conik brand — indigo professional + WhatsApp green + auth center */
-:root,:root[data-theme="light"]{--accent:#5b5cf0}
-:root[data-theme="dark"],.dark{--accent:#818cf8}
-.brand b{background:#5b5cf0!important}
-.primary{background:var(--accent)!important}
-.auth-page{min-height:100vh;min-height:100dvh;display:flex!important;align-items:center;justify-content:center;padding:20px 16px;background:radial-gradient(circle at 20% 10%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 40%),var(--bg)!important}
-.auth-card{width:100%;max-width:420px;margin:0 auto}
-.auth-card .brand{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;margin-bottom:18px}
-.auth-card .brand b{grid-row:span 2;background:#5b5cf0;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff}
-.auth-card .brand strong{font-size:18px}
-.auth-card .brand small{color:var(--muted);font-size:12px}
-.auth-footer{margin-top:18px;text-align:center;font-size:13px;color:var(--muted)}
-.auth-footer a{color:var(--accent);font-weight:700}
+/* Conik brand — indigo professionnel (chargé APRÈS conik-theme pour gagner) */
+:root,:root[data-theme="light"]{
+  --accent:#5b5cf0!important;
+  --accent-strong:#4f46e5!important;
+}
+:root[data-theme="dark"],.dark{
+  --accent:#818cf8!important;
+  --accent-strong:#6366f1!important;
+}
+
+.brand b,
+.auth-card .brand b,
+.mobile-brand b{
+  background:#5b5cf0!important;
+}
+
+.primary,
+button.primary,
+a.primary,
+.head .button-row .primary,
+.capture-actions .primary{
+  background:#5b5cf0!important;
+  border-color:#5b5cf0!important;
+  color:#fff!important;
+  box-shadow:0 5px 14px rgba(91,92,240,.18)!important;
+}
+.primary:hover,
+button.primary:hover,
+.head .button-row .primary:hover{
+  background:#4f46e5!important;
+  border-color:#4f46e5!important;
+}
+
+.auth-page{
+  background:radial-gradient(circle at 50% 0%,#eef2ff 0,#f4f5f8 38%,#e7e9ee 100%)!important;
+}
+
 .ico{background:#eef2ff!important;color:#5b5cf0!important}
 .page-item:hover,.page-item.active{background:#eef2ff!important;border-color:#c7d2fe!important}
+
+.auth-footer a,
+a[href].accent{color:#5b5cf0!important}
+
+/* WhatsApp reste vert */
 .btn-whatsapp,.wa-primary,.whatsapp-primary,button.whatsapp-primary{
   background:#25D366!important;color:#fff!important;border:0!important;
 }
 .btn-whatsapp:hover,.whatsapp-primary:hover{background:#1ebe57!important}
-.tut-inline-result{margin:8px 0 0!important;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--ink)!important;font-size:12px!important;line-height:1.45}
-.tut-tip{background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+
+.tut-inline-result{
+  background:color-mix(in srgb,#5b5cf0 8%,transparent);
+}
+.tut-tip{background:color-mix(in srgb,#5b5cf0 8%,var(--panel))}
