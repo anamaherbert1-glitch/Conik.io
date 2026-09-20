@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { FunnelRuntime } from '@/components/funnel-runtime'
 import { PublicPaymentCheckout } from '@/components/public-payment-checkout'
-import { loadPublishedFunnelPage } from '@/lib/funnel/public-page'
+import { loadPublishedFunnelPage, shouldShowFreeBranding } from '@/lib/funnel/public-page'
 import { createClient } from '@/lib/supabase/server'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
@@ -77,6 +77,7 @@ export default async function PublicFunnelHome({
   const query = await searchParams
   const tariffSlug = query.tarif || query.tariff || ''
   const { page, payment, missing } = await loadPublishedFunnelPage(funnelSlug, 'home')
+  const showFreeBranding = await shouldShowFreeBranding(page?.funnel_id)
 
   return (
     <>
@@ -86,6 +87,7 @@ export default async function PublicFunnelHome({
         initialPage={page}
         initialPayment={payment}
         initialMissing={missing}
+        showFreeBranding={showFreeBranding}
       />
       {tariffSlug && (
         <PublicPaymentCheckout
