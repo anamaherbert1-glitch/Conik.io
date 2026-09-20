@@ -354,3 +354,22 @@ header h1{font-size:24px}
   .editor-workspace .code-panel .code-tabs button{flex:0 0 auto}
   .editor-workspace .code-toolbar{width:auto;max-width:calc(100% - 24px);box-sizing:border-box}
 }
+
+
+/* Google OAuth auth UI */
+.auth-divider{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:4px 0 16px;
+  color:var(--muted,#6b7280);
+  font-size:13px;
+}
+.auth-divider::before,
+.auth-divider::after{
+  content:"";
+  flex:1;
+  height:1px;
+  background:var(--border,#e5e7eb);
+}
+.auth-divider span{white-space:nowrap}
