@@ -110,6 +110,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
         const paidAt = status === 'succeeded' ? new Date().toISOString() : status === 'refunded' ? null : order?.paid_at || null
         await supabase.from('payment_transactions').update({ status: txStatus, raw_response: verification.raw, updated_at: new Date().toISOString() }).eq('id', transaction.id)
         await supabase.from('payment_orders').update({ status: orderStatus, paid_at: paidAt, updated_at: new Date().toISOString() }).eq('id', transaction.order_id)
+
+        if (status === 'succeeded') {
+          const metadata = (order as any)?.metadata || {}
+          const subscriptionId = metadata?.subscription_id
+          if (subscriptionId) {
+            const { data: subscription } = await supabase
+              .from('conik_subscriptions')
+              .select('id,organization_id,plan_code,amount,currency,starts_at,ends_at')
+              .eq('id', String(subscriptionId))
+              .maybeSingle()
+            if (subscription && subscription.organization_id === provider.organization_id) {
+              const paidAtIso = new Date().toISOString()
+              await supabase
+                .from('conik_subscriptions')
+                .update({
+                  status: 'active',
+                  payment_id: transaction.id,
+                  order_id: transaction.order_id,
+                  starts_at: paidAtIso,
+                  ends_at: new Date(Date.now() + Number(metadata?.billing_interval === 'annual' ? 365 : 30) * 86400000).toISOString(),
+                  updated_at: paidAtIso,
+                })
+                .eq('id', subscription.id)
+            }
+          }
+        }
+
         if (eventRow?.id) await supabase.from('payment_webhook_events').update({ processed: true, processed_at: new Date().toISOString(), error_message: null }).eq('id', eventRow.id)
         return NextResponse.json({ received: true, status: txStatus }, { status: 200 })
       } catch (error) {
