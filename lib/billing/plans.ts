@@ -57,8 +57,8 @@ export const PLANS: PlanDefinition[] = [
     name: 'Basic',
     tagline: 'Petit créateur',
     priceMonthlyXof: 0,
-    priceMonthlyEur: 5,
-    priceAnnualEur: 50,
+    priceMonthlyEur: 9,
+    priceAnnualEur: 90,
     limits: {
       tunnels: 5, pagesPerTunnel: 10, importsHtmlPerMonth: 10, importZip: true, importMaxMb: 25,
       storageMb: 1024, customDomain: false, removeBranding: false, analytics: 'standard', payments: 'limited',
@@ -71,8 +71,8 @@ export const PLANS: PlanDefinition[] = [
     name: 'Premium',
     tagline: 'Business avancé',
     priceMonthlyXof: 0,
-    priceMonthlyEur: 12,
-    priceAnnualEur: 120,
+    priceMonthlyEur: 10,
+    priceAnnualEur: 111.12,
     highlighted: true,
     limits: {
       tunnels: 20, pagesPerTunnel: 50, importsHtmlPerMonth: 50, importZip: true, importMaxMb: 100,
