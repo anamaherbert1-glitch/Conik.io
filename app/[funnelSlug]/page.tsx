@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { FunnelRuntime } from '@/components/funnel-runtime'
+import { ConikFreeBadge } from '@/components/conik-free-badge'
 import { PublicPaymentCheckout } from '@/components/public-payment-checkout'
 import { loadPublishedFunnelPage, shouldShowFreeBranding } from '@/lib/funnel/public-page'
 import { createClient } from '@/lib/supabase/server'
@@ -87,8 +88,8 @@ export default async function PublicFunnelHome({
         initialPage={page}
         initialPayment={payment}
         initialMissing={missing}
-        showFreeBranding={showFreeBranding}
       />
+      {showFreeBranding ? <ConikFreeBadge /> : null}
       {tariffSlug && (
         <PublicPaymentCheckout
           funnelSlug={funnelSlug}

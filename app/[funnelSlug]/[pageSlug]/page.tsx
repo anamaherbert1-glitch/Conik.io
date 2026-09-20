@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { FunnelRuntime } from '@/components/funnel-runtime'
+import { ConikFreeBadge } from '@/components/conik-free-badge'
 import { PublicPaymentCheckout } from '@/components/public-payment-checkout'
-import { loadPublishedFunnelPage } from '@/lib/funnel/public-page'
+import { loadPublishedFunnelPage, shouldShowFreeBranding } from '@/lib/funnel/public-page'
 import { createClient } from '@/lib/supabase/server'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
@@ -77,6 +78,7 @@ export default async function PublicFunnelPage({
   const query = await searchParams
   const tariffSlug = query.tarif || query.tariff || ''
   const { page, payment, missing } = await loadPublishedFunnelPage(funnelSlug, pageSlug)
+  const showFreeBranding = await shouldShowFreeBranding(page?.funnel_id)
 
   return (
     <>
@@ -87,6 +89,7 @@ export default async function PublicFunnelPage({
         initialPayment={payment}
         initialMissing={missing}
       />
+      {showFreeBranding ? <ConikFreeBadge /> : null}
       {tariffSlug && (
         <PublicPaymentCheckout
           funnelSlug={funnelSlug}
