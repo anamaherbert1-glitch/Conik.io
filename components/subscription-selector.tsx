@@ -16,6 +16,7 @@ type Props = {
   whatsappDailyBasic?: number
   whatsappDailyPremium?: number
   whatsappEndsAt?: string | null
+  compact?: boolean
 }
 
 export function SubscriptionSelector({
@@ -24,6 +25,7 @@ export function SubscriptionSelector({
   whatsappDailyBasic = 0,
   whatsappDailyPremium = 0,
   whatsappEndsAt,
+  compact = false,
 }: Props) {
   const [selected, setSelected] = useState<PlanCode>(
     (['free', 'basic', 'premium', 'business'].includes(String(currentPlan))
@@ -32,6 +34,7 @@ export function SubscriptionSelector({
   )
   const [days, setDays] = useState(7)
   const [showTable, setShowTable] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const daily = selected === 'premium' || selected === 'business' ? whatsappDailyPremium : whatsappDailyBasic
   const whatsappTotal = useMemo(() => daily * days, [daily, days])
@@ -42,18 +45,43 @@ export function SubscriptionSelector({
     return PLANS.find((p) => p.code === code)?.priceMonthlyXof ?? 0
   }
 
-  return (
-    <div className="plans-wrap">
-      <div className="plans-intro">
-        <small>OFFRES CONIK</small>
-        <h2>Choisissez votre formule</h2>
-        <p className="muted">
-          Free pour découvrir · Basic pour vendre simplement · Premium pour scaler · Business pour les équipes.
-          Les limites sont nettes : pas d’« illimité » trompeur.
-        </p>
-      </div>
+  async function choosePlan() {
+    if (selected === 'free' || selected === currentPlan) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/billing/select-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: selected, whatsappDays: days }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(j.error || 'Impossible de changer d’offre pour le moment.')
+        return
+      }
+      if (j.checkoutUrl) {
+        window.location.href = j.checkoutUrl
+        return
+      }
+      window.location.reload()
+    } finally {
+      setBusy(false)
+    }
+  }
 
-      <div className="plans-grid">
+  return (
+    <div className={`plans-wrap ${compact ? 'plans-compact' : ''}`}>
+      {!compact && (
+        <div className="plans-intro">
+          <small>OFFRES CONIK</small>
+          <h2>Choisissez votre formule</h2>
+          <p className="muted">
+            Free pour tester · Basic pour vendre · Premium pour scaler · Business pour les équipes.
+          </p>
+        </div>
+      )}
+
+      <div className="plans-bands">
         {PLANS.map((plan) => {
           const price = priceOf(plan.code)
           const active = selected === plan.code
@@ -62,36 +90,36 @@ export function SubscriptionSelector({
             <button
               key={plan.code}
               type="button"
-              className={`plan-card ${active ? 'active' : ''} ${plan.highlighted ? 'featured' : ''}`}
+              className={`plan-band ${active ? 'active' : ''} ${plan.highlighted ? 'featured' : ''} ${isCurrent ? 'current' : ''}`}
               onClick={() => setSelected(plan.code)}
             >
-              {plan.highlighted && <span className="plan-ribbon">Recommandé</span>}
-              {isCurrent && <span className="plan-current">Actuel</span>}
-              <div className="plan-name">{plan.name}</div>
-              <div className="plan-tag">{plan.tagline}</div>
-              <div className="plan-price">
+              <div className="plan-band-left">
+                <div className="plan-band-title">
+                  <strong>{plan.name}</strong>
+                  {plan.highlighted && <span className="plan-pill">Recommandé</span>}
+                  {isCurrent && <span className="plan-pill muted-pill">Actuel</span>}
+                </div>
+                <div className="plan-band-tag">{plan.tagline}</div>
+                <div className="plan-band-meta">
+                  {plan.limits.tunnels} tunnels · {plan.limits.contacts.toLocaleString('fr-FR')} contacts ·{' '}
+                  {formatStorage(plan.limits.storageMb)}
+                  {plan.limits.whatsapp ? ' · WhatsApp' : ''}
+                  {plan.limits.live ? ' · Live' : ''}
+                  {plan.limits.customDomain ? ' · Domaine' : ''}
+                </div>
+              </div>
+              <div className="plan-band-right">
                 {price <= 0 ? (
-                  <strong>Gratuit</strong>
+                  <div className="plan-band-price">
+                    <strong>Gratuit</strong>
+                  </div>
                 ) : (
-                  <>
+                  <div className="plan-band-price">
                     <strong>{price.toLocaleString('fr-FR')}</strong>
-                    <span> XOF / mois</span>
-                  </>
+                    <span>XOF / mois</span>
+                  </div>
                 )}
               </div>
-              <ul className="plan-bullets">
-                <li>{plan.limits.tunnels} tunnel{plan.limits.tunnels > 1 ? 's' : ''}</li>
-                <li>{plan.limits.pagesPerTunnel} pages / tunnel</li>
-                <li>{plan.limits.contacts.toLocaleString('fr-FR')} contacts</li>
-                <li>{formatStorage(plan.limits.storageMb)} stockage</li>
-                {plan.limits.whatsapp && <li>WhatsApp inclus</li>}
-                {plan.limits.live && <li>Live + co-hosts</li>}
-                {plan.limits.customDomain && <li>Domaine personnalisé</li>}
-                {plan.limits.payments === 'none' && <li className="dim">Sans paiements</li>}
-                {plan.limits.payments !== 'none' && (
-                  <li>Paiements {plan.limits.payments === 'limited' ? 'limités' : 'avancés'}</li>
-                )}
-              </ul>
             </button>
           )
         })}
@@ -138,17 +166,17 @@ export function SubscriptionSelector({
         )}
 
         <div className="plan-cta">
-          {selected === 'free' || currentPlan === selected ? (
+          {selected === currentPlan || selected === 'free' ? (
             <button type="button" className="outline" disabled>
-              {currentPlan === selected ? 'Formule actuelle' : 'Inclus gratuitement'}
+              {selected === currentPlan ? 'Formule actuelle' : selected === 'free' ? 'Inclus gratuitement' : 'Sélectionné'}
             </button>
           ) : (
-            <button type="button" className="primary">
-              Passer à {selectedPlan.name}
+            <button type="button" className="primary" disabled={busy} onClick={() => void choosePlan()}>
+              {busy ? 'Préparation…' : `Passer à ${selectedPlan.name}`}
             </button>
           )}
           <span className="muted" style={{ fontSize: 12 }}>
-            L’activation payante se fait après confirmation du paiement côté serveur.
+            Le paiement débloque automatiquement les fonctionnalités du plan.
           </span>
         </div>
       </div>
