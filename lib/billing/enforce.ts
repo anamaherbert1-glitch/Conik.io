@@ -8,16 +8,34 @@ export async function getOrganizationPlanCode(organizationId: string): Promise<P
       .from('conik_subscriptions')
       .select('plan_code, status, ends_at')
       .eq('organization_id', organizationId)
-      .eq('status', 'active')
+      .in('status', ['active', 'trialing'])
       .order('ends_at', { ascending: false })
       .limit(1)
       .maybeSingle()
     if (!data?.plan_code) return 'free'
+    if (data.ends_at && new Date(data.ends_at).getTime() < Date.now()) return 'free'
     const code = String(data.plan_code).toLowerCase()
-    if (code === 'basic' || code === 'premium' || code === 'business' || code === 'free') return code
+    if (code === 'basic' || code === 'premium' || code === 'business' || code === 'free') return code as PlanCode
     return 'free'
   } catch {
     return 'free'
+  }
+}
+
+export async function getOrganizationSubscription(organizationId: string) {
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('conik_subscriptions')
+      .select('plan_code, status, ends_at, starts_at, amount, currency')
+      .eq('organization_id', organizationId)
+      .in('status', ['active', 'trialing', 'pending'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    return data
+  } catch {
+    return null
   }
 }
 
@@ -57,6 +75,8 @@ export function assertFeature(
   message: string,
 ): { ok: true } | { ok: false; error: string } {
   const v = limits[feature]
-  if (v === false || v === 'none' || v === 0) return { ok: false, error: message }
+  if (v === false || v === 'none' || v === 0) {
+    return { ok: false, error: message }
+  }
   return { ok: true }
 }
