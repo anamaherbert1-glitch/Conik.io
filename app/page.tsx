@@ -1,65 +1,155 @@
-'use client'
+import Link from 'next/link'
 
-import { FormEvent, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+const features = [
+  {
+    title: 'Tunnels multi-pages',
+    desc: 'Créez ou importez un mini-site HTML complet : pages, CSS, JS, images, vidéos.',
+  },
+  {
+    title: 'Paiements locaux',
+    desc: 'CinetPay, FedaPay, Wave, Flutterwave, PayDunya et d’autres agrégateurs africains.',
+  },
+  {
+    title: 'WhatsApp intégré',
+    desc: 'Connectez WhatsApp pour relancer, accompagner et convertir vos contacts.',
+  },
+  {
+    title: 'Live & campagnes',
+    desc: 'Animez des lives, lancez des campagnes et automatisez vos scénarios.',
+  },
+  {
+    title: 'Analytics & revenus',
+    desc: 'Suivez le trafic, les conversions et l’argent généré par vos tunnels.',
+  },
+  {
+    title: 'Pensé mobile',
+    desc: 'Une interface claire sur téléphone comme sur ordinateur.',
+  },
+]
 
-const DEFAULT_ALLOWED = ['eliteone003@gmail.com', 'anamaspenser@gmail.com']
-const ALLOWED_EMAILS = new Set((process.env.NEXT_PUBLIC_ALLOWED_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean).concat(DEFAULT_ALLOWED))
+const steps = [
+  { n: '1', t: 'Créer', d: 'Importez un projet HTML ou construisez votre tunnel.' },
+  { n: '2', t: 'Connecter', d: 'Paiement, WhatsApp, domaine — en quelques clics.' },
+  { n: '3', t: 'Publier', d: 'Partagez le lien public et commencez à vendre.' },
+  { n: '4', t: 'Mesurer', d: 'Analytics et revenus dans un même tableau de bord.' },
+]
 
-function safeNext(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
-  return value
-}
+export default function HomePage() {
+  return (
+    <main className="land">
+      <header className="land-nav">
+        <Link href="/" className="land-brand">
+          <span className="land-logo">C</span>
+          <span>
+            <strong>Conik.io</strong>
+            <small>Marketing OS</small>
+          </span>
+        </Link>
+        <nav className="land-nav-links">
+          <a href="#features">Fonctionnalités</a>
+          <a href="#how">Fonctionnement</a>
+          <Link href="/login" className="land-btn ghost">
+            Connexion
+          </Link>
+          <Link href="/signup" className="land-btn solid">
+            S’inscrire
+          </Link>
+        </nav>
+      </header>
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [next, setNext] = useState('/dashboard')
+      <section className="land-hero">
+        <div className="land-hero-copy">
+          <p className="land-kicker">Marketing OS pour l’Afrique</p>
+          <h1>
+            Créez, publiez et monétisez
+            <br />
+            vos tunnels de vente.
+          </h1>
+          <p className="land-lead">
+            Conik.io regroupe funnels, contacts, WhatsApp, paiements locaux et analytics dans une seule plateforme —
+            pensée pour les créateurs, coachs et PME.
+          </p>
+          <div className="land-cta">
+            <Link href="/signup" className="land-btn solid lg">
+              Créer un compte gratuit
+            </Link>
+            <Link href="/login" className="land-btn ghost lg">
+              Se connecter
+            </Link>
+          </div>
+          <p className="land-note">Inscription par e-mail ou Google · Accès immédiat</p>
+        </div>
+        <div className="land-hero-card" aria-hidden="true">
+          <div className="land-mock-bar">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="land-mock-body">
+            <div className="land-mock-stat">
+              <small>Vues</small>
+              <b>2 480</b>
+            </div>
+            <div className="land-mock-stat">
+              <small>Conversions</small>
+              <b>186</b>
+            </div>
+            <div className="land-mock-stat">
+              <small>Revenus</small>
+              <b>1,2M XOF</b>
+            </div>
+            <div className="land-mock-line" />
+            <p>Tableau de bord · Funnels · WhatsApp · Paiements</p>
+          </div>
+        </div>
+      </section>
 
-  useEffect(() => setNext(safeNext(new URLSearchParams(window.location.search).get('next'))), [])
+      <section id="features" className="land-section">
+        <h2>Tout ce qu’il faut pour vendre en ligne</h2>
+        <p className="land-section-lead">Une suite cohérente à la place de 5 outils séparés.</p>
+        <div className="land-grid">
+          {features.map((f) => (
+            <article key={f.title} className="land-feature">
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
-  async function submit(event: FormEvent) {
-    event.preventDefault(); setError(''); setLoading(true)
-    const normalizedEmail = email.trim().toLowerCase()
-    if (!ALLOWED_EMAILS.has(normalizedEmail)) { setError("Accès refusé. Cette adresse e-mail n'est pas autorisée."); setLoading(false); return }
-    try {
-      const supabase = createClient()
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: code })
-      if (signInError) { setError('E-mail ou code d’accès incorrect.'); return }
-      window.location.replace(next)
-    } finally { setLoading(false) }
-  }
+      <section id="how" className="land-section land-section-alt">
+        <h2>Comment ça marche</h2>
+        <div className="land-steps">
+          {steps.map((s) => (
+            <div key={s.n} className="land-step">
+              <span className="land-step-n">{s.n}</span>
+              <h3>{s.t}</h3>
+              <p>{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-  return <main className="auth-page conik-login-page">
-    <div className="auth-orb auth-orb-one" aria-hidden="true" />
-    <div className="auth-orb auth-orb-two" aria-hidden="true" />
-    <div className="auth-grid-pattern" aria-hidden="true" />
-    <section className="auth-card conik-login-card">
-      <div className="brand"><b>C</b><strong>Conik.io</strong><small>Marketing OS</small></div>
-      <div className="login-kicker">ESPACE PRIVÉ</div>
-      <h1>Bienvenue sur Conik</h1>
-      <p>Connectez-vous avec une adresse e-mail autorisée et votre code d’accès.</p>
-      <form onSubmit={submit}>
-        <label>E-mail<input type="email" required autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="vous@email.com" /></label>
-        <label>Code d’accès<input type="password" required autoComplete="current-password" value={code} onChange={e => setCode(e.target.value)} placeholder="Votre code d’accès" /></label>
-        {error && <div className="error">{error}</div>}
-        <button className="primary full login-submit" disabled={loading}>{loading ? 'Connexion…' : 'Se connecter'}</button>
-      </form>
-      <p className="auth-footer">Accès réservé aux comptes autorisés.</p>
-    </section>
-    <style jsx>{`
-      .conik-login-page{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(circle at 12% 18%,rgba(91,92,240,.20),transparent 32%),radial-gradient(circle at 88% 82%,rgba(236,72,153,.12),transparent 30%),linear-gradient(135deg,#f3f4ff 0%,#f8f9fc 48%,#eef0ff 100%);padding:32px 20px}
-      .auth-orb{position:absolute;border-radius:999px;filter:blur(1px);pointer-events:none;z-index:-1}
-      .auth-orb-one{width:360px;height:360px;left:-150px;top:-110px;background:rgba(91,92,240,.10)}
-      .auth-orb-two{width:300px;height:300px;right:-100px;bottom:-80px;background:rgba(124,58,237,.09)}
-      .auth-grid-pattern{position:absolute;inset:0;z-index:-1;opacity:.22;background-image:linear-gradient(rgba(91,92,240,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(91,92,240,.08) 1px,transparent 1px);background-size:38px 38px;mask-image:linear-gradient(to bottom,transparent,black 20%,black 80%,transparent)}
-      .conik-login-card{position:relative;width:min(440px,100%);padding:36px;border-radius:22px;box-shadow:0 28px 90px rgba(30,34,70,.14);backdrop-filter:blur(10px)}
-      .login-kicker{display:inline-flex;margin:0 0 8px;padding:5px 9px;border-radius:999px;background:#f0efff;color:#4f46e5;font-size:9px;font-weight:800;letter-spacing:.12em}
-      .conik-login-card h1{margin:4px 0 8px;font-size:29px}.conik-login-card>p{margin-bottom:25px}
-      .login-submit{min-height:46px;margin-top:2px;background:#5b5cf0}.conik-login-card .brand{margin-bottom:24px}
-      @media(max-width:520px){.conik-login-page{padding:20px 14px}.conik-login-card{padding:27px 20px;border-radius:18px}.conik-login-card h1{font-size:25px}.auth-orb-one{width:260px;height:260px}.auth-orb-two{width:220px;height:220px}}
-    `}</style>
-  </main>
+      <section className="land-section land-final">
+        <h2>Prêt à lancer votre prochain tunnel ?</h2>
+        <p className="land-section-lead">Créez votre compte en moins d’une minute.</p>
+        <div className="land-cta center">
+          <Link href="/signup" className="land-btn solid lg">
+            S’inscrire
+          </Link>
+          <Link href="/login" className="land-btn ghost lg">
+            J’ai déjà un compte
+          </Link>
+        </div>
+      </section>
+
+      <footer className="land-footer">
+        <span>© {new Date().getFullYear()} Conik.io</span>
+        <div>
+          <Link href="/login">Connexion</Link>
+          <Link href="/signup">Inscription</Link>
+        </div>
+      </footer>
+    </main>
+  )
 }
