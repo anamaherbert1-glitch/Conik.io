@@ -222,6 +222,15 @@ export function AppShell({ children, active, compact = false }: Props) {
           </Link>
         </nav>
         <Link
+          href="/subscriptions"
+          className={pathname?.startsWith('/subscriptions') ? 'settings active' : 'settings'}
+          title="Abonnements"
+          onClick={closeMenu}
+        >
+          <CreditCard size={17} />
+          <span className="shell-label">Abonnements</span>
+        </Link>
+        <Link
           href="/settings"
           className={active === 'Settings' ? 'settings active' : 'settings'}
           title={dict.nav.Settings}
