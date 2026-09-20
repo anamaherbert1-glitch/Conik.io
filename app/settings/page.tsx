@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
-import { SettingsBilling } from '@/components/settings-billing'
+import { SettingsCollaboration } from '@/components/settings-collaboration'
+import { SettingsTutorial } from '@/components/settings-tutorial'
 import { usePreferences } from '@/components/preferences-provider'
 import { locales, type Locale, type Theme } from '@/lib/i18n/dictionaries'
-import { Moon, Sun, Monitor, MessageSquarePlus, UserPlus, User, Building2, Camera, ChevronDown } from 'lucide-react'
+import { Moon, Sun, Monitor, MessageSquarePlus, User, Building2, Camera, ChevronDown } from 'lucide-react'
 
 type Country = { name: string; code: string; dial: string; flag: string }
 
@@ -50,18 +51,14 @@ export default function SettingsPage() {
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [fbSubject, setFbSubject] = useState(''); const [fbMessage, setFbMessage] = useState('')
   const [fbCategory, setFbCategory] = useState<'bug'|'idea'|'question'|'other'>('bug'); const [fbBusy, setFbBusy] = useState(false); const [fbMsg, setFbMsg] = useState('')
-  const [inviteEmail, setInviteEmail] = useState(''); const [inviteRole, setInviteRole] = useState<'admin'|'editor'|'viewer'>('editor')
-  const [inviteBusy, setInviteBusy] = useState(false); const [inviteMsg, setInviteMsg] = useState('')
-  const [invites, setInvites] = useState<Array<{id:string;email:string;role:string;status:string}>>([])
 
-  useEffect(() => { void loadProfile(); void loadInvites() }, [])
+  useEffect(() => { void loadProfile() }, [])
 
   async function loadProfile() {
     const r = await fetch('/api/profile'); if (!r.ok) return; const j = await r.json()
     setProfile({ email:j.email||'', fullName:j.fullName||'', phone:j.phone||'', country:j.country||'', countryCode:j.countryCode||'',
       city:j.city||'', company:j.company||'', avatarUrl:j.avatarUrl||'', orgName:j.orgName||'' })
   }
-  async function loadInvites() { const r=await fetch('/api/team/invite'); if(r.ok){const j=await r.json();setInvites(j.invites||[])} }
 
   function chooseCountry(c: Country) {
     if (!profile) return
@@ -113,20 +110,11 @@ export default function SettingsPage() {
     setFbBusy(false)
   }
 
-  async function sendInvite() {
-    setInviteBusy(true); setInviteMsg('')
-    const r = await fetch('/api/team/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: inviteEmail, role: inviteRole }) })
-    const j = await r.json().catch(() => ({}))
-    if (!r.ok) setInviteMsg(j.error || 'Invitation impossible')
-    else { setInviteMsg(j.message || 'Invitation envoyée'); setInviteEmail(''); void loadInvites() }
-    setInviteBusy(false)
-  }
-
   const selectedCountry=countries.find(c=>c.code===profile?.countryCode)
   const filteredCountries=countries.filter(c=>(c.name+' '+c.dial).toLowerCase().includes(countrySearch.toLowerCase()))
 
   return <AppShell active="Settings">
-    <header><div><small>SETTINGS</small><h1>{dict.settings.title}</h1><p className="muted">Profil, abonnement, équipe, apparence et support.</p></div></header>
+    <header><div><small>SETTINGS</small><h1>{dict.settings.title}</h1><p className="muted">Mon profil, collaboration, tutoriel et support.</p></div></header>
 
     <section className="panel settings-section">
       <h3 style={{marginTop:0}}>Apparence</h3>
@@ -135,7 +123,7 @@ export default function SettingsPage() {
     </section>
 
     <section className="panel settings-section">
-      <div className="section-head"><div style={{display:'flex',alignItems:'center',gap:8}}><User size={18}/><h3 style={{margin:0}}>Profil</h3></div></div>
+      <div className="section-head"><div style={{display:'flex',alignItems:'center',gap:8}}><User size={18}/><h3 style={{margin:0}}>Mon profil</h3></div></div>
       {profile && <div className="form-grid">
         <div className="profile-photo-row">
           <div className="profile-avatar-large">{profile.avatarUrl ? <img src={profile.avatarUrl} alt="Photo de profil"/> : <User size={30} opacity={.45}/>}</div>
@@ -173,19 +161,9 @@ export default function SettingsPage() {
       <div className="country-list">{filteredCountries.map(c=><button key={c.code} className="country-option" onClick={()=>chooseCountry(c)}><span className="country-flag">{c.flag}</span><span className="country-name">{c.name}</span><span className="country-dial">{c.dial}</span></button>)}</div>
     </div></div>}
 
-    <section className="panel settings-section">
-      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><UserPlus size={18}/><h3 style={{margin:0}}>Équipe — inviter un collaborateur</h3></div>
-      <p className="muted" style={{marginTop:0,fontSize:13}}>Invitez quelqu’un à travailler avec vous sur vos tunnels et projets.</p>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
-        <label className="form-label" style={{flex:1,minWidth:180,margin:0}}>E-mail<input className="form-input" type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} placeholder="collegue@email.com"/></label>
-        <label className="form-label" style={{margin:0}}>Rôle<select className="form-input" value={inviteRole} onChange={e=>setInviteRole(e.target.value as typeof inviteRole)}><option value="editor">Éditeur</option><option value="admin">Admin</option><option value="viewer">Lecteur</option></select></label>
-        <button className="primary" type="button" disabled={inviteBusy||!inviteEmail.trim()} onClick={()=>void sendInvite()}>{inviteBusy?'Envoi…':'Inviter'}</button>
-      </div>
-      {inviteMsg&&<div className="notice" style={{marginTop:10}}>{inviteMsg}</div>}
-      {invites.length>0&&<div style={{marginTop:14,display:'grid',gap:6}}><b style={{fontSize:13}}>Invitations</b>{invites.map(i=><div key={i.id} style={{fontSize:13}}>{i.email} · {i.role} · {i.status}</div>)}</div>}
-    </section>
+    <SettingsCollaboration />
 
-    <SettingsBilling />
+    <SettingsTutorial />
 
     <section className="panel settings-section">
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><MessageSquarePlus size={18}/><h3 style={{margin:0}}>Support & feedback</h3></div>
