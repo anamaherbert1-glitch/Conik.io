@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { z } from 'zod'
+import { getOrganizationLimits } from '@/lib/billing/enforce'
 
 const triggerTypes = ['new_contact','form_submission','whatsapp_message_received','whatsapp_opt_in','whatsapp_opt_out','whatsapp_message_delivered','whatsapp_message_read','whatsapp_message_failed'] as const
 const actionSchema = z.object({
@@ -17,6 +18,8 @@ const schema = z.object({
 
 export async function GET(){
   const {supabase,organization}=await requireWorkspaceRole(['owner','admin','editor','viewer'])
+  const limits=await getOrganizationLimits(organization.id)
+  if(limits.automations==='none')return NextResponse.json({error:'Automatisations non disponibles dans votre formule. Passez à Premium pour les utiliser.',code:'FEATURE_UPGRADE_REQUIRED',upgradeUrl:'/subscriptions'},{status:403})
   const {data,error}=await supabase.from('automations').select('id,name,trigger_type,trigger_config,status,created_at,updated_at').eq('organization_id',organization.id).order('created_at',{ascending:false})
   if(error)return NextResponse.json({error:error.message},{status:500})
   const ids=(data||[]).map((a)=>a.id)
@@ -27,6 +30,8 @@ export async function GET(){
 
 export async function POST(request:Request){
   const {supabase,organization}=await requireWorkspaceRole(['owner','admin','editor'])
+  const limits=await getOrganizationLimits(organization.id)
+  if(limits.automations==='none')return NextResponse.json({error:'Automatisations non disponibles dans votre formule. Passez à Premium pour les utiliser.',code:'FEATURE_UPGRADE_REQUIRED',upgradeUrl:'/subscriptions'},{status:403})
   const p=schema.safeParse(await request.json().catch(()=>null))
   if(!p.success)return NextResponse.json({error:'Automatisation invalide.'},{status:400})
   const {data:a,error}=await supabase.from('automations').insert({organization_id:organization.id,name:p.data.name,trigger_type:p.data.trigger_type,trigger_config:p.data.trigger_config,status:p.data.status}).select('id,name,trigger_type,trigger_config,status').single()
