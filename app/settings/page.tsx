@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
+import { SettingsBilling } from '@/components/settings-billing'
 import { usePreferences } from '@/components/preferences-provider'
 import { locales, type Locale, type Theme } from '@/lib/i18n/dictionaries'
 import { Moon, Sun, Monitor, MessageSquarePlus, UserPlus, User, Building2, Camera, ChevronDown } from 'lucide-react'
@@ -125,7 +126,7 @@ export default function SettingsPage() {
   const filteredCountries=countries.filter(c=>(c.name+' '+c.dial).toLowerCase().includes(countrySearch.toLowerCase()))
 
   return <AppShell active="Settings">
-    <header><div><small>SETTINGS</small><h1>{dict.settings.title}</h1><p className="muted">Profil, équipe, apparence et support.</p></div></header>
+    <header><div><small>SETTINGS</small><h1>{dict.settings.title}</h1><p className="muted">Profil, abonnement, équipe, apparence et support.</p></div></header>
 
     <section className="panel settings-section">
       <h3 style={{marginTop:0}}>Apparence</h3>
@@ -183,6 +184,8 @@ export default function SettingsPage() {
       {inviteMsg&&<div className="notice" style={{marginTop:10}}>{inviteMsg}</div>}
       {invites.length>0&&<div style={{marginTop:14,display:'grid',gap:6}}><b style={{fontSize:13}}>Invitations</b>{invites.map(i=><div key={i.id} style={{fontSize:13}}>{i.email} · {i.role} · {i.status}</div>)}</div>}
     </section>
+
+    <SettingsBilling />
 
     <section className="panel settings-section">
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><MessageSquarePlus size={18}/><h3 style={{margin:0}}>Support & feedback</h3></div>
