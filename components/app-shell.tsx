@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Globe2,
   Settings2, LogOut, Plug, Radio, CreditCard, ChevronDown, Wallet, LineChart,
-  Menu, X,
+  Menu, X, Gift,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
@@ -32,6 +32,7 @@ export function AppShell({ children, active, compact = false }: Props) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [integrationsOpen, setIntegrationsOpen] = useState(false)
+  const [planInfo, setPlanInfo] = useState<{ plan: string; planName: string; nextPlan: string | null; status?: string } | null>(null)
   const [performanceOpen, setPerformanceOpen] = useState(
     active === 'Analytics' || active === 'Revenus' || active === 'Performance',
   )
@@ -41,6 +42,19 @@ export function AppShell({ children, active, compact = false }: Props) {
   useEffect(() => {
     setMenuOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await fetch('/api/billing/me')
+        if (!r.ok) return
+        const j = await r.json()
+        if (!cancelled) setPlanInfo({ plan: j.plan, planName: j.planName, nextPlan: j.nextPlan, status: j.status })
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -97,6 +111,20 @@ export function AppShell({ children, active, compact = false }: Props) {
           <small className="shell-label">{dict.tagline}</small>
         </Link>
         <div className="workspace shell-label">C&nbsp; {dict.workspace}</div>
+        {planInfo && planInfo.plan !== 'business' && (
+          <Link
+            href={`/subscriptions?from=${encodeURIComponent(planInfo.plan)}`}
+            className="shell-plan-chip"
+            onClick={closeMenu}
+            title="Passer au niveau supérieur"
+          >
+            <span className="shell-plan-chip-icon"><Gift size={12} /></span>
+            <span className="shell-label" style={{ display: 'grid', gap: 1, minWidth: 0 }}>
+              <strong>{planInfo.status === 'trialing' ? `Essai ${planInfo.planName}` : planInfo.planName}</strong>
+              <span>{(dict.nav as Record<string, string>).Upgrade || 'Passer au niveau supérieur'}</span>
+            </span>
+          </Link>
+        )}
         <nav>
           {itemsBefore.map(([name, Icon, href]) => (
             <Link
@@ -216,15 +244,6 @@ export function AppShell({ children, active, compact = false }: Props) {
             )}
           </div>
         </nav>
-        <Link
-          href="/subscriptions"
-          className={pathname?.startsWith('/subscriptions') ? 'settings active' : 'settings'}
-          title="Abonnements"
-          onClick={closeMenu}
-        >
-          <CreditCard size={17} />
-          <span className="shell-label">Abonnements</span>
-        </Link>
         <Link
           href="/settings"
           className={active === 'Settings' ? 'settings active' : 'settings'}
