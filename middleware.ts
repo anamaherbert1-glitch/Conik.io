@@ -144,12 +144,29 @@ export async function middleware(request: NextRequest) {
       return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
     }
   }
-  const { data } = await supabase.auth.getClaims()
-  const user = data?.claims
+  let user: Record<string, unknown> | null = null
+  let sessionError = false
+  try {
+    const { data, error } = await supabase.auth.getClaims()
+    if (error) sessionError = true
+    else user = (data?.claims as Record<string, unknown> | null) ?? null
+  } catch {
+    sessionError = true
+  }
+
+  // Recover from stale/revoked Supabase refresh tokens instead of returning repeated 400s.
+  if (sessionError) {
+    request.cookies.getAll()
+      .filter(({ name }) => name.startsWith('sb-') && name.includes('-auth-token'))
+      .forEach(({ name }) => {
+        response.cookies.set(name, '', { expires: new Date(0), path: '/' })
+      })
+    user = null
+  }
   if (!isPublicPath(pathname) && !user) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/login'
-    redirectUrl.searchParams.set('next', `${pathname}${request.nextUrl.search}`)
+    redirectUrl.searchParams.set('next', pathname + request.nextUrl.search)
     return addSecurityHeaders(NextResponse.redirect(redirectUrl))
   }
   if (pathname === '/signup') return addSecurityHeaders(NextResponse.redirect(new URL('/login', request.url)))
