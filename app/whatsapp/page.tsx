@@ -1,11 +1,15 @@
 import { AppShell } from '@/components/app-shell'
 import { WhatsAppGreenApi } from '@/components/whatsapp-green-api'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { getOrganizationLimits } from '@/lib/billing/enforce'
+import { UpgradeRequired } from '@/components/billing/upgrade-required'
 
 export const dynamic = 'force-dynamic'
 
 export default async function WhatsAppPage() {
-  await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
+  const { membership } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
+  const limits = await getOrganizationLimits(membership.organizationId)
+  if (!limits.whatsapp) return <AppShell active="WhatsApp"><UpgradeRequired feature="WhatsApp / Green API" requiredPlan="Premium" /></AppShell>
 
   return (
     <AppShell active="WhatsApp">
