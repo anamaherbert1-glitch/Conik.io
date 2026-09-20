@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     if (!reference) return NextResponse.json({ error: 'Référence de transaction absente.' }, { status: 400 })
 
     for (const provider of providers) {
-      let { data: transaction } = await supabase.from('payment_transactions').select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at)').eq('provider_id', provider.id).eq('provider_transaction_id', reference).maybeSingle()
+      let { data: transaction } = await supabase.from('payment_transactions').select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at,metadata)').eq('provider_id', provider.id).eq('provider_transaction_id', reference).maybeSingle()
       if (!transaction && providerName === 'cinetpay') {
         const { data: byOrder } = await supabase.from('payment_orders').select('id,order_number').eq('organization_id', provider.organization_id).eq('order_number', reference).maybeSingle()
         if (byOrder) {
