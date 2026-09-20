@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { getOrganizationLimits } from '@/lib/billing/enforce'
 
 export const runtime = 'nodejs'
 
@@ -23,13 +24,29 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
+  const limits = await getOrganizationLimits(membership.organizationId)
+  if (!limits.customDomain) {
+    return NextResponse.json(
+      {
+        error:
+          'Les domaines personnalisés sont réservés aux plans Premium et Business. Passez par Paramètres → Abonnement.',
+      },
+      { status: 403 },
+    )
+  }
   const body = await request.json().catch(() => null)
   const host = hostname(body?.hostname)
   if (!host) return NextResponse.json({ error: 'Nom de domaine invalide.' }, { status: 400 })
 
-  const funnelId = typeof body?.funnelId === 'string' && /^[0-9a-f-]{36}$/i.test(body.funnelId) ? body.funnelId : null
+  const funnelId =
+    typeof body?.funnelId === 'string' && /^[0-9a-f-]{36}$/i.test(body.funnelId) ? body.funnelId : null
   if (funnelId) {
-    const { data: funnel } = await supabase.from('funnels').select('id').eq('id', funnelId).eq('organization_id', membership.organizationId).maybeSingle()
+    const { data: funnel } = await supabase
+      .from('funnels')
+      .select('id')
+      .eq('id', funnelId)
+      .eq('organization_id', membership.organizationId)
+      .maybeSingle()
     if (!funnel) return NextResponse.json({ error: 'Tunnel introuvable.' }, { status: 404 })
   }
 
@@ -39,22 +56,18 @@ export async function POST(request: Request) {
     .eq('hostname', host)
     .eq('organization_id', membership.organizationId)
     .maybeSingle()
-  if (existing) return NextResponse.json({ error: 'Ce domaine est déjà enregistré dans cet espace.' }, { status: 409 })
+  if (existing) return NextResponse.json({ error: 'Ce domaine est déjà enregistré.' }, { status: 409 })
 
   const { data, error } = await supabase
     .from('domains')
-    .insert({ organization_id: membership.organizationId, funnel_id: funnelId, hostname: host, status: 'pending_dns' })
+    .insert({
+      organization_id: membership.organizationId,
+      hostname: host,
+      status: 'pending',
+      funnel_id: funnelId,
+    })
     .select('id,hostname,status,funnel_id,created_at')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true, domain: data }, { status: 201 })
-}
-
-export async function DELETE(request: Request) {
-  const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin'])
-  const id = new URL(request.url).searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'Identifiant manquant.' }, { status: 400 })
-  const { error } = await supabase.from('domains').delete().eq('id', id).eq('organization_id', membership.organizationId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ domain: data })
 }
