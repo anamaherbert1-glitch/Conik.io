@@ -5,6 +5,7 @@ import { getPlan, type PlanCode } from '@/lib/billing/plans'
 import { initializeProviderPayment } from '@/lib/payments/provider-adapters'
 
 export const runtime = 'nodejs'
+const TRIAL_DAYS = 14
 
 export async function POST(request: Request) {
   try {
@@ -31,12 +32,13 @@ export async function POST(request: Request) {
 
     const amount = Number(catalog?.price ?? (interval === 'annual' ? def.priceAnnualEur : def.priceMonthlyEur))
     const currency = String(catalog?.currency || 'EUR').toUpperCase()
-    if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'Tarif de l’abonnement invalide.' }, { status: 500 })
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: 'Tarif de l’abonnement invalide.' }, { status: 500 })
+    }
 
-    const durationDays = interval === 'annual' ? 365 : 30
     const starts = new Date()
-    const ends = new Date(starts)
-    ends.setDate(ends.getDate() + durationDays)
+    const trialEnds = new Date(starts)
+    trialEnds.setDate(trialEnds.getDate() + TRIAL_DAYS)
 
     const { data: subscription, error: subscriptionError } = await admin
       .from('conik_subscriptions')
@@ -44,18 +46,21 @@ export async function POST(request: Request) {
         organization_id: membership.organizationId,
         user_id: user.id,
         plan_code: plan,
-        duration_days: durationDays,
-        amount,
+        duration_days: TRIAL_DAYS,
+        amount: 0,
         currency,
         starts_at: starts.toISOString(),
-        ends_at: ends.toISOString(),
-        status: 'pending',
+        ends_at: trialEnds.toISOString(),
+        status: 'trialing',
       })
       .select('id')
       .single()
 
     if (subscriptionError || !subscription) {
-      return NextResponse.json({ error: subscriptionError?.message || 'Impossible de créer la demande d’abonnement.' }, { status: 400 })
+      return NextResponse.json(
+        { error: subscriptionError?.message || 'Impossible de créer la demande d’abonnement.' },
+        { status: 400 },
+      )
     }
 
     const { data: provider } = await admin
@@ -68,8 +73,15 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (!provider) {
-      await admin.from('conik_subscriptions').delete().eq('id', subscription.id)
-      return NextResponse.json({ error: 'Aucun prestataire de paiement actif. Configurez d’abord un prestataire dans les paramètres de paiement.' }, { status: 409 })
+      return NextResponse.json({
+        ok: true,
+        subscriptionId: subscription.id,
+        plan,
+        status: 'trialing',
+        trialDays: TRIAL_DAYS,
+        message: `Essai gratuit de ${TRIAL_DAYS} jours activé pour ${def.name}. Configurez un prestataire pour payer après l’essai.`,
+        paymentUrl: `/integrations?upgrade=${plan}&trial=1`,
+      })
     }
 
     const supported = provider.supported_methods
@@ -104,14 +116,21 @@ export async function POST(request: Request) {
           plan_code: plan,
           billing_interval: interval,
           organization_id: organization.id,
+          trial_days: TRIAL_DAYS,
         },
       })
       .select('id,order_number,amount_cents,currency,status')
       .single()
 
     if (orderError || !order) {
-      await admin.from('conik_subscriptions').delete().eq('id', subscription.id)
-      return NextResponse.json({ error: orderError?.message || 'Impossible de créer la commande de paiement.' }, { status: 400 })
+      return NextResponse.json({
+        ok: true,
+        subscriptionId: subscription.id,
+        status: 'trialing',
+        trialDays: TRIAL_DAYS,
+        message: `Essai ${TRIAL_DAYS} jours activé. Paiement à configurer plus tard.`,
+        paymentUrl: `/integrations?upgrade=${plan}&trial=1`,
+      })
     }
 
     const { data: transaction, error: transactionError } = await admin
@@ -129,9 +148,14 @@ export async function POST(request: Request) {
       .single()
 
     if (transactionError || !transaction) {
-      await admin.from('payment_orders').delete().eq('id', order.id)
-      await admin.from('conik_subscriptions').delete().eq('id', subscription.id)
-      return NextResponse.json({ error: transactionError?.message || 'Impossible de créer la transaction.' }, { status: 400 })
+      return NextResponse.json({
+        ok: true,
+        subscriptionId: subscription.id,
+        status: 'trialing',
+        trialDays: TRIAL_DAYS,
+        message: `Essai ${TRIAL_DAYS} jours activé.`,
+        paymentUrl: `/integrations?upgrade=${plan}&trial=1`,
+      })
     }
 
     const origin = new URL(request.url).origin
@@ -182,10 +206,15 @@ export async function POST(request: Request) {
       amount,
       currency,
       interval,
-      paymentUrl: result.paymentUrl || null,
-      status: result.status,
+      trialDays: TRIAL_DAYS,
+      message: `Essai ${TRIAL_DAYS} jours activé. Finalisez le paiement pour conserver ${def.name} après l’essai.`,
+      paymentUrl: result.paymentUrl || `/integrations?upgrade=${plan}&trial=1`,
+      status: 'trialing',
     })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Initialisation du paiement impossible.' }, { status: 502 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Initialisation du paiement impossible.' },
+      { status: 502 },
+    )
   }
 }
