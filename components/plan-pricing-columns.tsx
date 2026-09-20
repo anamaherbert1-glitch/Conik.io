@@ -49,15 +49,19 @@ export function PlanPricingColumns({ prices, annualPrices, currentPlan = 'free' 
     if (plan === currentPlan) return
     setBusy(true); setMsg('')
     try {
-      const res = await fetch('/api/billing/select-plan', {
+      if (plan === 'free') return
+      const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan, interval: annual ? 'annual' : 'monthly' }),
       })
       const j = await res.json().catch(() => ({}))
-      if (!res.ok) { setMsg(j.error || 'Erreur'); return }
-      setMsg(j.message || (plan === 'free' ? 'Plan Free actif.' : 'Demande enregistrée.'))
-      if (plan === 'free') window.location.reload()
+      if (!res.ok) { setMsg(j.error || 'Erreur de paiement'); return }
+      if (j.paymentUrl) {
+        window.location.href = j.paymentUrl
+        return
+      }
+      setMsg('Le prestataire de paiement n’a pas fourni de lien de paiement.')
     } finally { setBusy(false) }
   }
 
