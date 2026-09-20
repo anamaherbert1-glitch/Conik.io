@@ -73,7 +73,7 @@ export async function loadPublishedFunnelPage(funnelSlug: string, pageSlug: stri
     return {
       page: null as PublicPublishedPage | null,
       payment: null as PublicPaymentMeta | null,
-      missing: true,
+      missing: true as const,
     }
   }
 
@@ -88,8 +88,9 @@ export async function loadPublishedFunnelPage(funnelSlug: string, pageSlug: stri
         .from('payment_pages')
         .select('id,name,slug,status,funnel_id,checkout_config')
         .eq('funnel_id', page.funnel_id)
-        .eq('slug', slug)
         .eq('status', 'published')
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle(),
       admin
         .from('payment_tariffs')
@@ -100,7 +101,6 @@ export async function loadPublishedFunnelPage(funnelSlug: string, pageSlug: stri
         .limit(1)
         .maybeSingle(),
     ])
-
     const paymentPage = paymentRes.data
     if (paymentPage) {
       const checkoutConfig =
@@ -121,5 +121,18 @@ export async function loadPublishedFunnelPage(funnelSlug: string, pageSlug: stri
     }
   }
 
-  return { page, payment, missing: false }
+  return { page, payment, missing: false as const }
+}
+
+export async function shouldShowFreeBranding(funnelId: string | null | undefined) {
+  if (!funnelId) return true
+  try {
+    const { getFunnelOrganizationId, getOrganizationPlanCode } = await import('@/lib/billing/enforce')
+    const orgId = await getFunnelOrganizationId(funnelId)
+    if (!orgId) return true
+    const plan = await getOrganizationPlanCode(orgId)
+    return plan === 'free'
+  } catch {
+    return true
+  }
 }
