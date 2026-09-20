@@ -5,6 +5,7 @@ import './conik-theme.css'
 import './card-isolation.css'
 import './mobile-shell.css'
 import './landing.css'
+import './plans.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
 export const metadata: Metadata = {
