@@ -33,6 +33,8 @@ export type PlanDefinition = {
   priceMonthlyXof: number
   priceMonthlyEur: number
   priceAnnualEur: number
+  priceMonthlyDisplay?: string
+  priceAnnualDisplay?: string
   highlighted?: boolean
   limits: PlanLimits
 }
@@ -57,10 +59,10 @@ export const PLANS: PlanDefinition[] = [
     name: 'Basic',
     tagline: 'Petit créateur',
     priceMonthlyXof: 0,
-    priceMonthlyEur: 9,
-    priceAnnualEur: 90,
-    priceMonthlyDisplay: '9,00 €',
-    priceAnnualDisplay: '90,00 €',
+    priceMonthlyEur: 9.16,
+    priceAnnualEur: 109.92,
+    priceMonthlyDisplay: '9,16 €',
+    priceAnnualDisplay: '109,92 €',
     limits: {
       tunnels: 5, pagesPerTunnel: 10, importsHtmlPerMonth: 10, importZip: true, importMaxMb: 25,
       storageMb: 1024, customDomain: false, removeBranding: false, analytics: 'standard', payments: 'limited',
@@ -73,10 +75,10 @@ export const PLANS: PlanDefinition[] = [
     name: 'Premium',
     tagline: 'Business avancé',
     priceMonthlyXof: 0,
-    priceMonthlyEur: 10,
-    priceAnnualEur: 111.12,
-    priceMonthlyDisplay: '10,00 €',
-    priceAnnualDisplay: '111,12 €',
+    priceMonthlyEur: 10.29,
+    priceAnnualEur: 123.48,
+    priceMonthlyDisplay: '10,29 €',
+    priceAnnualDisplay: '123,48 €',
     highlighted: true,
     limits: {
       tunnels: 20, pagesPerTunnel: 50, importsHtmlPerMonth: 50, importZip: true, importMaxMb: 100,
@@ -90,10 +92,10 @@ export const PLANS: PlanDefinition[] = [
     name: 'Business',
     tagline: 'Agences & équipes',
     priceMonthlyXof: 0,
-    priceMonthlyEur: 29,
-    priceAnnualEur: 290,
-    priceMonthlyDisplay: '29,00 €',
-    priceAnnualDisplay: '290,00 €',
+    priceMonthlyEur: 29.24,
+    priceAnnualEur: 350.88,
+    priceMonthlyDisplay: '29,24 €',
+    priceAnnualDisplay: '350,88 €',
     limits: {
       tunnels: 100, pagesPerTunnel: 100, importsHtmlPerMonth: 200, importZip: true, importMaxMb: 200,
       storageMb: 51200, customDomain: true, removeBranding: true, analytics: 'advanced', payments: 'advanced',
