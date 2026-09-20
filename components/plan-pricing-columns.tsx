@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { PLANS, PLAN_COMPARISON_ROWS, type PlanCode, formatStorage } from '@/lib/billing/plans'
 import { Check, X } from 'lucide-react'
 
@@ -34,10 +35,19 @@ function featureLines(code: PlanCode) {
 }
 
 export function PlanPricingColumns({ prices, annualPrices, currentPlan = 'free' }: Props) {
-  const [selected, setSelected] = useState<PlanCode>((['free','basic','premium','business'].includes(String(currentPlan)) ? currentPlan : 'basic') as PlanCode)
+  const searchParams = useSearchParams()
+  const requestedPlan = searchParams.get('upgrade') as PlanCode | null
+  const [selected, setSelected] = useState<PlanCode>((['free','basic','premium','business'].includes(String(requestedPlan || currentPlan)) ? (requestedPlan || currentPlan) : 'basic') as PlanCode)
   const [annual, setAnnual] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    if (requestedPlan && ['free', 'basic', 'premium', 'business'].includes(requestedPlan)) {
+      setSelected(requestedPlan)
+      window.setTimeout(() => document.getElementById(`plan-${requestedPlan}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    }
+  }, [requestedPlan])
 
   function priceOf(code: PlanCode) {
     if (annual && annualPrices?.[code] != null) return Number(annualPrices[code])
@@ -88,9 +98,10 @@ export function PlanPricingColumns({ prices, annualPrices, currentPlan = 'free' 
           const monthlyEquivalent = annual && price > 0 ? price / 12 : price
           const lines = featureLines(plan.code)
           return (
-            <article key={plan.code} className={`pricing-col ${plan.highlighted ? 'featured' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => setSelected(plan.code)}>
+            <article id={`plan-${plan.code}`} key={plan.code} className={`pricing-col ${plan.highlighted ? 'featured' : ''} ${isSelected ? 'selected' : ''} ${requestedPlan === plan.code ? 'upgrade-target' : ''}`} onClick={() => setSelected(plan.code)}>
               {plan.highlighted && <div className="pricing-ribbon">Recommandé</div>}
               {isCurrent && <div className="pricing-current-tag">Formule actuelle</div>}
+              {requestedPlan === plan.code && !isCurrent && <div className="pricing-upgrade-tag">Upgrade demandé</div>}
               <div className="pricing-col-head">
                 <h2>{plan.name}</h2>
                 <p>{plan.tagline}</p>
