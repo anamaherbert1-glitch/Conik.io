@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Globe2,
-  Settings2, LogOut, Plug, BookOpen, Radio, CreditCard, ChevronDown, Wallet, LineChart,
+  Settings2, LogOut, Plug, Radio, CreditCard, ChevronDown, Wallet, LineChart,
   Menu, X,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
@@ -215,11 +215,6 @@ export function AppShell({ children, active, compact = false }: Props) {
               </div>
             )}
           </div>
-
-          <Link className={active === 'Tutorial' ? 'active' : ''} href="/tutorial" title={dict.nav.Tutorial} onClick={closeMenu}>
-            <BookOpen size={17} />
-            <span className="shell-label">{dict.nav.Tutorial}</span>
-          </Link>
         </nav>
         <Link
           href="/subscriptions"
