@@ -1,155 +1,133 @@
+'use client'
+
+import { FormEvent, useState } from 'react'
 import Link from 'next/link'
-
-const features = [
-  {
-    title: 'Tunnels multi-pages',
-    desc: 'Créez ou importez un mini-site HTML complet : pages, CSS, JS, images, vidéos.',
-  },
-  {
-    title: 'Paiements locaux',
-    desc: 'CinetPay, FedaPay, Wave, Flutterwave, PayDunya et d’autres agrégateurs africains.',
-  },
-  {
-    title: 'WhatsApp intégré',
-    desc: 'Connectez WhatsApp pour relancer, accompagner et convertir vos contacts.',
-  },
-  {
-    title: 'Live & campagnes',
-    desc: 'Animez des lives, lancez des campagnes et automatisez vos scénarios.',
-  },
-  {
-    title: 'Analytics & revenus',
-    desc: 'Suivez le trafic, les conversions et l’argent généré par vos tunnels.',
-  },
-  {
-    title: 'Pensé mobile',
-    desc: 'Une interface claire sur téléphone comme sur ordinateur.',
-  },
-]
-
-const steps = [
-  { n: '1', t: 'Créer', d: 'Importez un projet HTML ou construisez votre tunnel.' },
-  { n: '2', t: 'Connecter', d: 'Paiement, WhatsApp, domaine — en quelques clics.' },
-  { n: '3', t: 'Publier', d: 'Partagez le lien public et commencez à vendre.' },
-  { n: '4', t: 'Mesurer', d: 'Analytics et revenus dans un même tableau de bord.' },
-]
+import { createClient } from '@/lib/supabase/client'
 
 export default function HomePage() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setError('')
+    setInfo('')
+    if (password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.')
+      return
+    }
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const origin = window.location.origin
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: { full_name: name.trim() || undefined },
+          emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
+        },
+      })
+      if (signUpError) {
+        setError(signUpError.message || 'Inscription impossible.')
+        return
+      }
+      if (data.session) {
+        window.location.replace('/onboarding')
+        return
+      }
+      setInfo('Compte créé. Vérifiez votre e-mail pour confirmer, puis connectez-vous.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function signupWithGoogle() {
+    setError('')
+    setGoogleLoading(true)
+    try {
+      const supabase = createClient()
+      const origin = window.location.origin
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${origin}/auth/callback?next=/onboarding` },
+      })
+      if (oauthError) setError(oauthError.message || 'Inscription Google impossible.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   return (
-    <main className="land">
-      <header className="land-nav">
-        <Link href="/" className="land-brand">
-          <span className="land-logo">C</span>
-          <span>
-            <strong>Conik.io</strong>
-            <small>Marketing OS</small>
-          </span>
+    <main className="auth-page conik-home">
+      <div className="auth-card conik-home-card">
+        <Link href="/" className="brand">
+          <b>C</b>
+          <strong>Conik.io</strong>
+          <small>Marketing OS</small>
         </Link>
-        <nav className="land-nav-links">
-          <a href="#features">Fonctionnalités</a>
-          <a href="#how">Fonctionnement</a>
-          <Link href="/login" className="land-btn ghost">
-            Connexion
-          </Link>
-          <Link href="/signup" className="land-btn solid">
-            S’inscrire
-          </Link>
-        </nav>
-      </header>
 
-      <section className="land-hero">
-        <div className="land-hero-copy">
-          <p className="land-kicker">Marketing OS pour l’Afrique</p>
-          <h1>
-            Créez, publiez et monétisez
-            <br />
-            vos tunnels de vente.
-          </h1>
-          <p className="land-lead">
-            Conik.io regroupe funnels, contacts, WhatsApp, paiements locaux et analytics dans une seule plateforme —
-            pensée pour les créateurs, coachs et PME.
-          </p>
-          <div className="land-cta">
-            <Link href="/signup" className="land-btn solid lg">
-              Créer un compte gratuit
-            </Link>
-            <Link href="/login" className="land-btn ghost lg">
-              Se connecter
-            </Link>
-          </div>
-          <p className="land-note">Inscription par e-mail ou Google · Accès immédiat</p>
-        </div>
-        <div className="land-hero-card" aria-hidden="true">
-          <div className="land-mock-bar">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="land-mock-body">
-            <div className="land-mock-stat">
-              <small>Vues</small>
-              <b>2 480</b>
-            </div>
-            <div className="land-mock-stat">
-              <small>Conversions</small>
-              <b>186</b>
-            </div>
-            <div className="land-mock-stat">
-              <small>Revenus</small>
-              <b>1,2M XOF</b>
-            </div>
-            <div className="land-mock-line" />
-            <p>Tableau de bord · Funnels · WhatsApp · Paiements</p>
-          </div>
-        </div>
-      </section>
+        <h1>Créez votre compte</h1>
+        <p>
+          Conik.io vous aide à créer, publier et monétiser vos tunnels de vente — simplement, depuis un seul espace.
+        </p>
 
-      <section id="features" className="land-section">
-        <h2>Tout ce qu’il faut pour vendre en ligne</h2>
-        <p className="land-section-lead">Une suite cohérente à la place de 5 outils séparés.</p>
-        <div className="land-grid">
-          {features.map((f) => (
-            <article key={f.title} className="land-feature">
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+        <button
+          type="button"
+          className="outline full conik-google-btn"
+          onClick={() => void signupWithGoogle()}
+          disabled={googleLoading || loading}
+        >
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" />
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16.1 19 13 24 13c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+            <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.6 7.1l.1.1 6.3 5.3C36.9 39.2 44 34 44 24c0-1.3-.1-2.5-.4-3.5z" />
+          </svg>
+          {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
+        </button>
 
-      <section id="how" className="land-section land-section-alt">
-        <h2>Comment ça marche</h2>
-        <div className="land-steps">
-          {steps.map((s) => (
-            <div key={s.n} className="land-step">
-              <span className="land-step-n">{s.n}</span>
-              <h3>{s.t}</h3>
-              <p>{s.d}</p>
-            </div>
-          ))}
+        <div className="auth-divider" aria-hidden="true">
+          <span>ou par e-mail</span>
         </div>
-      </section>
 
-      <section className="land-section land-final">
-        <h2>Prêt à lancer votre prochain tunnel ?</h2>
-        <p className="land-section-lead">Créez votre compte en moins d’une minute.</p>
-        <div className="land-cta center">
-          <Link href="/signup" className="land-btn solid lg">
-            S’inscrire
-          </Link>
-          <Link href="/login" className="land-btn ghost lg">
-            J’ai déjà un compte
-          </Link>
-        </div>
-      </section>
+        <form onSubmit={submit}>
+          <label>
+            Nom (optionnel)
+            <input type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Votre nom" />
+          </label>
+          <label>
+            E-mail
+            <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
+          </label>
+          <label>
+            Mot de passe
+            <input
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Au moins 6 caractères"
+            />
+          </label>
+          {error && <div className="error">{error}</div>}
+          {info && <div className="auth-ok">{info}</div>}
+          <button type="submit" className="primary full" disabled={loading || googleLoading}>
+            {loading ? 'Création…' : 'Créer mon compte'}
+          </button>
+        </form>
 
-      <footer className="land-footer">
-        <span>© {new Date().getFullYear()} Conik.io</span>
-        <div>
-          <Link href="/login">Connexion</Link>
-          <Link href="/signup">Inscription</Link>
-        </div>
-      </footer>
+        <p className="auth-footer">
+          Déjà un compte ? <Link href="/login">Se connecter</Link>
+        </p>
+      </div>
     </main>
   )
 }
