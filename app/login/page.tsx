@@ -4,22 +4,6 @@ import { FormEvent, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-/**
- * Liste blanche des e-mails autorisés.
- * Configurable via NEXT_PUBLIC_ALLOWED_EMAILS (adresses séparées par des virgules).
- * Il ne s'agit que d'un garde-fou d'interface : la sécurité réelle repose sur
- * les politiques RLS de Supabase.
- */
-const DEFAULT_ALLOWED = ['eliteone003@gmail.com', 'anamaspenser@gmail.com']
-
-const ALLOWED_EMAILS = new Set(
-  (process.env.NEXT_PUBLIC_ALLOWED_EMAILS || '')
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-    .concat(DEFAULT_ALLOWED)
-)
-
 function safeNext(value: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
   return value
@@ -27,56 +11,31 @@ function safeNext(value: string | null) {
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [next, setNext] = useState('/dashboard')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setNext(safeNext(params.get('next')))
-    const oauthError = params.get('error')
-    if (oauthError) setError(oauthError)
+    const err = params.get('error')
+    if (err) setError(decodeURIComponent(err))
   }, [])
-
-  async function signInWithGoogle() {
-    setError('')
-    setLoading(true)
-    try {
-      const supabase = createClient()
-      const redirectTo = new URL('/auth/callback', window.location.origin)
-      redirectTo.searchParams.set('next', next)
-
-      const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectTo.toString(),
-        },
-      })
-
-      if (signInError) setError(signInError.message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
-    const normalizedEmail = email.trim().toLowerCase()
-    if (!ALLOWED_EMAILS.has(normalizedEmail)) {
-      setError("Accès refusé. Cette adresse e-mail n'est pas autorisée.")
-      return
-    }
     setLoading(true)
     try {
       const supabase = createClient()
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password: code,
+        email: email.trim().toLowerCase(),
+        password,
       })
       if (signInError) {
-        setError("E-mail ou code d'accès incorrect.")
+        setError('E-mail ou mot de passe incorrect.')
         return
       }
       window.location.replace(next)
@@ -85,65 +44,86 @@ export default function LoginPage() {
     }
   }
 
+  async function loginWithGoogle() {
+    setError('')
+    setGoogleLoading(true)
+    try {
+      const supabase = createClient()
+      const origin = window.location.origin
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
+      })
+      if (oauthError) setError(oauthError.message || 'Connexion Google impossible.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <Link href="/" className="brand">
-          <b>C</b>
-          <strong>Conik.io</strong>
-          <small>Marketing OS</small>
-        </Link>
-        <h1>Bienvenue sur Conik</h1>
-        <p>Connectez-vous ou créez votre compte avec Google, ou utilisez votre code d&apos;accès.</p>
+    <div className="auth-shell">
+      <aside className="auth-aside">
+        <div>
+          <Link href="/" className="land-brand">
+            <span className="land-logo">C</span>
+            <span>
+              <strong>Conik.io</strong>
+              <small>Marketing OS</small>
+            </span>
+          </Link>
+          <h2>Bienvenue sur votre Marketing OS</h2>
+          <p>
+            Tunnels, paiements locaux, WhatsApp et analytics — tout au même endroit pour vendre en ligne plus simplement.
+          </p>
+          <ul>
+            <li>Funnels multi-pages & import HTML</li>
+            <li>Paiements Mobile Money & agrégateurs</li>
+            <li>WhatsApp, lives et campagnes</li>
+            <li>Suivi des conversions et revenus</li>
+          </ul>
+        </div>
+        <p style={{ fontSize: 12, opacity: 0.5 }}>© {new Date().getFullYear()} Conik.io</p>
+      </aside>
 
-        <button
-          className="outline full"
-          type="button"
-          disabled={loading}
-          onClick={signInWithGoogle}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M21.35 12.23c0-.71-.06-1.4-.18-2.05H12v3.88h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.22Z"/>
-            <path fill="#34A853" d="M12 21.6c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.93-3.31.93-2.54 0-4.7-1.72-5.47-4.03H3.28v2.53A9.74 9.74 0 0 0 12 21.6Z"/>
-            <path fill="#FBBC05" d="M6.53 13.7A5.85 5.85 0 0 1 6.22 12c0-.59.11-1.17.31-1.7V7.77H3.28A9.74 9.74 0 0 0 2.25 12c0 1.53.37 2.98 1.03 4.23l3.25-2.53Z"/>
-            <path fill="#EA4335" d="M12 6.27c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.31 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.72 5.37l3.25 2.53C7.3 7.99 9.46 6.27 12 6.27Z"/>
-          </svg>
-          {loading ? 'Connexion…' : 'Continuer avec Google'}
-        </button>
+      <main className="auth-main">
+        <div className="auth-box">
+          <h1>Connexion</h1>
+          <p className="muted">Connectez-vous avec votre e-mail ou Google.</p>
 
-        <div className="auth-divider" aria-hidden="true"><span>ou</span></div>
-
-        <form onSubmit={submit}>
-          <label>
-            E-mail
-            <input
-              type="email"
-              required
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@email.com"
-            />
-          </label>
-          <label>
-            Code d&apos;accès
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Votre code d'accès"
-            />
-          </label>
-          {error && <div className="error">{error}</div>}
-          <button className="primary full" disabled={loading}>
-            {loading ? 'Connexion…' : 'Se connecter'}
+          <button type="button" className="auth-google" onClick={() => void loginWithGoogle()} disabled={googleLoading || loading}>
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" />
+              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16.1 19 13 24 13c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+              <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+              <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.6 7.1l.1.1 6.3 5.3C36.9 39.2 44 34 44 24c0-1.3-.1-2.5-.4-3.5z" />
+            </svg>
+            {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
           </button>
-        </form>
-        <p className="auth-footer">Accès réservé aux comptes autorisés.</p>
-      </div>
-    </main>
+
+          <div className="auth-divider">ou par e-mail</div>
+
+          <form onSubmit={submit}>
+            <label>
+              E-mail
+              <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
+            </label>
+            <label>
+              Mot de passe
+              <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" />
+            </label>
+            {error && <div className="auth-error">{error}</div>}
+            <button type="submit" className="land-btn solid full" disabled={loading || googleLoading}>
+              {loading ? 'Connexion…' : 'Se connecter'}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            Pas encore de compte ? <Link href="/signup">S’inscrire</Link>
+          </p>
+        </div>
+      </main>
+    </div>
   )
 }
