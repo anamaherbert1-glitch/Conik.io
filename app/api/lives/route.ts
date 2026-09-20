@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { getOrganizationLimits } from '@/lib/billing/enforce'
 
 export const runtime = 'nodejs'
 const text = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
@@ -7,6 +8,8 @@ function slugify(value: string) { return value.normalize('NFKD').replace(/[\u030
 
 export async function GET() {
   const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
+  const limits = await getOrganizationLimits(membership.organizationId)
+  if (!limits.live) return NextResponse.json({ error: 'Les Live ne sont pas disponibles dans votre formule. Passez à Premium pour les utiliser.', code: 'FEATURE_UPGRADE_REQUIRED', upgradeUrl: '/subscriptions' }, { status: 403 })
   const { data, error } = await supabase.from('live_events').select('id,title,description,slug,scheduled_at,ended_at,timezone,status,access_type,stream_provider,stream_id,chat_enabled,created_by,created_at,updated_at').eq('organization_id', membership.organizationId).order('scheduled_at', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ lives: data || [] })
@@ -14,6 +17,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { supabase, user, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
+  const limits = await getOrganizationLimits(membership.organizationId)
+  if (!limits.live) return NextResponse.json({ error: 'Les Live ne sont pas disponibles dans votre formule. Passez à Premium pour les utiliser.', code: 'FEATURE_UPGRADE_REQUIRED', upgradeUrl: '/subscriptions' }, { status: 403 })
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Live invalide.' }, { status: 400 })
   const title = text(body.title, 200), scheduledAt = text(body.scheduled_at, 80), timezone = text(body.timezone, 80) || 'UTC'
