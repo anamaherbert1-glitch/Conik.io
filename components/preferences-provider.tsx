@@ -65,7 +65,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     document.documentElement.lang = locale
     document.documentElement.dir = info.dir
     try {
-      localStorage.setItem(LOCALE_KEY, locale)
+      localStorage.setItem(LOCALE_KEY, locale)\n      document.cookie = `conik.locale=${locale}; path=/; max-age=31536000; samesite=lax`
     } catch {
       // ignore
     }
