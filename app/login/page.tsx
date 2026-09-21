@@ -30,15 +30,15 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const supabase = createClient()
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
+      const origin = window.location.origin
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          queryParams: email.trim() ? { login_hint: email.trim().toLowerCase() } : undefined,
+        },
       })
-      if (signInError) {
-        setError('E-mail ou mot de passe incorrect.')
-        return
-      }
-      window.location.replace(next)
+      if (oauthError) setError(oauthError.message || 'Connexion Google impossible.')
     } finally {
       setLoading(false)
     }
@@ -95,7 +95,7 @@ export default function LoginPage() {
           </button>
 
           <div className="auth-divider" aria-hidden="true">
-            <span>ou par e-mail</span>
+            <span>Connexion Google</span>
           </div>
 
           <form className="home-form" onSubmit={submit}>
@@ -109,7 +109,7 @@ export default function LoginPage() {
             </label>
             {error && <div className="error">{error}</div>}
             <button type="submit" className="primary full" disabled={loading || googleLoading}>
-              {loading ? 'Connexion…' : 'Se connecter'}
+              {loading ? 'Redirection vers Google…' : 'Se connecter avec Google'}
             </button>
           </form>
 
