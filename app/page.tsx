@@ -44,31 +44,19 @@ export default function HomePage() {
     event.preventDefault()
     setError('')
     setInfo('')
-    if (password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères.')
-      return
-    }
     setLoading(true)
     try {
       const supabase = createClient()
       const origin = window.location.origin
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
         options: {
+          redirectTo: `${origin}/auth/callback?next=/onboarding`,
+          queryParams: email.trim() ? { login_hint: email.trim().toLowerCase() } : undefined,
           data: { full_name: name.trim() || undefined },
-          emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
         },
       })
-      if (signUpError) {
-        setError(signUpError.message || 'Inscription impossible.')
-        return
-      }
-      if (data.session) {
-        window.location.replace('/onboarding')
-        return
-      }
-      setInfo('Compte créé. Vérifiez votre e-mail pour confirmer, puis connectez-vous.')
+      if (oauthError) setError(oauthError.message || 'Inscription Google impossible.')
     } finally {
       setLoading(false)
     }
@@ -189,7 +177,7 @@ export default function HomePage() {
           </button>
 
           <div className="auth-divider" aria-hidden="true">
-            <span>ou par e-mail</span>
+            <span>Inscription Google</span>
           </div>
 
           <form className="home-form" onSubmit={submit}>
@@ -216,7 +204,7 @@ export default function HomePage() {
             {error && <div className="error">{error}</div>}
             {info && <div className="auth-ok">{info}</div>}
             <button type="submit" className="primary full" disabled={loading || googleLoading}>
-              {loading ? 'Création…' : 'Créer mon compte'}
+              {loading ? 'Redirection vers Google…' : 'Créer mon compte avec Google'}
             </button>
           </form>
 
