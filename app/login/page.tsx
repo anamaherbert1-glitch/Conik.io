@@ -65,14 +65,36 @@ export default function LoginPage() {
 
   async function loginWithGoogle() {
     setError('')
+    setAccountMissing(false)
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail) {
+      setError('Entrez votre adresse e-mail avant de continuer avec Google.')
+      return
+    }
     setGoogleLoading(true)
     try {
+      const check = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      })
+      const result = await check.json()
+      if (!check.ok) {
+        setError(result.error || 'Impossible de vérifier cette adresse e-mail.')
+        return
+      }
+      if (!result.exists) {
+        setAccountMissing(true)
+        setError('Cette adresse e-mail n’a pas encore été enregistrée sur Conik. Créez votre compte pour continuer.')
+        return
+      }
       const supabase = createClient()
       const origin = window.location.origin
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          redirectTo: origin + '/auth/callback?next=' + encodeURIComponent(next),
+          queryParams: { login_hint: normalizedEmail },
         },
       })
       if (oauthError) setError(oauthError.message || 'Connexion Google impossible.')
