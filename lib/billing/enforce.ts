@@ -3,18 +3,15 @@ import { getPlan, type PlanCode, type PlanLimits } from '@/lib/billing/plans'
 
 export async function getOrganizationPlanCode(organizationId: string): Promise<PlanCode> {
   try {
-    const admin = createAdminClient()
-    const { data } = await admin
-      .from('conik_subscriptions')
-      .select('plan_code, status, ends_at')
-      .eq('organization_id', organizationId)
-      .in('status', ['active', 'trialing'])
-      .order('ends_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (!data?.plan_code) return 'free'
-    if (data.ends_at && new Date(data.ends_at).getTime() < Date.now()) return 'free'
-    const code = String(data.plan_code).toLowerCase()
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('conik_get_plan_access', {
+      p_organization_id: organizationId,
+      p_feature_key: 'whatsapp',
+    })
+    if (error) return 'free'
+    const row = Array.isArray(data) ? data[0] : data
+    const code = String(row?.plan_code || 'free').toLowerCase()
     if (code === 'basic' || code === 'premium' || code === 'business' || code === 'free') return code as PlanCode
     return 'free'
   } catch {

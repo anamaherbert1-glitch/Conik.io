@@ -38,10 +38,10 @@ export function UpgradeRequired({ feature, requiredPlan = 'Premium', description
       <Link
         href={href}
         className="primary"
-        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+        style={{ background: '#f97316', color: '#fff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
       >
         <Gift size={16} />
-        Passer au niveau supérieur
+        Upgrade vers
         <ArrowUpRight size={16} />
       </Link>
     </section>
