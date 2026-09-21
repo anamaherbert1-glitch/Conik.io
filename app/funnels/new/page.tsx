@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, FileArchive, Loader2, Plus, UploadCloud } from 'lucide-react'
 import { FormEvent, Suspense, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { UpgradeRequired } from '@/components/billing/upgrade-required'
 
 async function readApiError(response: Response): Promise<string> {
   const text = await response.text()
@@ -32,6 +33,7 @@ function NewFunnelInner() {
   const [loading, setLoading] = useState(false)
   const [fileName, setFileName] = useState('')
   const [progress, setProgress] = useState('')
+  const [limitBlocked, setLimitBlocked] = useState<{kind: 'tunnels' | 'pages'; current: number; limit: number} | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function createFunnel(event: FormEvent) {
@@ -53,6 +55,14 @@ function NewFunnelInner() {
         .maybeSingle()
       if (memberError) throw new Error(memberError.message)
       if (!member) throw new Error("Créez d'abord un espace de travail.")
+      const { data: usageRows, error: usageError } = await supabase.rpc('conik_check_usage', { p_organization_id: member.organization_id, p_usage_key: 'tunnels' })
+      if (usageError) throw new Error(usageError.message)
+      const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows
+      if (!usage?.allowed) {
+        setLimitBlocked({ kind: 'tunnels', current: Number(usage?.current_value || 0), limit: Number(usage?.limit_value || 0) })
+        setLoading(false)
+        return
+      }
       const slug =
         name
           .toLowerCase()
@@ -146,7 +156,8 @@ function NewFunnelInner() {
           vidéos, audio et polices. Conik recrée un tunnel multi-pages avec navigation interne.
         </p>
 
-        <div className="choice funnel-create-card">
+        {limitBlocked ? <UpgradeRequired feature="Tunnels" requiredPlan="Basic" description={`Vous utilisez déjà ${limitBlocked.current}/${limitBlocked.limit} tunnel(s) autorisé(s) dans votre formule.`} /> : null}
+      <div className="choice funnel-create-card">
           <div className="ico">
             <UploadCloud />
           </div>

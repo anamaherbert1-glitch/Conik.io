@@ -99,7 +99,15 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   }
 
   async function createPage() {
-    if (!funnelId) return; setBusy(true); setMessage(''); const supabase = createClient(); const pageNumber = pages.length + 1; const base = pages.length === 0 ? 'home' : `page-${pageNumber}`; const pageName = `Page ${pageNumber}`; let clean = base, suffix = 2
+    if (!funnelId) return
+    setBusy(true)
+    setMessage('')
+    const supabase = createClient()
+    const { data: usageRows, error: usageError } = await supabase.rpc('conik_check_funnel_page_limit', { p_funnel_id: funnelId })
+    const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows
+    if (usageError) { setMessage(usageError.message); setBusy(false); return }
+    if (!usage?.allowed) { setMessage(`Limite de pages atteinte (${Number(usage.current_value || 0)}/${Number(usage.limit_value || 0)}). Passez à une formule supérieure pour continuer.`); setBusy(false); return }
+    const pageNumber = pages.length + 1; const base = pages.length === 0 ? 'home' : `page-${pageNumber}`; const pageName = `Page ${pageNumber}`; let clean = base, suffix = 2
     while (pages.some((p) => p.slug === clean)) clean = `${base}-${suffix++}`
     const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: pageName, slug: clean, page_type: 'landing', position: pages.length }).select('id,name,slug,page_type,position,published_version_id').single()
     if (error) { setMessage(error.message); setBusy(false); return }
