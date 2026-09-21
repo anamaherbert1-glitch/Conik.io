@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireUser } from '@/lib/auth/require-user'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    const { user } = await requireUser()
+    const supabase = await createClient()
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: 'Connexion requise.' }, { status: 401 })
+    }
+    const user = authData.user
     const body = await request.json().catch(() => ({}))
     const inviteId = typeof body.inviteId === 'string' ? body.inviteId : ''
     if (!inviteId) return NextResponse.json({ error: 'Invitation introuvable.' }, { status: 400 })
