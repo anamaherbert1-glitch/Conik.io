@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
+import { FeatureGate } from '@/components/billing/feature-gate'
 import { CalendarDays, Eye, MousePointer2, FileInput, Target, TrendingUp, Users } from 'lucide-react'
 
 type Day = { date: string; views: number; clicks: number; submissions: number; conversions: number }
@@ -92,6 +93,7 @@ export default function AnalyticsPage() {
 
   return (
     <AppShell active="Analytics">
+      <FeatureGate feature="advancedAnalytics" requiredPlan="Premium">
       <header>
         <div>
           <small style={{ fontWeight: 700, color: '#64748b', letterSpacing: 0.3 }}>PERFORMANCE</small>
@@ -276,6 +278,7 @@ export default function AnalyticsPage() {
           </section>
         </div>
       ) : null}
+      </FeatureGate>
     </AppShell>
   )
 }
