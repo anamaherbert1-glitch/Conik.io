@@ -117,7 +117,7 @@ export function AppShell({ children, active, compact = false }: Props) {
             href={`/subscriptions?from=${encodeURIComponent(planInfo?.plan || 'free')}`}
             className="shell-plan-chip"
             onClick={closeMenu}
-            title={`${t.nav.Upgrade} — ${t.freeTrial}`}
+            title={`${dict.nav.Upgrade} — ${t.freeTrial}`}
           >
             <span className="shell-plan-chip-icon"><Gift size={14} /></span>
             <span className="shell-label" style={{ display: 'grid', gap: 2, minWidth: 0 }}>
@@ -126,7 +126,7 @@ export function AppShell({ children, active, compact = false }: Props) {
                   ? `${t.trial} ${planInfo.planName}`
                   : (planInfo?.planName || 'Free')}
               </strong>
-              <span>{t.nav.Upgrade}</span>
+              <span>{dict.nav.Upgrade}</span>
               <span className="shell-plan-chip-trial">{t.freeTrial}</span>
             </span>
           </Link>
