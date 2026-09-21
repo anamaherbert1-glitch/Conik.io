@@ -1,11 +1,16 @@
 import { AppShell } from '@/components/app-shell'
 import { PaymentProvidersPanel } from '@/components/payment-providers-panel'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { UpgradeRequired } from '@/components/billing/upgrade-required'
+import { getOrganizationLimits } from '@/lib/billing/enforce'
 
 export const dynamic = 'force-dynamic'
 
 export default async function IntegrationsPage() {
   const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
+
+  const limits = await getOrganizationLimits(membership.organizationId)
+  if (limits.payments === 'none') return <AppShell active="Integrations"><UpgradeRequired feature="Paiements" requiredPlan="Basic" /></AppShell>
 
   const providersRes = await supabase
     .from('payment_providers')
