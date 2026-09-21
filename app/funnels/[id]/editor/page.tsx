@@ -103,7 +103,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     setBusy(true)
     setMessage('')
     const supabase = createClient()
-    const { data: usageRows, error: usageError } = await supabase.rpc('conik_check_usage', { p_organization_id: (await supabase.from('funnels').select('organization_id').eq('id', funnelId).single()).data?.organization_id, p_usage_key: 'pages' })
+    const { data: usageRows, error: usageError } = await supabase.rpc('conik_check_funnel_page_limit', { p_funnel_id: funnelId })
     const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows
     if (usageError) { setMessage(usageError.message); setBusy(false); return }
     if (!usage?.allowed) { setMessage(`Limite de pages atteinte (${Number(usage.current_value || 0)}/${Number(usage.limit_value || 0)}). Passez à une formule supérieure pour continuer.`); setBusy(false); return }
