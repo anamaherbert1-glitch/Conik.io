@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, Users, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function CollaborationInvitePage() {
   const router = useRouter()
@@ -17,9 +18,16 @@ export default function CollaborationInvitePage() {
       setMessage('Le lien d’invitation est incomplet.')
       return
     }
-    setStatus('ready')
-    setMessage('Vous pouvez rejoindre cette collaboration.')
-  }, [inviteId])
+    const supabase = createClient()
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        router.replace('/login?next=' + encodeURIComponent('/collaboration/invite?invite=' + inviteId))
+        return
+      }
+      setStatus('ready')
+      setMessage('Vous pouvez rejoindre cette collaboration.')
+    })
+  }, [inviteId, router])
 
   async function accept() {
     setStatus('loading')
