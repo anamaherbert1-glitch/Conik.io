@@ -143,7 +143,7 @@ export async function POST(request: Request) {
       user.email ||
       'Un organisateur'
     const orgName = organization.name || 'un espace Conik'
-    const acceptUrl = `${APP_URL}/signup?invite=${encodeURIComponent(data?.id || '')}&email=${encodeURIComponent(email)}`
+    const acceptUrl = `${APP_URL}/collaboration/invite?invite=${encodeURIComponent(data?.id || '')}`
 
     const mail = await sendInviteEmail({
       to: email,
