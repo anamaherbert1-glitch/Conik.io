@@ -17,7 +17,9 @@ const planCode: Record<NonNullable<Props['requiredPlan']>, string> = {
 }
 
 export function UpgradeRequired({ feature, requiredPlan = 'Premium', description }: Props) {
-  const { dict } = usePreferences()\n  const t = dict.common\n  const target = planCode[requiredPlan]
+  const { dict } = usePreferences()
+  const t = dict.common
+  const target = planCode[requiredPlan]
   const href = `/subscriptions?upgrade=${target}&feature=${encodeURIComponent(feature)}`
 
   return (
