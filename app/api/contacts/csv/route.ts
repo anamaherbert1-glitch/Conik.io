@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { checkOrganizationUsage } from '@/lib/billing/usage'
 
 export const runtime = 'nodejs'
 
@@ -40,6 +41,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { supabase, user, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor'])
+  const usage = await checkOrganizationUsage(membership.organizationId, 'contacts')
+  if (!usage.allowed) return NextResponse.json({ error: `Limite de contacts atteinte (${usage.current}/${usage.limit}). Passez à une formule supérieure.`, code: 'CONTACT_LIMIT_REACHED', upgradeRequired: true, current: usage.current, limit: usage.limit, plan: usage.plan }, { status: 402 })
   const form = await request.formData()
   const file = form.get('file')
   if (!(file instanceof File)) return NextResponse.json({ error: 'Un fichier CSV est requis.' }, { status: 400 })
