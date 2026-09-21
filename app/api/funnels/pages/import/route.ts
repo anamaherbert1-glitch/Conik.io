@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (fileBuffer.length <= 0 || fileBuffer.length > maxUpload) {
-      return NextResponse.json({ error: 'Le fichier doit peser entre 1 octet et 25 Mo.' }, { status: 413 })
+      return NextResponse.json({ error: 'Le fichier dépasse la taille maximale autorisée par votre formule.' }, { status: 413 })
     }
 
     const { data: page, error: pageError } = await supabase
@@ -140,15 +140,9 @@ export async function POST(request: NextRequest) {
 
     const isZip = isZipCandidate(sourceName, fileMime)
 
-    function isZipCandidate(name: string, mime: string) { return /\.zip$/i.test(name) || mime === 'application/zip' || mime === 'application/x-zip-compressed' }
-
-    /*
-      ZIP access is checked above through the same Supabase entitlement engine.
-    */
-    const isZipLegacy =
-      /\.zip$/i.test(sourceName) ||
-      fileMime === 'application/zip' ||
-      fileMime === 'application/x-zip-compressed'
+    function isZipCandidate(name: string, mime: string) {
+      return /\.zip$/i.test(name) || mime === 'application/zip' || mime === 'application/x-zip-compressed'
+    }
 
     let rawHtml = ''
     let css = ''
@@ -157,7 +151,7 @@ export async function POST(request: NextRequest) {
     let runtimeScripts: Array<{ src?: string; code?: string; type?: string }> = []
     const assetUrls = new Map<string, string>()
 
-    if (isZipLegacy) {
+    if (isZip) {
       const entries = await parseZip(fileBuffer)
       const htmlEntry = entries.find((e) => /\.html?$/i.test(e.name))
       if (!htmlEntry) {
