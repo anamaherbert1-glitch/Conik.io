@@ -29,6 +29,7 @@ type Props = { children: React.ReactNode; active: string; compact?: boolean }
 
 export function AppShell({ children, active, compact = false }: Props) {
   const { dict } = usePreferences()
+  const t = dict.common
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [integrationsOpen, setIntegrationsOpen] = useState(false)
@@ -82,7 +83,7 @@ export function AppShell({ children, active, compact = false }: Props) {
         <button
           type="button"
           className="mobile-menu-btn"
-          aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+          aria-label={menuOpen ? `${t.close} ${t.menu.toLowerCase()}` : `${t.open} ${t.menu.toLowerCase()}`}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
         >
@@ -93,15 +94,15 @@ export function AppShell({ children, active, compact = false }: Props) {
       <button
         type="button"
         className="mobile-nav-backdrop"
-        aria-label="Fermer le menu"
+        aria-label={`${t.close} ${t.menu.toLowerCase()}`}
         tabIndex={menuOpen ? 0 : -1}
         onClick={closeMenu}
       />
 
       <aside className={`${compact ? 'shell-aside-compact' : ''} ${menuOpen ? 'aside-open' : ''}`.trim()}>
         <div className="aside-mobile-close">
-          <span className="muted" style={{ color: 'var(--sidebar-muted)', fontSize: 12 }}>Menu</span>
-          <button type="button" className="mobile-menu-btn" aria-label="Fermer" onClick={closeMenu}>
+          <span className="muted" style={{ color: 'var(--sidebar-muted)', fontSize: 12 }}>{t.menu}</span>
+          <button type="button" className="mobile-menu-btn" aria-label={t.close} onClick={closeMenu}>
             <X size={20} />
           </button>
         </div>
@@ -116,17 +117,17 @@ export function AppShell({ children, active, compact = false }: Props) {
             href={`/subscriptions?from=${encodeURIComponent(planInfo?.plan || 'free')}`}
             className="shell-plan-chip"
             onClick={closeMenu}
-            title="Passer au niveau supérieur — 14 jours d’essai gratuit"
+            title={`${t.nav.Upgrade} — ${t.freeTrial}`}
           >
             <span className="shell-plan-chip-icon"><Gift size={14} /></span>
             <span className="shell-label" style={{ display: 'grid', gap: 2, minWidth: 0 }}>
               <strong>
                 {planInfo?.status === 'trialing'
-                  ? `Essai ${planInfo.planName}`
+                  ? `${t.trial} ${planInfo.planName}`
                   : (planInfo?.planName || 'Free')}
               </strong>
-              <span>Passer au niveau supérieur</span>
-              <span className="shell-plan-chip-trial">14 j. d’essai gratuits</span>
+              <span>{t.nav.Upgrade}</span>
+              <span className="shell-plan-chip-trial">{t.freeTrial}</span>
             </span>
           </Link>
         )}
@@ -149,7 +150,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               type="button"
               className="sidebar-group-trigger"
               onClick={() => setPerformanceOpen((v) => !v)}
-              title="Performance"
+              title={dict.nav.Performance}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -166,7 +167,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               }}
             >
               <BarChart3 size={17} />
-              <span className="shell-label" style={{ flex: 1 }}>Performance</span>
+              <span className="shell-label" style={{ flex: 1 }}>{dict.nav.Performance}</span>
               <ChevronDown
                 className="shell-label"
                 size={15}
@@ -180,11 +181,11 @@ export function AppShell({ children, active, compact = false }: Props) {
               <div className="sidebar-group-children">
                 <Link className={active === 'Analytics' ? 'active' : ''} href="/analytics" onClick={closeMenu}>
                   <LineChart size={15} />
-                  <span className="shell-label">Analytics</span>
+                  <span className="shell-label">{dict.nav.Analytics}</span>
                 </Link>
                 <Link className={active === 'Revenus' ? 'active' : ''} href="/revenus" onClick={closeMenu}>
                   <Wallet size={15} />
-                  <span className="shell-label">Revenus</span>
+                  <span className="shell-label">{dict.nav.Revenus}</span>
                 </Link>
               </div>
             )}
@@ -208,7 +209,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               type="button"
               className="sidebar-group-trigger"
               onClick={() => setIntegrationsOpen((value) => !value)}
-              title="Intégrations"
+              title={dict.nav.Integrations}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -225,7 +226,7 @@ export function AppShell({ children, active, compact = false }: Props) {
               }}
             >
               <Plug size={17} />
-              <span className="shell-label" style={{ flex: 1 }}>Intégrations</span>
+              <span className="shell-label" style={{ flex: 1 }}>{dict.nav.Integrations}</span>
               <ChevronDown
                 className="shell-label"
                 size={15}
@@ -239,11 +240,11 @@ export function AppShell({ children, active, compact = false }: Props) {
               <div className="sidebar-group-children">
                 <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" onClick={closeMenu}>
                   <CreditCard size={15} />
-                  <span className="shell-label">Solutions de paiement</span>
+                  <span className="shell-label">{t.paymentSolutions}</span>
                 </Link>
                 <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp" onClick={closeMenu}>
                   <MessageSquare size={15} />
-                  <span className="shell-label">WhatsApp</span>
+                  <span className="shell-label">{dict.nav.WhatsApp}</span>
                 </Link>
               </div>
             )}
