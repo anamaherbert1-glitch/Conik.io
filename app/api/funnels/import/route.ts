@@ -110,6 +110,10 @@ export async function POST(request: NextRequest) {
 
     const entries = await parseZip(Buffer.from(await file.arrayBuffer()))
     const htmlEntries = pickHtmlEntries(entries, MAX_PAGES)
+    const { data: tunnelUsage, error: tunnelUsageError } = await supabase.rpc('conik_check_usage', { p_organization_id: organization.id, p_usage_key: 'tunnels' })
+    const tunnelLimit = Array.isArray(tunnelUsage) ? tunnelUsage[0] : tunnelUsage
+    if (tunnelUsageError) throw new Error(tunnelUsageError.message)
+    if (!tunnelLimit?.allowed) return NextResponse.json({ error: `Limite de tunnels atteinte (${Number(tunnelLimit?.current_value || 0)}/${Number(tunnelLimit?.limit_value || 0)}). Passez à une formule supérieure.`, code: 'TUNNEL_LIMIT_REACHED', upgradeRequired: true }, { status: 402 })
     if (!htmlEntries.length) {
       return NextResponse.json({ error: 'Aucun fichier HTML trouvé dans le ZIP.' }, { status: 400 })
     }
