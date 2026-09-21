@@ -21,7 +21,9 @@ const ROLE_HINTS: Record<Role, string> = {
 }
 
 export function SettingsCollaboration() {
-  const { dict } = usePreferences()\n  const t = dict.common\n  const [email, setEmail] = useState('')
+  const { dict } = usePreferences()
+  const t = dict.common
+  const [email, setEmail] = useState('')
   const [role, setRole] = useState<Role>('editor')
   const [roleOpen, setRoleOpen] = useState(false)
   const [busy, setBusy] = useState(false)
