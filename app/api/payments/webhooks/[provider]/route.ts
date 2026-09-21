@@ -82,7 +82,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       if (!transaction && providerName === 'cinetpay') {
         const { data: byOrder } = await supabase.from('payment_orders').select('id,order_number').eq('organization_id', provider.organization_id).eq('order_number', reference).maybeSingle()
         if (byOrder) {
-          const { data: tx } = await supabase.from('payment_transactions').select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at)').eq('provider_id', provider.id).eq('order_id', byOrder.id).maybeSingle()
+          const { data: tx } = await supabase.from('payment_transactions').select('id,organization_id,provider_id,order_id,provider_transaction_id,amount,currency,status,order:payment_orders(id,order_number,status,paid_at,metadata)').eq('provider_id', provider.id).eq('order_id', byOrder.id).maybeSingle()
           transaction = tx
         }
       }
@@ -153,5 +153,3 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 }
 
 export async function GET() { return NextResponse.json({ ok: true }) }
-
-// Deployment trigger: keep the production build synchronized with main.
