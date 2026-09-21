@@ -22,6 +22,11 @@ export default function HomePage() {
   const [googleLoading, setGoogleLoading] = useState(false)
 
   useEffect(() => {
+    const prefill = new URLSearchParams(window.location.search).get('email')
+    if (prefill) setEmail(prefill)
+  }, [])
+
+  useEffect(() => {
     const supabase = createClient()
     supabase.auth.getSession().then(({ data }) => {
       setSessionEmail(data.session?.user?.email ?? null)
