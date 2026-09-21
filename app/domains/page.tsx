@@ -1,6 +1,7 @@
 'use client'
 
 import { AppShell } from '@/components/app-shell'
+import { FeatureGate } from '@/components/billing/feature-gate'
 import { useEffect, useState } from 'react'
 
 const STATUS_FR: Record<string, string> = {
@@ -100,6 +101,7 @@ export default function DomainsPage() {
 
   return (
     <AppShell active="Domains">
+      <FeatureGate feature="customDomain" requiredPlan="Premium">
       <header>
         <div>
           <small>DOMAINES</small>
@@ -173,6 +175,7 @@ export default function DomainsPage() {
           </div>
         )}
       </section>
+      </FeatureGate>
     </AppShell>
   )
 }
