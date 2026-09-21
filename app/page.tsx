@@ -53,7 +53,6 @@ export default function HomePage() {
         options: {
           redirectTo: `${origin}/auth/callback?next=/onboarding`,
           queryParams: email.trim() ? { login_hint: email.trim().toLowerCase() } : undefined,
-          data: { full_name: name.trim() || undefined },
         },
       })
       if (oauthError) setError(oauthError.message || 'Inscription Google impossible.')
