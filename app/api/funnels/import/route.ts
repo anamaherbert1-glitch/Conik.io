@@ -168,6 +168,17 @@ export async function POST(request: NextRequest) {
     if (funnelError || !funnel) throw new Error(funnelError?.message || 'Création du tunnel impossible')
 
     try {
+      const { data: pageEntitlement } = await supabase
+        .from('conik_active_entitlements')
+        .select('limit_value,plan_code')
+        .eq('organization_id', organization.id)
+        .eq('feature_key', 'pages')
+        .maybeSingle()
+      const pageLimit = Number(pageEntitlement?.limit_value || 3)
+      if (htmlEntries.length > pageLimit) {
+        throw new Error(`SUBSCRIPTION_LIMIT:PAGES_IMPORT:${htmlEntries.length}:${pageLimit}`)
+      }
+
       type AssetRow = {
         original: string
         path: string
