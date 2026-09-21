@@ -36,6 +36,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Tarif de l’abonnement invalide.' }, { status: 500 })
     }
 
+    const { data: planRow } = await admin
+      .from('conik_plans')
+      .select('id')
+      .eq('code', plan)
+      .eq('active', true)
+      .maybeSingle()
+
+    if (!planRow?.id) {
+      return NextResponse.json({ error: 'Plan d’abonnement non configuré dans Supabase.' }, { status: 500 })
+    }
+
     const starts = new Date()
     const trialEnds = new Date(starts)
     trialEnds.setDate(trialEnds.getDate() + TRIAL_DAYS)
@@ -46,6 +57,7 @@ export async function POST(request: Request) {
         organization_id: membership.organizationId,
         user_id: user.id,
         plan_code: plan,
+        plan_id: planRow.id,
         duration_days: TRIAL_DAYS,
         amount: 0,
         currency,
