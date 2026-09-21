@@ -42,7 +42,8 @@ type Profile = {
 }
 
 export default function SettingsPage() {
-  const { dict, locale, theme, setLocale, setTheme } = usePreferences()\n  const t = dict.common
+  const { dict, locale, theme, setLocale, setTheme } = usePreferences()
+  const t = dict.common
   const [profile, setProfile] = useState<Profile | null>(null)
   const [msg, setMsg] = useState(''); const [isError, setIsError] = useState(false); const [busy, setBusy] = useState(false)
   const [countryOpen, setCountryOpen] = useState(false); const [countrySearch, setCountrySearch] = useState('')
@@ -114,7 +115,7 @@ export default function SettingsPage() {
   const filteredCountries=countries.filter(c=>(c.name+' '+c.dial).toLowerCase().includes(countrySearch.toLowerCase()))
 
   return <AppShell active="Settings">
-    <header><div><small>SETTINGS</small><h1>{dict.settings.title}</h1><p className="muted">dict.settings.subtitle</p></div></header>
+    <header><div><small>SETTINGS</small><h1>{dict.settings.title}</h1><p className="muted">{dict.settings.subtitle}</p></div></header>
 
     <section className="panel settings-section">
       <h3 style={{marginTop:0}}>{dict.settings.appearance}</h3>
