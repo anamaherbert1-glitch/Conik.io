@@ -34,6 +34,7 @@ function NewFunnelInner() {
   const [fileName, setFileName] = useState('')
   const [progress, setProgress] = useState('')
   const [limitBlocked, setLimitBlocked] = useState<{kind: 'tunnels' | 'pages'; current: number; limit: number} | null>(null)
+  const [importUpgrade, setImportUpgrade] = useState<{plan: 'Basic' | 'Premium' | 'Business'; description: string} | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function createFunnel(event: FormEvent) {
@@ -94,6 +95,7 @@ function NewFunnelInner() {
     event.preventDefault()
     setError('')
     setProgress('')
+    setImportUpgrade(null)
     const file = fileRef.current?.files?.[0]
     if (!file) {
       setError('Choisissez un fichier ZIP du projet (HTML + CSS + images + JS…).')
@@ -115,7 +117,17 @@ function NewFunnelInner() {
       body.append('file', file)
       const response = await fetch('/api/funnels/import', { method: 'POST', body })
       if (!response.ok) {
-        throw new Error(await readApiError(response))
+        const payload = await response.json().catch(() => ({}))
+        if (response.status === 402 && payload.upgradeRequired) {
+          setImportUpgrade({
+            plan: payload.plan === 'basic' ? 'Premium' : 'Basic',
+            description: payload.error || 'Cette action dépasse les limites de votre formule actuelle.',
+          })
+          setLoading(false)
+          setProgress('')
+          return
+        }
+        throw new Error(payload.error || await readApiError(response))
       }
       let data: {
         funnel?: { id: string }
@@ -157,6 +169,7 @@ function NewFunnelInner() {
         </p>
 
         {limitBlocked ? <UpgradeRequired feature="Tunnels" requiredPlan="Basic" description={`Vous utilisez déjà ${limitBlocked.current}/${limitBlocked.limit} tunnel(s) autorisé(s) dans votre formule.`} /> : null}
+        {importUpgrade ? <UpgradeRequired feature="Import HTML / ZIP" requiredPlan={importUpgrade.plan} description={importUpgrade.description} /> : null}
       <div className="choice funnel-create-card">
           <div className="ico">
             <UploadCloud />
