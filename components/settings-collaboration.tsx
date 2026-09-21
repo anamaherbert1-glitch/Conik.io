@@ -116,7 +116,7 @@ export function SettingsCollaboration() {
         </label>
 
         <div className="form-label" style={{ margin: 0, minWidth: 160 }}>
-          Rôle
+          {t.role}
           <button type="button" className="role-trigger" onClick={() => setRoleOpen(true)}>
             <Shield size={14} />
             <span>{({admin:t.admin,editor:t.editor,viewer:t.viewer}[role])}</span>
@@ -151,7 +151,7 @@ export function SettingsCollaboration() {
                 <div>
                   <strong>{m.email || m.user_id.slice(0, 8) + '…'}</strong>
                   <span className="admin-badge" style={{ marginLeft: 8 }}>
-                    {i === 0 && m.role === 'owner' ? 'Organisateur' : ({admin:t.admin,editor:t.editor,viewer:t.viewer}[m.role as Role] || m.role)}
+                    {i === 0 && m.role === 'owner' ? t.admin : ({admin:t.admin,editor:t.editor,viewer:t.viewer}[m.role as Role] || m.role)}
                   </span>
                 </div>
                 {m.role !== 'owner' && (
