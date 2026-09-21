@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { requireUser } from '@/lib/auth/require-user'
 
 export async function POST(request: Request) {
   try {
-    const { user } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
+    const { user } = await requireUser()
     const body = await request.json().catch(() => ({}))
     const inviteId = typeof body.inviteId === 'string' ? body.inviteId : ''
     if (!inviteId) return NextResponse.json({ error: 'Invitation introuvable.' }, { status: 400 })
