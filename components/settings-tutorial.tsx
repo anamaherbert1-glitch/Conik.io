@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { BookOpen } from 'lucide-react'
+import { usePreferences } from '@/components/preferences-provider'
 
 export function SettingsTutorial() {
   const { dict } = usePreferences()
