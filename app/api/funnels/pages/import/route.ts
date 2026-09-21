@@ -7,6 +7,8 @@ import { getSupabaseConfig } from '@/lib/supabase/config'
 import { extractBody, extractScripts, extractStyles, rewriteCssUrls, rewriteHtmlRefs, titleFromHtml } from '@/lib/funnel/import'
 import { detectInteractiveElements } from '@/lib/funnel/interactive-elements'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkOrganizationUsage } from '@/lib/billing/usage'
+import { getPlan } from '@/lib/billing/plans'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -74,6 +76,10 @@ export async function POST(request: NextRequest) {
     const file = form.get('file')
     const storagePath = String(form.get('storagePath') || '').trim()
     const fileNameHint = String(form.get('fileName') || '').trim()
+    const usage = await checkOrganizationUsage(organization.id, 'importsHtml')
+    if (!usage.allowed) return NextResponse.json({ error: `Limite d’imports HTML mensuelle atteinte (${usage.current}/${usage.limit}). Passez à une formule supérieure.`, code: 'HTML_IMPORT_LIMIT_REACHED', upgradeRequired: true, current: usage.current, limit: usage.limit, plan: usage.plan }, { status: 402 })
+    const plan = getPlan(usage.plan)
+    const maxUpload = plan.limits.importMaxMb * 1024 * 1024
     const parsed = schema.safeParse({ pageId: String(form.get('pageId') || '') })
     if (!parsed.success) {
       return NextResponse.json({ error: 'La page est obligatoire.' }, { status: 400 })
@@ -96,8 +102,8 @@ export async function POST(request: NextRequest) {
       sourceName = fileNameHint || storagePath.split('/').pop() || 'upload.zip'
       tempStoragePath = storagePath
     } else if (file instanceof File) {
-      if (file.size <= 0 || file.size > MAX_UPLOAD) {
-        return NextResponse.json({ error: 'Le fichier doit peser entre 1 octet et 25 Mo.' }, { status: 413 })
+      if (file.size <= 0 || file.size > maxUpload) {
+        return NextResponse.json({ error: 'Le fichier dépasse la taille maximale autorisée par votre formule.' }, { status: 413 })
       }
       fileBuffer = Buffer.from(await file.arrayBuffer())
       sourceName = file.name
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La page et le fichier HTML/ZIP sont obligatoires.' }, { status: 400 })
     }
 
-    if (fileBuffer.length <= 0 || fileBuffer.length > MAX_UPLOAD) {
+    if (fileBuffer.length <= 0 || fileBuffer.length > maxUpload) {
       return NextResponse.json({ error: 'Le fichier doit peser entre 1 octet et 25 Mo.' }, { status: 413 })
     }
 
@@ -126,7 +132,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tunnel introuvable ou accès refusé.' }, { status: 403 })
     }
 
-    const isZip =
+    if (isZipCandidate(sourceName, fileMime)) {
+      const access = await supabase.rpc('conik_check_feature_access', { p_organization_id: organization.id, p_feature_key: 'importZip' })
+      const row = Array.isArray(access.data) ? access.data[0] : access.data
+      if (access.error || row?.allowed !== true) return NextResponse.json({ error: 'L’import ZIP n’est pas disponible dans votre formule. Passez au niveau supérieur.', code: 'ZIP_IMPORT_LOCKED', upgradeRequired: true }, { status: 402 })
+    }
+
+    const isZip = isZipCandidate(sourceName, fileMime)
+
+    function isZipCandidate(name: string, mime: string) { return /\.zip$/i.test(name) || mime === 'application/zip' || mime === 'application/x-zip-compressed' }
+
+    /*
+      ZIP access is checked above through the same Supabase entitlement engine.
+    */
+    const isZipLegacy =
       /\.zip$/i.test(sourceName) ||
       fileMime === 'application/zip' ||
       fileMime === 'application/x-zip-compressed'
@@ -138,7 +157,7 @@ export async function POST(request: NextRequest) {
     let runtimeScripts: Array<{ src?: string; code?: string; type?: string }> = []
     const assetUrls = new Map<string, string>()
 
-    if (isZip) {
+    if (isZipLegacy) {
       const entries = await parseZip(fileBuffer)
       const htmlEntry = entries.find((e) => /\.html?$/i.test(e.name))
       if (!htmlEntry) {
