@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Users, UserMinus, Mail, Shield, ChevronDown } from 'lucide-react'
+import { usePreferences } from '@/components/preferences-provider'
 
 type Role = 'admin' | 'editor' | 'viewer'
 type Invite = { id: string; email: string; role: string; status: string; created_at?: string }
@@ -20,6 +21,8 @@ const ROLE_HINTS: Record<Role, string> = {
 }
 
 export function SettingsCollaboration() {
+  const { dict } = usePreferences()
+  const t = dict.common
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<Role>('editor')
   const [roleOpen, setRoleOpen] = useState(false)
@@ -94,16 +97,15 @@ export function SettingsCollaboration() {
     <section className="panel settings-section" id="collaboration">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <Users size={18} />
-        <h3 style={{ margin: 0 }}>Collaboration</h3>
+        <h3 style={{ margin: 0 }}>{t.collaboration}</h3>
       </div>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Invitez des collaborateurs sur votre espace. L’organisateur principal garde le contrôle et peut
-        retirer un accès à tout moment.
+        {t.inviteHint}
       </p>
 
       <div className="collab-invite-box">
         <label className="form-label" style={{ margin: 0, flex: 1, minWidth: 180 }}>
-          E-mail du collaborateur
+          {t.collaboratorEmail}
           <input
             className="form-input"
             type="email"
@@ -114,10 +116,10 @@ export function SettingsCollaboration() {
         </label>
 
         <div className="form-label" style={{ margin: 0, minWidth: 160 }}>
-          Rôle
+          {t.role}
           <button type="button" className="role-trigger" onClick={() => setRoleOpen(true)}>
             <Shield size={14} />
-            <span>{ROLE_LABELS[role]}</span>
+            <span>{({admin:t.admin,editor:t.editor,viewer:t.viewer}[role])}</span>
             <ChevronDown size={14} />
           </button>
         </div>
@@ -129,7 +131,7 @@ export function SettingsCollaboration() {
           onClick={() => void invite()}
           style={{ alignSelf: 'flex-end' }}
         >
-          {busy ? 'Envoi…' : 'Inviter'}
+          {busy ? t.sending : t.invite}
         </button>
       </div>
 
@@ -141,15 +143,15 @@ export function SettingsCollaboration() {
 
       <div className="collab-lists">
         <div>
-          <b style={{ fontSize: 13 }}>Équipe active</b>
-          {members.length === 0 && <p className="muted" style={{ fontSize: 13 }}>Aucun membre listé.</p>}
+          <b style={{ fontSize: 13 }}>{t.activeTeam}</b>
+          {members.length === 0 && <p className="muted" style={{ fontSize: 13 }}>{t.noMembers}</p>}
           <ul className="collab-list">
             {members.map((m, i) => (
               <li key={m.id}>
                 <div>
                   <strong>{m.email || m.user_id.slice(0, 8) + '…'}</strong>
                   <span className="admin-badge" style={{ marginLeft: 8 }}>
-                    {i === 0 && m.role === 'owner' ? 'Organisateur' : ROLE_LABELS[m.role as Role] || m.role}
+                    {i === 0 && m.role === 'owner' ? t.admin : ({admin:t.admin,editor:t.editor,viewer:t.viewer}[m.role as Role] || m.role)}
                   </span>
                 </div>
                 {m.role !== 'owner' && (
@@ -163,9 +165,9 @@ export function SettingsCollaboration() {
         </div>
 
         <div>
-          <b style={{ fontSize: 13 }}>Invitations en attente</b>
+          <b style={{ fontSize: 13 }}>{t.pendingInvites}</b>
           {invites.filter((i) => i.status === 'pending').length === 0 && (
-            <p className="muted" style={{ fontSize: 13 }}>Aucune invitation en attente.</p>
+            <p className="muted" style={{ fontSize: 13 }}>{t.noPending}</p>
           )}
           <ul className="collab-list">
             {invites
@@ -176,7 +178,7 @@ export function SettingsCollaboration() {
                     <Mail size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
                     <strong>{i.email}</strong>
                     <span className="admin-badge" style={{ marginLeft: 8 }}>
-                      {ROLE_LABELS[i.role as Role] || i.role}
+                      {({admin:t.admin,editor:t.editor,viewer:t.viewer}[i.role as Role] || i.role)}
                     </span>
                   </div>
                   <button type="button" className="outline" onClick={() => void revokeInvite(i.id)}>
@@ -198,8 +200,8 @@ export function SettingsCollaboration() {
           <div className="country-modal role-modal" role="dialog" aria-modal="true">
             <div className="country-modal-head">
               <div>
-                <b>Choisir un rôle</b>
-                <span className="muted">Définit les permissions du collaborateur.</span>
+                <b>{t.chooseRole}</b>
+                <span className="muted">{t.permissionsHint}</span>
               </div>
               <button type="button" className="icon-button" onClick={() => setRoleOpen(false)}>
                 ×
@@ -217,7 +219,7 @@ export function SettingsCollaboration() {
                   }}
                 >
                   <strong>{ROLE_LABELS[r]}</strong>
-                  <span className="muted">{ROLE_HINTS[r]}</span>
+                  <span className="muted">{({admin:t.adminHint,editor:t.editorHint,viewer:t.viewerHint}[r])}</span>
                 </button>
               ))}
             </div>
