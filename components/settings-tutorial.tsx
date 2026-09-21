@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { BookOpen } from 'lucide-react'
 
-export function SettingsTutorial() {\n  const { dict } = usePreferences()\n  const t = dict.common
+export function SettingsTutorial() {
+  const { dict } = usePreferences()
+  const t = dict.common
   return (
     <section className="panel settings-section" id="tutorial">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
