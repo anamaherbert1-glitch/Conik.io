@@ -111,17 +111,22 @@ export function AppShell({ children, active, compact = false }: Props) {
           <small className="shell-label">{dict.tagline}</small>
         </Link>
         <div className="workspace shell-label">C&nbsp; {dict.workspace}</div>
-        {planInfo && planInfo.plan !== 'business' && (
+        {(planInfo?.plan || 'free') !== 'business' && (
           <Link
-            href={`/subscriptions?from=${encodeURIComponent(planInfo.plan)}`}
+            href={`/subscriptions?from=${encodeURIComponent(planInfo?.plan || 'free')}`}
             className="shell-plan-chip"
             onClick={closeMenu}
-            title="Passer au niveau supérieur"
+            title="Passer au niveau supérieur — 14 jours d’essai gratuit"
           >
-            <span className="shell-plan-chip-icon"><Gift size={12} /></span>
-            <span className="shell-label" style={{ display: 'grid', gap: 1, minWidth: 0 }}>
-              <strong>{planInfo.status === 'trialing' ? `Essai ${planInfo.planName}` : planInfo.planName}</strong>
-              <span>{(dict.nav as Record<string, string>).Upgrade || 'Passer au niveau supérieur'}</span>
+            <span className="shell-plan-chip-icon"><Gift size={14} /></span>
+            <span className="shell-label" style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+              <strong>
+                {planInfo?.status === 'trialing'
+                  ? `Essai ${planInfo.planName}`
+                  : (planInfo?.planName || 'Free')}
+              </strong>
+              <span>Passer au niveau supérieur</span>
+              <span className="shell-plan-chip-trial">14 j. d’essai gratuits</span>
             </span>
           </Link>
         )}
