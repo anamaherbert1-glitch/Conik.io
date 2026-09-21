@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
+import { checkOrganizationUsage } from '@/lib/billing/usage'
 
 export const runtime = 'nodejs'
 
@@ -27,6 +28,11 @@ export async function POST(request: Request) {
     const { data: duplicate, error: duplicateError } = await supabase.from('contacts').select('id').eq('organization_id', membership.organizationId).or(duplicateFilters.join(',')).limit(1).maybeSingle()
     if (duplicateError) return NextResponse.json({ error: duplicateError.message }, { status: 500 })
     if (duplicate) return NextResponse.json({ error: 'Un contact avec cet e-mail ou ce téléphone existe déjà.' }, { status: 409 })
+  }
+
+  const usage = await checkOrganizationUsage(membership.organizationId, 'contacts')
+  if (!usage.allowed) {
+    return NextResponse.json({ error: `Limite de contacts atteinte (${usage.current}/${usage.limit}). Passez à une formule supérieure pour continuer.`, code: 'CONTACT_LIMIT_REACHED', upgradeRequired: true, current: usage.current, limit: usage.limit, plan: usage.plan }, { status: 402 })
   }
 
   const consent = body.consent_marketing === true
