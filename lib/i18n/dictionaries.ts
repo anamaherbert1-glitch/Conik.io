@@ -1,10 +1,10 @@
 export type Locale = 'fr' | 'en' | 'ar' | 'zh'
 export type Theme = 'light' | 'dark' | 'system'
-export const locales: { code: Locale; native: string }[] = [
-  { code: 'fr', native: 'Français' },
-  { code: 'en', native: 'English' },
-  { code: 'ar', native: 'العربية' },
-  { code: 'zh', native: '中文' },
+export const locales: { code: Locale; native: string; dir: 'ltr' | 'rtl' }[] = [
+  { code: 'fr', native: 'Français', dir: 'ltr' },
+  { code: 'en', native: 'English', dir: 'ltr' },
+  { code: 'ar', native: 'العربية', dir: 'rtl' },
+  { code: 'zh', native: '中文', dir: 'ltr' },
 ]
 
 const frNav = {
