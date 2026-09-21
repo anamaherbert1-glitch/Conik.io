@@ -81,13 +81,13 @@ export default function SettingsPage() {
 
   async function uploadAvatar(file: File) {
     if (!profile) return
-    if (!file.type.startsWith('image/')) { setMsg('Veuillez sélectionner une image.'); setIsError(true); return }
-    if (file.size > 5 * 1024 * 1024) { setMsg('La photo doit faire au maximum 5 Mo.'); setIsError(true); return }
+    if (!file.type.startsWith('image/')) { setMsg(locale==='fr'?'Veuillez sélectionner une image.':locale==='en'?'Please select an image.':locale==='zh'?'请选择图片。':'يرجى اختيار صورة.'); setIsError(true); return }
+    if (file.size > 5 * 1024 * 1024) { setMsg(locale==='fr'?'La photo doit faire au maximum 5 Mo.':locale==='en'?'The photo must be 5 MB or smaller.':locale==='zh'?'图片大小必须不超过5 MB。':'يجب ألا يتجاوز حجم الصورة 5 ميغابايت.'); setIsError(true); return }
     setAvatarBusy(true); setMsg('')
     const fd=new FormData(); fd.append('file',file)
     const r=await fetch('/api/profile/avatar',{method:'POST',body:fd}); const j=await r.json().catch(()=>({}))
-    if(!r.ok){setMsg(j.error||'Import de la photo impossible.');setIsError(true)}
-    else {setProfile({...profile,avatarUrl:j.avatarUrl||''});setMsg('Photo de profil mise à jour.');setIsError(false)}
+    if(!r.ok){setMsg(j.error||(locale==='fr'?'Import de la photo impossible.':locale==='en'?'Unable to upload photo.':locale==='zh'?'无法上传照片。':'تعذر تحميل الصورة.'));setIsError(true)}
+    else {setProfile({...profile,avatarUrl:j.avatarUrl||''});setMsg(locale==='fr'?'Photo de profil mise à jour.':locale==='en'?'Profile photo updated.':locale==='zh'?'头像已更新。':'تم تحديث صورة الملف الشخصي.');setIsError(false)}
     setAvatarBusy(false)
   }
 
@@ -96,8 +96,8 @@ export default function SettingsPage() {
     setBusy(true); setMsg(''); setIsError(false)
     const r = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) { setMsg(j.error || 'Erreur enregistrement'); setIsError(true) }
-    else { setMsg('Profil enregistré'); setIsError(false) }
+    if (!r.ok) { setMsg(j.error || (locale==='fr'?'Erreur d’enregistrement':locale==='en'?'Save error':locale==='zh'?'保存错误':'خطأ في الحفظ')); setIsError(true) }
+    else { setMsg(dict.settings.saved); setIsError(false) }
     setBusy(false)
   }
 
@@ -105,8 +105,8 @@ export default function SettingsPage() {
     setFbBusy(true); setFbMsg('')
     const r = await fetch('/api/support/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: fbSubject, message: fbMessage, category: fbCategory }) })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) setFbMsg(j.error || 'Envoi impossible')
-    else { setFbMsg(j.message || 'Message envoyé'); setFbSubject(''); setFbMessage('') }
+    if (!r.ok) setFbMsg(j.error || (locale==='fr'?'Envoi impossible':locale==='en'?'Unable to send':locale==='zh'?'发送失败':'تعذر الإرسال'))
+    else { setFbMsg(j.message || (locale==='fr'?'Message envoyé':locale==='en'?'Message sent':locale==='zh'?'消息已发送':'تم إرسال الرسالة')); setFbSubject(''); setFbMessage('') }
     setFbBusy(false)
   }
 
