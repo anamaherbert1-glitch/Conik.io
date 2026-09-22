@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import type { FeatureKey } from '@/lib/billing/features'
+import { getInternalUnlimitedAccess, isInternalUnlimitedEmail } from '@/lib/billing/internal-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +10,8 @@ export async function GET(request: Request) {
     const { supabase, membership } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
     const key = new URL(request.url).searchParams.get('feature') as FeatureKey | null
     if (!key) return NextResponse.json({ error: 'Feature requise.' }, { status: 400 })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (isInternalUnlimitedEmail(user?.email)) return NextResponse.json(getInternalUnlimitedAccess(key))
 
     const { data, error } = await supabase.rpc('conik_check_feature_access', {
       p_organization_id: membership.organizationId,
