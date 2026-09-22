@@ -1,10 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPlan, type PlanCode, type PlanLimits } from '@/lib/billing/plans'
+import { isInternalUnlimitedEmail } from '@/lib/billing/internal-access'
 
 export async function getOrganizationPlanCode(organizationId: string): Promise<PlanCode> {
   try {
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (isInternalUnlimitedEmail(user?.email)) return 'business'
     const { data, error } = await supabase.rpc('conik_get_plan_access', {
       p_organization_id: organizationId,
       p_feature_key: 'whatsapp',
