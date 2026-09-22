@@ -1,9 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
+import { isInternalUnlimitedEmail } from '@/lib/billing/internal-access'
 
 export type UsageKey = 'tunnels' | 'pages' | 'importsHtml' | 'contacts' | 'storage'
 
 export async function checkOrganizationUsage(organizationId: string, usageKey: UsageKey) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (isInternalUnlimitedEmail(user?.email)) {
+    return { allowed: true, current: 0, limit: Number.MAX_SAFE_INTEGER, period: null, plan: 'internal_unlimited' }
+  }
   const { data, error } = await supabase.rpc('conik_check_usage', {
     p_organization_id: organizationId,
     p_usage_key: usageKey,
