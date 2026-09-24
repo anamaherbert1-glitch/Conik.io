@@ -13,10 +13,10 @@ export default function HomePage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [emailStep, setEmailStep] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -51,6 +51,12 @@ export default function HomePage() {
     setError('')
     setInfo('')
     const normalizedEmail = email.trim().toLowerCase()
+    if (!emailStep) {
+      if (!normalizedEmail) return
+      setEmail(normalizedEmail)
+      setEmailStep(true)
+      return
+    }
     if (password !== confirmPassword) {
       setError('Les deux mots de passe ne correspondent pas.')
       return
@@ -64,7 +70,6 @@ export default function HomePage() {
         password,
         options: {
           emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
-          data: { full_name: name.trim() },
         },
       })
       if (signupError) {
@@ -206,43 +211,58 @@ export default function HomePage() {
           </div>
 
           <form className="home-form" onSubmit={submit}>
-            <label>
-              Nom (optionnel)
-              <input type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Votre nom" />
-            </label>
-            <label>
-              E-mail
-              <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
-            </label>
-            <label>
-              Mot de passe
-              <input
-                type="password"
-                required
-                minLength={6}
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Au moins 6 caractères"
-              />
-            </label>
-            <label>
-              Confirmer le mot de passe
-              <input
-                type="password"
-                required
-                minLength={6}
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Retapez votre mot de passe"
-              />
-            </label>
-            {error && <div className="error">{error}</div>}
-            {info && <div className="auth-ok">{info}</div>}
-            <button type="submit" className="primary full" disabled={loading || googleLoading}>
-              {loading ? 'Création…' : 'Créer mon compte'}
-            </button>
+            {!emailStep ? (
+              <>
+                <label>
+                  Adresse e-mail
+                  <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
+                </label>
+                <button type="submit" className="primary full" disabled={loading || googleLoading}>
+                  Continuer avec mon e-mail
+                </button>
+              </>
+            ) : (
+              <>
+                <label>
+                  Adresse e-mail
+                  <input type="email" value={email} readOnly />
+                </label>
+                <label>
+                  Votre code
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Créez votre code"
+                  />
+                </label>
+                <label>
+                  Confirmer votre code
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirmez votre code"
+                  />
+                </label>
+                {error && <div className="error">{error}</div>}
+                {info && <div className="auth-ok">{info}</div>}
+                <button type="submit" className="primary full" disabled={loading || googleLoading}>
+                  {loading ? 'Création…' : 'Créer mon compte'}
+                </button>
+                <button type="button" className="outline full" onClick={() => { setEmailStep(false); setError(''); setInfo('') }} disabled={loading}>
+                  Modifier l’adresse e-mail
+                </button>
+              </>
+            )}
+            {error && !emailStep && <div className="error">{error}</div>}
+            {info && !emailStep && <div className="auth-ok">{info}</div>}
           </form>
 
           <p className="home-switch">
