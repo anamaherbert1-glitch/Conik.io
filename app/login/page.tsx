@@ -33,6 +33,21 @@ export default function LoginPage() {
     if (!normalizedEmail || !password) return
     setLoading(true)
     try {
+      const check = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      })
+      const result = await check.json()
+      if (!check.ok) {
+        setError(result.error || 'Impossible de vérifier cette adresse e-mail.')
+        return
+      }
+      if (!result.exists) {
+        setAccountMissing(true)
+        setError('Cette adresse e-mail n’est pas encore enregistrée sur Conik. Créez votre compte pour continuer.')
+        return
+      }
       const supabase = createClient()
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
@@ -80,7 +95,7 @@ export default function LoginPage() {
           <span className="home-logo">C</span>
           <span>Conik.io</span>
         </Link>
-        <Link href="/" className="home-brand" style={{ fontSize: 13, fontWeight: 600, opacity: 0.7 }}>
+        <Link href="/signup" className="home-brand" style={{ fontSize: 13, fontWeight: 600, opacity: 0.7 }}>
           Inscription
         </Link>
       </header>
@@ -120,14 +135,14 @@ export default function LoginPage() {
             </label>
 
             {error && <div className="error">{error}</div>}
-            {accountMissing && <Link href={`/?email=${encodeURIComponent(email.trim())}`} className="primary full" style={{display:'block',textAlign:'center',textDecoration:'none'}}>Créer mon compte</Link>}
+            {accountMissing && <Link href={`/signup?email=${encodeURIComponent(email.trim())}`} className="primary full" style={{display:'block',textAlign:'center',textDecoration:'none'}}>Créer mon compte</Link>}
             <button type="submit" className="primary full" disabled={loading || googleLoading}>
               {loading ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
 
           <p className="home-switch">
-            Pas encore de compte ? <Link href="/">S’inscrire</Link>
+            Pas encore de compte ? <Link href="/signup">S’inscrire</Link>
           </p>
         </div>
       </section>
