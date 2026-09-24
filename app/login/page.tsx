@@ -11,6 +11,7 @@ function safeNext(value: string | null) {
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -29,7 +30,7 @@ export default function LoginPage() {
     setError('')
     setAccountMissing(false)
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail) return
+    if (!normalizedEmail || !password) return
     setLoading(true)
     try {
       const check = await fetch('/api/auth/check-email', {
@@ -44,20 +45,23 @@ export default function LoginPage() {
       }
       if (!result.exists) {
         setAccountMissing(true)
-        setError('Cette adresse e-mail n’a pas encore été enregistrée sur Conik. Créez votre compte pour continuer.')
+        setError('Cette adresse e-mail n’est pas encore enregistrée sur Conik. Créez votre compte pour continuer.')
         return
       }
-
       const supabase = createClient()
-      const origin = window.location.origin
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
-          queryParams: { login_hint: normalizedEmail },
-        },
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
       })
-      if (oauthError) setError(oauthError.message || 'Connexion Google impossible.')
+      if (loginError) {
+        if (/invalid login credentials|invalid credentials/i.test(loginError.message)) {
+          setError('Adresse e-mail ou mot de passe incorrect.')
+        } else {
+          setError(loginError.message || 'Connexion impossible.')
+        }
+        return
+      }
+      window.location.replace(next)
     } finally {
       setLoading(false)
     }
@@ -67,34 +71,15 @@ export default function LoginPage() {
     setError('')
     setAccountMissing(false)
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail) {
-      setError('Entrez votre adresse e-mail avant de continuer avec Google.')
-      return
-    }
     setGoogleLoading(true)
     try {
-      const check = await fetch('/api/auth/check-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail }),
-      })
-      const result = await check.json()
-      if (!check.ok) {
-        setError(result.error || 'Impossible de vérifier cette adresse e-mail.')
-        return
-      }
-      if (!result.exists) {
-        setAccountMissing(true)
-        setError('Cette adresse e-mail n’a pas encore été enregistrée sur Conik. Créez votre compte pour continuer.')
-        return
-      }
       const supabase = createClient()
       const origin = window.location.origin
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: origin + '/auth/callback?next=' + encodeURIComponent(next),
-          queryParams: { login_hint: normalizedEmail },
+          queryParams: { ...(normalizedEmail ? { login_hint: normalizedEmail } : {}), prompt: 'select_account' },
         },
       })
       if (oauthError) setError(oauthError.message || 'Connexion Google impossible.')
@@ -110,7 +95,7 @@ export default function LoginPage() {
           <span className="home-logo">C</span>
           <span>Conik.io</span>
         </Link>
-        <Link href="/" className="home-brand" style={{ fontSize: 13, fontWeight: 600, opacity: 0.7 }}>
+        <Link href="/signup" className="home-brand" style={{ fontSize: 13, fontWeight: 600, opacity: 0.7 }}>
           Inscription
         </Link>
       </header>
@@ -136,7 +121,7 @@ export default function LoginPage() {
           </button>
 
           <div className="auth-divider" aria-hidden="true">
-            <span>Connexion Google</span>
+            <span>ou avec votre e-mail</span>
           </div>
 
           <form className="home-form" onSubmit={submit}>
@@ -144,16 +129,20 @@ export default function LoginPage() {
               E-mail
               <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
             </label>
+            <label>
+              Mot de passe
+              <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" />
+            </label>
 
             {error && <div className="error">{error}</div>}
-            {accountMissing && <Link href={`/?email=${encodeURIComponent(email.trim())}`} className="primary full" style={{display:'block',textAlign:'center',textDecoration:'none'}}>Créer mon compte</Link>}
+            {accountMissing && <Link href={`/signup?email=${encodeURIComponent(email.trim())}`} className="primary full" style={{display:'block',textAlign:'center',textDecoration:'none'}}>Créer mon compte</Link>}
             <button type="submit" className="primary full" disabled={loading || googleLoading}>
-              {loading ? 'Vérification…' : 'Continuer'}
+              {loading ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
 
           <p className="home-switch">
-            Pas encore de compte ? <Link href="/">S’inscrire</Link>
+            Pas encore de compte ? <Link href="/signup">S’inscrire</Link>
           </p>
         </div>
       </section>
