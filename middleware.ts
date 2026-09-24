@@ -169,8 +169,8 @@ export async function middleware(request: NextRequest) {
     redirectUrl.searchParams.set('next', pathname + request.nextUrl.search)
     return addSecurityHeaders(NextResponse.redirect(redirectUrl))
   }
-  if (pathname === '/signup') return addSecurityHeaders(NextResponse.redirect(new URL('/login', request.url)))
-  if (user && pathname === '/login')
+  // /signup is public — do not redirect to /login
+  if (user && (pathname === '/login' || pathname === '/signup'))
     return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
   return addSecurityHeaders(response)
 }
