@@ -16,6 +16,7 @@ export default function HomePage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -49,18 +50,34 @@ export default function HomePage() {
     event.preventDefault()
     setError('')
     setInfo('')
+    const normalizedEmail = email.trim().toLowerCase()
+    if (password !== confirmPassword) {
+      setError('Les deux mots de passe ne correspondent pas.')
+      return
+    }
     setLoading(true)
     try {
       const supabase = createClient()
       const origin = window.location.origin
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const { data, error: signupError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
         options: {
-          redirectTo: `${origin}/auth/callback?next=/onboarding`,
-          queryParams: email.trim() ? { login_hint: email.trim().toLowerCase() } : undefined,
+          emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
+          data: { full_name: name.trim() },
         },
       })
-      if (oauthError) setError(oauthError.message || 'Inscription Google impossible.')
+      if (signupError) {
+        setError(signupError.message || 'Impossible de créer le compte.')
+        return
+      }
+      if (data.session) {
+        window.location.replace('/onboarding')
+        return
+      }
+      setInfo('Votre compte a été créé. Vérifiez votre boîte e-mail pour confirmer votre adresse, puis revenez sur Conik pour terminer votre profil.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de créer le compte.')
     } finally {
       setLoading(false)
     }
@@ -68,13 +85,17 @@ export default function HomePage() {
 
   async function signupWithGoogle() {
     setError('')
+    setInfo('')
     setGoogleLoading(true)
     try {
       const supabase = createClient()
       const origin = window.location.origin
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${origin}/auth/callback?next=/onboarding` },
+        options: {
+          redirectTo: `${origin}/auth/callback?next=/onboarding`,
+          queryParams: { prompt: 'select_account' },
+        },
       })
       if (oauthError) setError(oauthError.message || 'Inscription Google impossible.')
     } finally {
@@ -181,7 +202,7 @@ export default function HomePage() {
           </button>
 
           <div className="auth-divider" aria-hidden="true">
-            <span>Inscription Google</span>
+            <span>ou avec votre e-mail</span>
           </div>
 
           <form className="home-form" onSubmit={submit}>
@@ -205,10 +226,22 @@ export default function HomePage() {
                 placeholder="Au moins 6 caractères"
               />
             </label>
+            <label>
+              Confirmer le mot de passe
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Retapez votre mot de passe"
+              />
+            </label>
             {error && <div className="error">{error}</div>}
             {info && <div className="auth-ok">{info}</div>}
             <button type="submit" className="primary full" disabled={loading || googleLoading}>
-              {loading ? 'Redirection vers Google…' : 'Créer mon compte avec Google'}
+              {loading ? 'Création…' : 'Créer mon compte'}
             </button>
           </form>
 
