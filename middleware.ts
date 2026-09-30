@@ -2,7 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseConfig } from './lib/supabase/config'
 
-const PUBLIC_EXACT_PATHS = new Set(['/', '/login', '/signup', '/pay'])
+const PUBLIC_EXACT_PATHS = new Set([
+  '/',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/pay',
+])
 const PUBLIC_PREFIXES = [
   '/auth/',
   '/api/funnels/public',
@@ -18,29 +25,9 @@ const PUBLIC_PREFIXES = [
   '/pay',
 ]
 const PUBLIC_FUNNEL_RESERVED = new Set([
-  'dashboard',
-  'login',
-  'signup',
-  'auth',
-  'onboarding',
-  'funnels',
-  'contacts',
-  'campaigns',
-  'automations',
-  'whatsapp',
-  'emails',
-  'links',
-  'analytics',
-  'domains',
-  'settings',
-  'integrations',
-  'api',
-  '_next',
-  'r',
-  'segments',
-  'lives',
-  'live',
-  'pay',
+  'dashboard','login','signup','forgot-password','reset-password','auth','onboarding',
+  'funnels','contacts','campaigns','automations','whatsapp','emails','links','analytics',
+  'domains','settings','integrations','api','_next','r','segments','lives','live','pay',
 ])
 const ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
 const PLATFORM_HOSTS = new Set([
@@ -51,19 +38,11 @@ const PLATFORM_HOSTS = new Set([
   `www.${ROOT_DOMAIN}`,
 ])
 const RESERVED_SUBDOMAINS = new Set([
-  'www',
-  'app',
-  'api',
-  'admin',
-  'dashboard',
-  'login',
-  'signup',
-  'auth',
-  'domains',
-  'status',
+  'www','app','api','admin','dashboard','login','signup','auth','domains','status',
 ])
 const FUNNEL_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i
-const FUNNEL_SYSTEM_PATHS = new Set(['api', '_next', 'favicon.ico', 'r'])
+const FUNNEL_SYSTEM_PATHS = new Set(['api','_next','favicon.ico','r'])
+
 function getWildcardTenant(host: string) {
   if (!host || PLATFORM_HOSTS.has(host)) return null
   const suffix = `.${ROOT_DOMAIN}`
@@ -72,6 +51,7 @@ function getWildcardTenant(host: string) {
   if (!subdomain || subdomain.includes('.') || RESERVED_SUBDOMAINS.has(subdomain)) return null
   return FUNNEL_SLUG.test(subdomain) ? subdomain.toLowerCase() : null
 }
+
 function isPublicPath(pathname: string) {
   if (PUBLIC_EXACT_PATHS.has(pathname)) return true
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true
@@ -81,6 +61,7 @@ function isPublicPath(pathname: string) {
     !PUBLIC_FUNNEL_RESERVED.has(segments[0].toLowerCase())
   )
 }
+
 function addSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -93,6 +74,7 @@ function addSecurityHeaders(response: NextResponse) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   return response
 }
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
   const { url, key } = getSupabaseConfig()
@@ -106,15 +88,12 @@ export async function middleware(request: NextRequest) {
       },
     },
   })
+
   const pathname = request.nextUrl.pathname
   const host = (request.headers.get('host') || '').split(':')[0].toLowerCase()
   const segments = pathname.split('/').filter(Boolean)
   const wildcardTenant = getWildcardTenant(host)
 
-  // A wildcard tenant maps:
-  //   https://tenant.conik.io/           -> /tenant
-  //   https://tenant.conik.io/about     -> /tenant/about
-  // Keep API/system paths untouched so imported pages can still call Conik APIs.
   if (wildcardTenant && !FUNNEL_SYSTEM_PATHS.has(segments[0]?.toLowerCase() || '')) {
     const rewriteUrl = request.nextUrl.clone()
     rewriteUrl.pathname = segments.length
@@ -144,6 +123,7 @@ export async function middleware(request: NextRequest) {
       return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
     }
   }
+
   let user: Record<string, unknown> | null = null
   let sessionError = false
   try {
@@ -154,7 +134,6 @@ export async function middleware(request: NextRequest) {
     sessionError = true
   }
 
-  // Recover from stale/revoked Supabase refresh tokens instead of returning repeated 400s.
   if (sessionError) {
     request.cookies.getAll()
       .filter(({ name }) => name.startsWith('sb-') && name.includes('-auth-token'))
@@ -163,17 +142,21 @@ export async function middleware(request: NextRequest) {
       })
     user = null
   }
+
   if (!isPublicPath(pathname) && !user) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/login'
     redirectUrl.searchParams.set('next', pathname + request.nextUrl.search)
     return addSecurityHeaders(NextResponse.redirect(redirectUrl))
   }
-  // /signup is public — do not redirect to /login
-  if (user && (pathname === '/login' || pathname === '/signup'))
+
+  if (user && (pathname === '/login' || pathname === '/signup')) {
     return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
+  }
+
   return addSecurityHeaders(response)
 }
+
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
