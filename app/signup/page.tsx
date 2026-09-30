@@ -2,12 +2,15 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePreferences } from '@/components/preferences-provider'
 import { locales, type Locale, type Theme } from '@/lib/i18n/dictionaries'
 import { signOut } from '@/app/actions/auth'
+import { authErrorMessage } from '@/lib/auth/messages'
 
-export default function HomePage() {
+export default function SignupPage() {
+  const router = useRouter()
   const { theme, setTheme, locale, setLocale, dict } = usePreferences()
   const [menuOpen, setMenuOpen] = useState(false)
   const [sessionEmail, setSessionEmail] = useState<string | null>(null)
@@ -16,7 +19,8 @@ export default function HomePage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [emailStep, setEmailStep] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -32,35 +36,44 @@ export default function HomePage() {
     supabase.auth.getSession().then(({ data }) => {
       setSessionEmail(data.session?.user?.email ?? null)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setSessionEmail(session?.user?.email ?? null)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
-    function onDoc(e: MouseEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false)
+    function onDoc(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
     }
     if (menuOpen) document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [menuOpen])
 
+  function goBack() {
+    if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) router.back()
+    else router.push('/')
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
     setInfo('')
+
     const normalizedEmail = email.trim().toLowerCase()
-    if (!emailStep) {
-      if (!normalizedEmail) return
-      setEmail(normalizedEmail)
-      setEmailStep(true)
+    if (!normalizedEmail) {
+      setError('Saisissez votre adresse e-mail.')
+      return
+    }
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères.')
       return
     }
     if (password !== confirmPassword) {
       setError('Les deux mots de passe ne correspondent pas.')
       return
     }
+
     setLoading(true)
     try {
       const supabase = createClient()
@@ -72,17 +85,20 @@ export default function HomePage() {
           emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
         },
       })
+
       if (signupError) {
-        setError(signupError.message || 'Impossible de créer le compte.')
+        setError(authErrorMessage(signupError.message))
         return
       }
+
       if (data.session) {
         window.location.replace('/onboarding')
         return
       }
-      setInfo('Votre compte a été créé. Vérifiez votre boîte e-mail pour confirmer votre adresse, puis revenez sur Conik pour terminer votre profil.')
+
+      setInfo('Compte créé. Vérifiez votre boîte e-mail pour confirmer votre adresse, puis revenez sur Conik.')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de créer le compte.')
+      setError(authErrorMessage(e instanceof Error ? e.message : ''))
     } finally {
       setLoading(false)
     }
@@ -102,7 +118,9 @@ export default function HomePage() {
           queryParams: { prompt: 'select_account' },
         },
       })
-      if (oauthError) setError(oauthError.message || 'Inscription Google impossible.')
+      if (oauthError) setError(authErrorMessage(oauthError.message))
+    } catch (e) {
+      setError(authErrorMessage(e instanceof Error ? e.message : ''))
     } finally {
       setGoogleLoading(false)
     }
@@ -111,7 +129,11 @@ export default function HomePage() {
   return (
     <main className="home-plain">
       <header className="home-top">
-        <Link href="/" className="home-brand">
+        <button type="button" className="outline" onClick={goBack} aria-label="Retour à la page précédente">
+          ← Retour
+        </button>
+
+        <Link href="/" className="home-brand" aria-label="Conik.io">
           <span className="home-logo">C</span>
           <span>Conik.io</span>
         </Link>
@@ -120,14 +142,13 @@ export default function HomePage() {
           <button
             type="button"
             className="home-burger"
-            aria-label="Menu"
+            aria-label="Ouvrir le menu"
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => setMenuOpen((value) => !value)}
           >
-            <span />
-            <span />
-            <span />
+            <span /><span /><span />
           </button>
+
           {menuOpen && (
             <div className="home-menu" role="menu">
               {sessionEmail ? (
@@ -137,9 +158,7 @@ export default function HomePage() {
                     Tableau de bord
                   </Link>
                   <form action={signOut}>
-                    <button type="submit" className="home-menu-item">
-                      {dict.nav.Logout}
-                    </button>
+                    <button type="submit" className="home-menu-item">{dict.nav.Logout}</button>
                   </form>
                 </>
               ) : (
@@ -150,13 +169,11 @@ export default function HomePage() {
 
               <div className="home-menu-sep" />
               <div className="home-menu-label">Thème</div>
-              {(
-                [
-                  ['system', 'Système'],
-                  ['light', 'Clair'],
-                  ['dark', 'Sombre'],
-                ] as const
-              ).map(([value, label]) => (
+              {([
+                ['system', 'Système'],
+                ['light', 'Clair'],
+                ['dark', 'Sombre'],
+              ] as const).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -169,14 +186,14 @@ export default function HomePage() {
 
               <div className="home-menu-sep" />
               <div className="home-menu-label">Langue</div>
-              {locales.map((l) => (
+              {locales.map((item) => (
                 <button
-                  key={l.code}
+                  key={item.code}
                   type="button"
-                  className={`home-menu-item ${locale === l.code ? 'active' : ''}`}
-                  onClick={() => setLocale(l.code as Locale)}
+                  className={`home-menu-item ${locale === item.code ? 'active' : ''}`}
+                  onClick={() => setLocale(item.code as Locale)}
                 >
-                  {l.native}
+                  {item.native}
                 </button>
               ))}
             </div>
@@ -185,10 +202,8 @@ export default function HomePage() {
       </header>
 
       <section className="home-center">
-        <h1 className="home-title">Conik.io</h1>
-        <p className="home-desc">
-          Créez, publiez et monétisez vos tunnels de vente — simplement, depuis un seul espace.
-        </p>
+        <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>Créer un compte</h1>
+        <p className="home-desc">Créez votre espace Conik en quelques secondes.</p>
 
         <div className="home-form-wrap">
           <button
@@ -210,59 +225,85 @@ export default function HomePage() {
             <span>ou avec votre e-mail</span>
           </div>
 
-          <form className="home-form" onSubmit={submit}>
-            {!emailStep ? (
-              <>
-                <label>
-                  Adresse e-mail
-                  <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
-                </label>
-                <button type="submit" className="primary full" disabled={loading || googleLoading}>
-                  Continuer avec mon e-mail
+          <form className="home-form" onSubmit={submit} noValidate>
+            <label>
+              Adresse e-mail
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="vous@email.com"
+                aria-invalid={Boolean(error)}
+              />
+            </label>
+
+            <label>
+              Mot de passe
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Au moins 8 caractères"
+                  style={{ paddingRight: 88 }}
+                  aria-describedby="signup-password-help"
+                />
+                <button
+                  type="button"
+                  className="outline"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  style={{ position: 'absolute', right: 6, top: 6, minHeight: 34, padding: '0 10px' }}
+                >
+                  {showPassword ? 'Masquer' : 'Afficher'}
                 </button>
-              </>
-            ) : (
-              <>
-                <label>
-                  Adresse e-mail
-                  <input type="email" value={email} readOnly />
-                </label>
-                <label>
-                  Votre code
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Créez votre code"
-                  />
-                </label>
-                <label>
-                  Confirmer votre code
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirmez votre code"
-                  />
-                </label>
-                {error && <div className="error">{error}</div>}
-                {info && <div className="auth-ok">{info}</div>}
-                <button type="submit" className="primary full" disabled={loading || googleLoading}>
-                  {loading ? 'Création…' : 'Créer mon compte'}
+              </div>
+              <small id="signup-password-help" className="hint">8 caractères minimum.</small>
+            </label>
+
+            <label>
+              Confirmer le mot de passe
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Répétez le mot de passe"
+                  style={{ paddingRight: 88 }}
+                />
+                <button
+                  type="button"
+                  className="outline"
+                  onClick={() => setShowConfirm((value) => !value)}
+                  aria-label={showConfirm ? 'Masquer la confirmation' : 'Afficher la confirmation'}
+                  style={{ position: 'absolute', right: 6, top: 6, minHeight: 34, padding: '0 10px' }}
+                >
+                  {showConfirm ? 'Masquer' : 'Afficher'}
                 </button>
-                <button type="button" className="outline full" onClick={() => { setEmailStep(false); setError(''); setInfo('') }} disabled={loading}>
-                  Modifier l’adresse e-mail
-                </button>
-              </>
+              </div>
+            </label>
+
+            {error && <div className="error" role="alert">{error}</div>}
+            {info && (
+              <div className="auth-ok" role="status">
+                {info}
+                <div style={{ marginTop: 12 }}>
+                  <Link href="/login">Retour à la connexion</Link>
+                </div>
+              </div>
             )}
-            {error && !emailStep && <div className="error">{error}</div>}
-            {info && !emailStep && <div className="auth-ok">{info}</div>}
+
+            <button type="submit" className="primary full" disabled={loading || googleLoading}>
+              {loading ? 'Création…' : 'Créer mon compte'}
+            </button>
           </form>
 
           <p className="home-switch">
