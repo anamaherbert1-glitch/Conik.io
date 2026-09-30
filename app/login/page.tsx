@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { authErrorMessage } from '@/lib/auth/messages'
 
 function safeNext(value: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
@@ -10,58 +12,56 @@ function safeNext(value: string | null) {
 }
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [accountMissing, setAccountMissing] = useState(false)
   const [next, setNext] = useState('/dashboard')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setNext(safeNext(params.get('next')))
-    const err = params.get('error')
-    if (err) setError(decodeURIComponent(err))
+    const rawError = params.get('error')
+    const reset = params.get('reset')
+    if (rawError) setError(authErrorMessage(rawError))
+    if (reset === 'success') setInfo('Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.')
   }, [])
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
-    setAccountMissing(false)
+    setInfo('')
+
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail || !password) return
+    if (!normalizedEmail) {
+      setError('Saisissez votre adresse e-mail.')
+      return
+    }
+    if (!password) {
+      setError('Saisissez votre mot de passe.')
+      return
+    }
+
     setLoading(true)
     try {
-      const check = await fetch('/api/auth/check-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail }),
-      })
-      const result = await check.json()
-      if (!check.ok) {
-        setError(result.error || 'Impossible de vérifier cette adresse e-mail.')
-        return
-      }
-      if (!result.exists) {
-        setAccountMissing(true)
-        setError('Cette adresse e-mail n’est pas encore enregistrée sur Conik. Créez votre compte pour continuer.')
-        return
-      }
       const supabase = createClient()
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       })
+
       if (loginError) {
-        if (/invalid login credentials|invalid credentials/i.test(loginError.message)) {
-          setError('Adresse e-mail ou mot de passe incorrect.')
-        } else {
-          setError(loginError.message || 'Connexion impossible.')
-        }
+        setError(authErrorMessage(loginError.message))
         return
       }
+
       window.location.replace(next)
+    } catch (e) {
+      setError(authErrorMessage(e instanceof Error ? e.message : ''))
     } finally {
       setLoading(false)
     }
@@ -69,8 +69,7 @@ export default function LoginPage() {
 
   async function loginWithGoogle() {
     setError('')
-    setAccountMissing(false)
-    const normalizedEmail = email.trim().toLowerCase()
+    setInfo('')
     setGoogleLoading(true)
     try {
       const supabase = createClient()
@@ -79,29 +78,39 @@ export default function LoginPage() {
         provider: 'google',
         options: {
           redirectTo: origin + '/auth/callback?next=' + encodeURIComponent(next),
-          queryParams: { ...(normalizedEmail ? { login_hint: normalizedEmail } : {}), prompt: 'select_account' },
+          queryParams: { prompt: 'select_account' },
         },
       })
-      if (oauthError) setError(oauthError.message || 'Connexion Google impossible.')
+      if (oauthError) setError(authErrorMessage(oauthError.message))
+    } catch (e) {
+      setError(authErrorMessage(e instanceof Error ? e.message : ''))
     } finally {
       setGoogleLoading(false)
     }
   }
 
+  function goBack() {
+    if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) router.back()
+    else router.push('/')
+  }
+
   return (
     <main className="home-plain">
       <header className="home-top">
-        <Link href="/" className="home-brand">
+        <button type="button" className="outline" onClick={goBack} aria-label="Retour à la page précédente">
+          ← Retour
+        </button>
+        <Link href="/" className="home-brand" aria-label="Conik.io">
           <span className="home-logo">C</span>
           <span>Conik.io</span>
         </Link>
-        <Link href="/signup" className="home-brand" style={{ fontSize: 13, fontWeight: 600, opacity: 0.7 }}>
-          Inscription
+        <Link href="/signup" className="outline" style={{ fontSize: 13, textDecoration: 'none' }}>
+          Créer un compte
         </Link>
       </header>
 
       <section className="home-center">
-        <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>Connexion</h1>
+        <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>Se connecter</h1>
         <p className="home-desc">Accédez à votre espace Conik.</p>
 
         <div className="home-form-wrap">
@@ -124,25 +133,59 @@ export default function LoginPage() {
             <span>ou avec votre e-mail</span>
           </div>
 
-          <form className="home-form" onSubmit={submit}>
+          <form className="home-form" onSubmit={submit} noValidate>
             <label>
               E-mail
-              <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com" />
-            </label>
-            <label>
-              Mot de passe
-              <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" />
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="vous@email.com"
+                aria-invalid={Boolean(error)}
+              />
             </label>
 
-            {error && <div className="error">{error}</div>}
-            {accountMissing && <Link href={`/signup?email=${encodeURIComponent(email.trim())}`} className="primary full" style={{display:'block',textAlign:'center',textDecoration:'none'}}>Créer mon compte</Link>}
+            <label>
+              Mot de passe
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Votre mot de passe"
+                  style={{ paddingRight: 88 }}
+                  aria-invalid={Boolean(error)}
+                />
+                <button
+                  type="button"
+                  className="outline"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  style={{ position: 'absolute', right: 6, top: 6, minHeight: 34, padding: '0 10px' }}
+                >
+                  {showPassword ? 'Masquer' : 'Afficher'}
+                </button>
+              </div>
+            </label>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}>
+              <Link href="/forgot-password">Mot de passe oublié ?</Link>
+            </div>
+
+            {error && <div className="error" role="alert">{error}</div>}
+            {info && <div className="auth-ok" role="status">{info}</div>}
+
             <button type="submit" className="primary full" disabled={loading || googleLoading}>
               {loading ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
 
           <p className="home-switch">
-            Pas encore de compte ? <Link href="/signup">S’inscrire</Link>
+            Pas encore de compte ? <Link href="/signup">Créer un compte</Link>
           </p>
         </div>
       </section>
