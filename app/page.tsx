@@ -13,7 +13,11 @@ const steps = [
   ['04', 'CONVERTIR', 'Vos visiteurs', 'Transformez l’attention en prospects et clients.'],
 ]
 
-export default function HomePage() {
+type HomeSearchParams = { auth?: string; email?: string }
+
+export default async function HomePage({ searchParams }: { searchParams?: Promise<HomeSearchParams> }) {
+  const params = searchParams ? await searchParams : {}
+  const alreadyRegistered = params.auth === 'already_registered'
   return (
     <main className="landing">
       <header className="landing-nav">
@@ -28,6 +32,14 @@ export default function HomePage() {
           <Link href="/signup" className="landing-btn landing-primary">Commencer</Link>
         </div>
       </header>
+
+      {alreadyRegistered && (
+        <section className="landing-cta" role="status" aria-live="polite" style={{ marginTop: 24, paddingTop: 24, paddingBottom: 24 }}>
+          <h2>Cette adresse e-mail est déjà inscrite.</h2>
+          <p>{params.email ? `Le compte associé à ${params.email} existe déjà. Connectez-vous pour accéder à votre espace Conik.` : 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous pour accéder à votre espace Conik.'}</p>
+          <Link href={`/login${params.email ? `?email=${encodeURIComponent(params.email)}` : ''}`} className="landing-btn landing-primary">Se connecter</Link>
+        </section>
+      )}
 
       <section className="landing-hero">
         <div className="landing-badge">La plateforme pour construire votre présence en ligne</div>
