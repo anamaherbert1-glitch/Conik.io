@@ -25,6 +25,8 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setNext(safeNext(params.get('next')))
+    const prefillEmail = params.get('email')
+    if (prefillEmail) setEmail(prefillEmail)
     const rawError = params.get('error')
     const reset = params.get('reset')
     if (rawError) setError(authErrorMessage(rawError))
