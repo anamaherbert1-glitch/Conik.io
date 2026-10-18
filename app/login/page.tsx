@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [showEmailForm, setShowEmailForm] = useState(false)
   const [next, setNext] = useState('/dashboard')
 
   useEffect(() => {
@@ -131,6 +132,17 @@ export default function LoginPage() {
             {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
           </button>
 
+          {!showEmailForm && (
+            <button type="button" className="primary full" onClick={() => { setShowEmailForm(true); setError(''); setInfo('') }}>
+              Continuer avec mon e-mail
+            </button>
+          )}
+
+          {showEmailForm && (
+            <>
+          <button type="button" className="outline full" onClick={() => { setShowEmailForm(false); setError(''); setInfo('') }}>
+            ← Retour aux choix de connexion
+          </button>
           <div className="auth-divider" aria-hidden="true">
             <span>ou avec votre e-mail</span>
           </div>
@@ -185,6 +197,8 @@ export default function LoginPage() {
               {loading ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
+            </>
+          )}
 
           <p className="home-switch">
             Pas encore de compte ? <Link href="/signup">Créer un compte</Link>

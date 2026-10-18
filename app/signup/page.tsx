@@ -262,6 +262,9 @@ export default function SignupPage() {
 
           {showEmailForm && (
             <>
+          <button type="button" className="outline full" onClick={() => { setShowEmailForm(false); setError(''); setInfo('') }}>
+            ← Retour aux choix d’inscription
+          </button>
           <div className="auth-divider" aria-hidden="true">
             <span>ou avec votre e-mail</span>
           </div>
