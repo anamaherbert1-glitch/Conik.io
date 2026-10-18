@@ -13,6 +13,7 @@ export default function SignupPage() {
   const router = useRouter()
   const { theme, setTheme, locale, setLocale, dict } = usePreferences()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showEmailForm, setShowEmailForm] = useState(false)
   const [sessionEmail, setSessionEmail] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -253,6 +254,14 @@ export default function SignupPage() {
             {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
           </button>
 
+          {!showEmailForm && (
+            <button type="button" className="primary full" onClick={() => setShowEmailForm(true)}>
+              Continuer avec mon e-mail
+            </button>
+          )}
+
+          {showEmailForm && (
+            <>
           <div className="auth-divider" aria-hidden="true">
             <span>ou avec votre e-mail</span>
           </div>
@@ -359,6 +368,8 @@ export default function SignupPage() {
               {loading ? 'Création…' : 'Créer mon compte'}
             </button>
           </form>
+            </>
+          )}
 
           <p className="home-switch">
             Déjà un compte ? <Link href="/login">Se connecter</Link>
