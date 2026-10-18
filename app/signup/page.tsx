@@ -118,7 +118,7 @@ export default function SignupPage() {
       }
 
       // Supabase can return an empty identities array for an already-registered email.
-      if (data.user && !data.session && (data.user.identities?.length ?? 0) === 0) {
+      if (data.user && !data.session && data.user.identities?.length === 0) {
         window.location.replace('/?auth=already_registered&email=' + encodeURIComponent(normalizedEmail))
         return
       }
