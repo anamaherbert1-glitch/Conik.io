@@ -31,17 +31,24 @@ export default function OnboardingPage() {
       if (!active) return
       if (membership) { window.location.replace('/dashboard'); return }
 
-      const metadataName = typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : ''
+      const metadata = user.user_metadata ?? {}
+      const metadataName = typeof metadata.full_name === 'string' ? metadata.full_name : ''
+      const metadataPhone = typeof metadata.phone === 'string' ? metadata.phone : ''
+      const metadataCountry = typeof metadata.country === 'string' ? metadata.country : ''
+      const metadataCity = typeof metadata.city === 'string' ? metadata.city : ''
+      const metadataCompany = typeof metadata.company === 'string' ? metadata.company : ''
       const { data: profile } = await supabase.from('profiles').select('full_name,phone,country,city,company').eq('id', user.id).maybeSingle()
       if (!active) return
+      const fullName = profile?.full_name || metadataName
+      const companyName = profile?.company || metadataCompany
       setEmail(user.email ?? '')
-      setName(profile?.full_name || metadataName)
-      setPhone(profile?.phone || '')
-      setCountry(profile?.country || '')
-      setCity(profile?.city || '')
-      setCompany(profile?.company || '')
-      setWorkspace(profile?.company || metadataName || '')
-      setSlug(slugify(profile?.company || metadataName || (user.email || '').split('@')[0] || 'mon-espace'))
+      setName(fullName)
+      setPhone(profile?.phone || metadataPhone)
+      setCountry(profile?.country || metadataCountry)
+      setCity(profile?.city || metadataCity)
+      setCompany(companyName)
+      setWorkspace(companyName || fullName || '')
+      setSlug(slugify(companyName || fullName || (user.email || '').split('@')[0] || 'mon-espace'))
       setChecking(false)
     }
     void load()
@@ -82,7 +89,7 @@ export default function OnboardingPage() {
       <div className="auth-card wide">
         <div className="step">NOUVEAU COMPTE</div>
         <h1>Complétez votre profil</h1>
-        <p>Votre adresse e-mail est déjà associée à ce compte. Complétez vos informations pour finaliser votre inscription.</p>
+        <p>Vérifiez les informations préremplies, puis configurez votre espace Conik.</p>
         <form onSubmit={submit}>
           <label>Adresse e-mail<input type="email" value={email} readOnly /></label>
           <label>Nom complet<input required minLength={2} maxLength={120} autoComplete="name" value={name} onChange={e=>setName(e.target.value)} placeholder="Votre nom complet" /></label>
@@ -92,7 +99,7 @@ export default function OnboardingPage() {
           <label>Entreprise / organisation<input autoComplete="organization" value={company} onChange={e=>setCompany(e.target.value)} placeholder="Mon entreprise" /></label>
           <label>Nom de l’espace de travail<input required minLength={2} maxLength={120} value={workspace} onChange={e=>{setWorkspace(e.target.value); if(!slug) setSlug(slugify(e.target.value))}} placeholder="Mon espace" /></label>
           <label>Identifiant d’URL<input required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={slug} onChange={e=>setSlug(slugify(e.target.value))} placeholder="mon-espace" /><small className="hint">Utilisé dans les URL publiques de vos tunnels.</small></label>
-          {error && <div className="error">{error}</div>}
+          {error && <div className="error" role="alert">{error}</div>}
           <button className="primary full" disabled={loading} type="submit">{loading ? 'Enregistrement…' : 'Terminer et accéder à Conik'}</button>
         </form>
       </div>

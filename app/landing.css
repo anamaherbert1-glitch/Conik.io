@@ -133,3 +133,14 @@
   .home-title{font-size:40px}
   .home-top{padding:14px 16px}
 }
+
+
+/* Signup profile fields */
+.signup-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 420px) {
+  .signup-name-grid { grid-template-columns: minmax(0, 1fr); }
+}

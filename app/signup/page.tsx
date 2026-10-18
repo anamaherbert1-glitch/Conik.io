@@ -16,6 +16,12 @@ export default function SignupPage() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [country, setCountry] = useState('')
+  const [city, setCity] = useState('')
+  const [company, setCompany] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -61,8 +67,14 @@ export default function SignupPage() {
     setInfo('')
 
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail) {
-      setError('Saisissez votre adresse e-mail.')
+    const cleanFirstName = firstName.trim()
+    const cleanLastName = lastName.trim()
+    if (!cleanFirstName || !cleanLastName) {
+      setError('Saisissez votre prénom et votre nom.')
+      return
+    }
+    if (!normalizedEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+      setError('Saisissez une adresse e-mail valide.')
       return
     }
     if (password.length < 8) {
@@ -83,11 +95,31 @@ export default function SignupPage() {
         password,
         options: {
           emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
+          data: {
+            first_name: cleanFirstName,
+            last_name: cleanLastName,
+            full_name: `${cleanFirstName} ${cleanLastName}`,
+            phone: phone.trim(),
+            country: country.trim(),
+            city: city.trim(),
+            company: company.trim(),
+          },
         },
       })
 
       if (signupError) {
+        const message = signupError.message.toLowerCase()
+        if (message.includes('already registered') || message.includes('already exists')) {
+          window.location.replace('/?auth=already_registered&email=' + encodeURIComponent(normalizedEmail))
+          return
+        }
         setError(authErrorMessage(signupError.message))
+        return
+      }
+
+      // Supabase can return an empty identities array for an already-registered email.
+      if (data.user && !data.session && data.user.identities?.length === 0) {
+        window.location.replace('/?auth=already_registered&email=' + encodeURIComponent(normalizedEmail))
         return
       }
 
@@ -96,7 +128,7 @@ export default function SignupPage() {
         return
       }
 
-      setInfo('Compte créé. Vérifiez votre boîte e-mail pour confirmer votre adresse, puis revenez sur Conik.')
+      setInfo('Inscription enregistrée. Ouvrez le message envoyé à votre adresse e-mail pour la vérifier. Après confirmation, vous pourrez terminer la configuration de votre espace Conik.')
     } catch (e) {
       setError(authErrorMessage(e instanceof Error ? e.message : ''))
     } finally {
@@ -130,7 +162,7 @@ export default function SignupPage() {
     <main className="home-plain">
       <header className="home-top">
         <button type="button" className="outline" onClick={goBack} aria-label="Retour à la page précédente">
-          ← Retour
+          ← Retour à l’accueil
         </button>
 
         <Link href="/" className="home-brand" aria-label="Conik.io">
@@ -226,6 +258,14 @@ export default function SignupPage() {
           </div>
 
           <form className="home-form" onSubmit={submit} noValidate>
+            <div className="signup-name-grid">
+              <label>Prénom
+                <input required autoComplete="given-name" maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} placeholder="Votre prénom" />
+              </label>
+              <label>Nom
+                <input required autoComplete="family-name" maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} placeholder="Votre nom" />
+              </label>
+            </div>
             <label>
               Adresse e-mail
               <input
@@ -237,6 +277,20 @@ export default function SignupPage() {
                 placeholder="vous@email.com"
                 aria-invalid={Boolean(error)}
               />
+            </label>
+            <label>Téléphone (facultatif)
+              <input type="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} placeholder="+228 ..." />
+            </label>
+            <div className="signup-name-grid">
+              <label>Pays (facultatif)
+                <input autoComplete="country-name" value={country} onChange={event => setCountry(event.target.value)} placeholder="Togo" />
+              </label>
+              <label>Ville (facultatif)
+                <input autoComplete="address-level2" value={city} onChange={event => setCity(event.target.value)} placeholder="Lomé" />
+              </label>
+            </div>
+            <label>Entreprise ou activité (facultatif)
+              <input autoComplete="organization" value={company} onChange={event => setCompany(event.target.value)} placeholder="Nom de votre entreprise" />
             </label>
 
             <label>
