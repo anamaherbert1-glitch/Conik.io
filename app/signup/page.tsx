@@ -74,7 +74,7 @@ export default function SignupPage() {
       setError('Saisissez votre prénom et votre nom.')
       return
     }
-    if (!normalizedEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setError('Saisissez une adresse e-mail valide.')
       return
     }
