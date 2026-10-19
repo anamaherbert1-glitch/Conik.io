@@ -19,8 +19,8 @@ export default function ForgotPasswordPage() {
     setSuccess(false)
 
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail) {
-      setError('Saisissez votre adresse e-mail.')
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError('Saisissez une adresse e-mail valide.')
       return
     }
 
@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
           <span className="home-logo">C</span>
           <span>Conik.io</span>
         </Link>
-        <button type="button" className="outline" onClick={() => router.back()}>
+        <button type="button" className="outline" onClick={() => router.back()} aria-label="Retour à la page précédente">
           Retour
         </button>
       </header>
