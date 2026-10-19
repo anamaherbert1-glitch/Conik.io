@@ -40,8 +40,8 @@ export default function LoginPage() {
     setInfo('')
 
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail) {
-      setError('Saisissez votre adresse e-mail.')
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError('Saisissez une adresse e-mail valide.')
       return
     }
     if (!password) {
