@@ -461,3 +461,20 @@
     flex-wrap: wrap;
   }
 }
+
+
+/* Preserve the intentional compact Live shell width on desktop. */
+@media (min-width: 821px) {
+  .shell-compact > aside.shell-aside-compact {
+    width: 68px;
+    flex-basis: 68px;
+  }
+
+  .shell-compact > main.shell-main-compact {
+    width: calc(100% - 68px);
+    max-width: none;
+    margin-left: 68px;
+    margin-right: 0;
+    padding: 18px 16px 28px;
+  }
+}
