@@ -305,3 +305,176 @@
   }
   .funnel-row{padding:10px 0!important}
 }
+
+
+/* ========== DESKTOP FULL-WIDTH RESPONSIVENESS ========== */
+/* Keep the existing visual identity while allowing the workspace to use the full viewport. */
+@media (min-width: 821px) {
+  html, body {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .shell {
+    width: 100%;
+    min-width: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+
+  .shell > aside {
+    flex: 0 0 245px;
+    width: 245px;
+    min-width: 0;
+  }
+
+  .shell > main,
+  .shell-compact > main.shell-main-compact {
+    box-sizing: border-box;
+    width: calc(100% - 245px);
+    max-width: none;
+    min-width: 0;
+    margin-left: 245px;
+    margin-right: 0;
+    padding: clamp(22px, 2vw, 38px);
+  }
+
+  .shell > main > *,
+  .shell > main .page,
+  .shell > main .head,
+  .shell > main .section-head,
+  .shell > main .hero,
+  .shell > main .panel,
+  .shell > main .card,
+  .shell > main .table-wrap {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .shell > main .page {
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  .shell > main .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .shell > main .grid,
+  .shell > main .choices {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+
+  .shell > main .editor-grid {
+    grid-template-columns: minmax(160px, 190px) minmax(0, 1.4fr) minmax(220px, 1fr);
+  }
+
+  .shell > main .table-wrap,
+  .shell > main .plans-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .shell > main img,
+  .shell > main video,
+  .shell > main iframe,
+  .shell > main canvas,
+  .shell > main svg {
+    max-width: 100%;
+  }
+
+  .shell > main input,
+  .shell > main textarea,
+  .shell > main select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .shell > main .button-row,
+  .shell > main .head,
+  .shell > main .section-head {
+    flex-wrap: wrap;
+  }
+}
+
+/* Laptop and narrow desktop: preserve readable controls without wasting workspace. */
+@media (min-width: 821px) and (max-width: 1180px) {
+  .shell > aside:not(.shell-aside-compact) {
+    width: 210px;
+    flex-basis: 210px;
+    padding-inline: 10px;
+  }
+
+  .shell > main,
+  .shell-compact > main.shell-main-compact {
+    width: calc(100% - 210px);
+    margin-left: 210px;
+    padding: 22px;
+  }
+
+  .shell > main .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shell > main .grid,
+  .shell > main .choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shell > main .editor-grid {
+    grid-template-columns: minmax(150px, 180px) minmax(0, 1fr);
+  }
+
+  .shell > main .editor-grid > .panel:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .shell > main .pricing-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Prevent long labels and nested grids from forcing the whole desktop page wider. */
+@media (min-width: 821px) {
+  .shell > main .card,
+  .shell > main .panel,
+  .shell > main .choice,
+  .shell > main .emptybox,
+  .shell > main .pricing-col,
+  .shell > main .live-studio-workspace > *,
+  .shell > main .conik-follower-layout > * {
+    min-width: 0;
+  }
+
+  .shell > main pre,
+  .shell > main code,
+  .shell > main .code-input {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .shell > main .funnel-row,
+  .shell > main .payment-provider-row,
+  .shell > main .profile-photo-row {
+    flex-wrap: wrap;
+  }
+}
+
+
+/* Preserve the intentional compact Live shell width on desktop. */
+@media (min-width: 821px) {
+  .shell-compact > aside.shell-aside-compact {
+    width: 68px;
+    flex-basis: 68px;
+  }
+
+  .shell-compact > main.shell-main-compact {
+    width: calc(100% - 68px);
+    max-width: none;
+    margin-left: 68px;
+    margin-right: 0;
+    padding: 18px 16px 28px;
+  }
+}
