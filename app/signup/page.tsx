@@ -78,7 +78,6 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      // Création compte confirmé côté serveur → accès immédiat au profil
       const create = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,7 +104,7 @@ export default function SignupPage() {
         return
       }
 
-      // Nouveau compte → formulaire profil puis Intégrer
+      // Bootstrap espace puis dashboard (pas de formulaire profil)
       window.location.replace('/onboarding')
     } catch (e) {
       setError(authErrorMessage(e instanceof Error ? e.message : ''))
@@ -147,72 +146,14 @@ export default function SignupPage() {
           <span>Conik.io</span>
         </Link>
 
-        <div className="home-menu-wrap" ref={menuRef}>
-          <button
-            type="button"
-            className="home-burger"
-            aria-label="Ouvrir le menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((value) => !value)}
-          >
-            <span /><span /><span />
-          </button>
-
-          {menuOpen && (
-            <div className="home-menu" role="menu">
-              {sessionEmail ? (
-                <>
-                  <div className="home-menu-label">{sessionEmail}</div>
-                  <Link href="/dashboard" className="home-menu-item" onClick={() => setMenuOpen(false)}>
-                    Tableau de bord
-                  </Link>
-                  <form action={signOut}>
-                    <button type="submit" className="home-menu-item">{dict.nav.Logout}</button>
-                  </form>
-                </>
-              ) : (
-                <Link href="/login" className="home-menu-item" onClick={() => setMenuOpen(false)}>
-                  Connexion
-                </Link>
-              )}
-
-              <div className="home-menu-sep" />
-              <div className="home-menu-label">Thème</div>
-              {([
-                ['system', 'Système'],
-                ['light', 'Clair'],
-                ['dark', 'Sombre'],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`home-menu-item ${theme === value ? 'active' : ''}`}
-                  onClick={() => setTheme(value as Theme)}
-                >
-                  {label}
-                </button>
-              ))}
-
-              <div className="home-menu-sep" />
-              <div className="home-menu-label">Langue</div>
-              {locales.map((item) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  className={`home-menu-item ${locale === item.code ? 'active' : ''}`}
-                  onClick={() => setLocale(item.code as Locale)}
-                >
-                  {item.native}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <Link href="/login" className="outline" style={{ fontSize: 13, textDecoration: 'none' }}>
+          Se connecter
+        </Link>
       </header>
 
       <section className="home-center">
         <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>S’inscrire</h1>
-        <p className="home-desc">Créez votre compte, puis complétez votre profil pour intégrer Conik.</p>
+        <p className="home-desc">Créez votre compte avec Google ou votre e-mail, puis accédez directement à Conik.</p>
 
         <div className="home-form-wrap">
           <button
@@ -316,11 +257,8 @@ export default function SignupPage() {
                 {error && <div className="error" role="alert">{error}</div>}
 
                 <button type="submit" className="primary full" disabled={loading || googleLoading}>
-                  {loading ? 'Création…' : 'Continuer'}
+                  {loading ? 'Création…' : 'Créer mon compte'}
                 </button>
-                <p className="hint" style={{ textAlign: 'center', margin: 0 }}>
-                  Ensuite vous complétez votre profil et vous intégrez Conik.
-                </p>
               </form>
             </>
           )}
