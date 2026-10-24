@@ -1,0 +1,111 @@
+/* Lisibilité système — contraste textes / panneaux */
+:root,
+:root[data-theme="light"] {
+  --ink: #0b0f19;
+  --muted: #3b4454;
+  --line: #c5cad6;
+  --panel: #f3f5f9;
+  --bg: #e8ebf2;
+  --input-bg: #fbfcfe;
+}
+
+:root[data-theme="dark"],
+.dark {
+  --ink: #f0f2f7;
+  --muted: #b0b7c8;
+  --line: #2e3340;
+  --panel: #161922;
+  --bg: #0b0d12;
+  --input-bg: #10131a;
+}
+
+body {
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, strong, b {
+  color: var(--ink);
+}
+
+.muted,
+.hint,
+p.muted,
+small.muted {
+  color: var(--muted) !important;
+  opacity: 1 !important;
+}
+
+label,
+.form-label,
+.auth-card label,
+.home-form label {
+  color: var(--ink) !important;
+}
+
+input,
+textarea,
+select,
+.form-input,
+.auth-card input,
+.home-form input {
+  color: var(--ink) !important;
+  background: var(--input-bg) !important;
+  border-color: var(--line) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+  opacity: 1;
+}
+
+.panel,
+.card,
+.auth-card,
+.choice,
+.emptybox,
+.table-wrap {
+  background: var(--panel) !important;
+  border-color: var(--line) !important;
+  color: var(--ink);
+}
+
+.outline {
+  color: var(--outline-text) !important;
+  border-color: var(--outline-border) !important;
+  background: var(--outline-bg) !important;
+}
+
+/* Tableaux plus lisibles */
+.table-wrap th {
+  color: var(--muted) !important;
+  font-weight: 800;
+}
+.table-wrap td {
+  color: var(--ink) !important;
+}
+
+/* Status badges lisibles en clair */
+:root[data-theme="light"] .status {
+  background: #e2e6ef;
+  color: #1f2937;
+}
+:root[data-theme="light"] .status.published {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* Auth pages */
+.auth-page {
+  color: var(--ink);
+}
+.auth-card h1,
+.auth-card p,
+.auth-card label {
+  color: inherit;
+}
+.auth-card > p {
+  color: var(--muted) !important;
+}
