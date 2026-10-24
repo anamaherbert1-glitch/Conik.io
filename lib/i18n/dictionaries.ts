@@ -9,25 +9,25 @@ export const locales: { code: Locale; native: string; dir: 'ltr' | 'rtl' }[] = [
 ]
 
 const frNav = {
-  Dashboard: 'Tableau de bord', Funnels: 'Tunnels', Contacts: 'Contacts', Campaigns: 'Campagnes',
+  Dashboard: 'Tableau de bord', Ventes: 'Ventes', Funnels: 'Tunnels', Contacts: 'Contacts', Campaigns: 'Campagnes',
   Automations: 'Automatisations', 'Live Events': 'Lives', WhatsApp: 'WhatsApp', Integrations: 'Intégrations',
   Tutorial: 'Tutoriel', Links: 'Liens', Revenus: 'Revenus', Analytics: 'Analytics', Domains: 'Domaines',
   Settings: 'Paramètres', Logout: 'Déconnexion', Subscriptions: 'Abonnements', Performance: 'Performance', Upgrade: 'Passer au niveau supérieur',
 } as const
 const enNav = {
-  Dashboard: 'Dashboard', Funnels: 'Funnels', Contacts: 'Contacts', Campaigns: 'Campaigns',
+  Dashboard: 'Dashboard', Ventes: 'Sales', Funnels: 'Funnels', Contacts: 'Contacts', Campaigns: 'Campaigns',
   Automations: 'Automations', 'Live Events': 'Live Events', WhatsApp: 'WhatsApp', Integrations: 'Integrations',
   Tutorial: 'Tutorial', Links: 'Links', Revenus: 'Revenue', Analytics: 'Analytics', Domains: 'Domains',
   Settings: 'Settings', Logout: 'Log out', Subscriptions: 'Subscriptions', Performance: 'Performance', Upgrade: 'Upgrade',
 } as const
 const arNav = {
-  Dashboard: 'لوحة التحكم', Funnels: 'القمع', Contacts: 'جهات الاتصال', Campaigns: 'الحملات',
+  Dashboard: 'لوحة التحكم', Ventes: 'المبيعات', Funnels: 'القمع', Contacts: 'جهات الاتصال', Campaigns: 'الحملات',
   Automations: 'الأتمتة', 'Live Events': 'الأحداث المباشرة', WhatsApp: 'واتساب', Integrations: 'التكاملات',
   Tutorial: 'الدليل', Links: 'الروابط', Revenus: 'الإيرادات', Analytics: 'التحليلات', Domains: 'النطاقات',
   Settings: 'الإعدادات', Logout: 'تسجيل الخروج', Subscriptions: 'الاشتراكات', Performance: 'الأداء', Upgrade: 'الترقية',
 } as const
 const zhNav = {
-  Dashboard: '仪表盘', Funnels: '漏斗', Contacts: '联系人', Campaigns: '活动',
+  Dashboard: '仪表盘', Ventes: '销售', Funnels: '漏斗', Contacts: '联系人', Campaigns: '活动',
   Automations: '自动化', 'Live Events': '直播活动', WhatsApp: 'WhatsApp', Integrations: '集成',
   Tutorial: '教程', Links: '链接', Revenus: '收入', Analytics: '分析', Domains: '域名',
   Settings: '设置', Logout: '退出登录', Subscriptions: '订阅', Performance: '效果', Upgrade: '升级',
