@@ -36,6 +36,16 @@ export async function GET(request: Request) {
     const { data: tariff } = await supabase.from('payment_tariffs').select('id,name,amount_cents,currency,slug,product_label,active,funnel_id,organization_id').eq('funnel_id', funnel.id).eq('organization_id', funnel.organization_id).eq('slug', tariffSlug).eq('active', true).maybeSingle()
     if (!tariff) return NextResponse.json({ error: 'Tarif introuvable' }, { status: 404 })
 
+    let product: { id: string; name: string; slug: string; product_type: string } | null = null
+    const { data: linkedProduct } = await supabase
+      .from('digital_products')
+      .select('id,name,slug,product_type')
+      .eq('tariff_id', tariff.id)
+      .eq('organization_id', funnel.organization_id)
+      .eq('status', 'published')
+      .maybeSingle()
+    if (linkedProduct) product = linkedProduct
+
     let provider: any = null
     if (funnel.payment_provider_id) {
       const { data: p } = await supabase.from('payment_providers').select('id,provider,label,status').eq('id', funnel.payment_provider_id).eq('organization_id', funnel.organization_id).maybeSingle()
@@ -54,7 +64,15 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ funnel: { id: funnel.id, name: funnel.name, slug: funnel.slug }, paymentPage, tariff, provider, methods, page: { html: funnel.payment_html || '', css: funnel.payment_css || '', js: funnel.payment_js || '' } })
+    return NextResponse.json({
+      funnel: { id: funnel.id, name: funnel.name, slug: funnel.slug },
+      paymentPage,
+      tariff,
+      product,
+      provider,
+      methods,
+      page: { html: funnel.payment_html || '', css: funnel.payment_css || '', js: funnel.payment_js || '' },
+    })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur paiement' }, { status: 500 })
   }
@@ -91,25 +109,62 @@ export async function POST(request: Request) {
     const { data: provider } = await supabase.from('payment_providers').select('id,status').eq('id', providerId).eq('organization_id', funnel.organization_id).maybeSingle()
     if (!provider || !['connected', 'active'].includes(provider.status)) return NextResponse.json({ error: 'Prestataire de paiement non connecté ou inactif.' }, { status: 400 })
 
+    // Link digital product sold via this tariff
+    const { data: digitalProduct } = await supabase
+      .from('digital_products')
+      .select('id,slug,name,product_type')
+      .eq('tariff_id', tariff.id)
+      .eq('organization_id', tariff.organization_id)
+      .maybeSingle()
+
     const isMinorCurrency = !['XOF', 'XAF'].includes(String(tariff.currency).toUpperCase())
     const orderAmount = tariff.amount_cents
     const transactionAmount = isMinorCurrency ? Number((tariff.amount_cents / 100).toFixed(2)) : tariff.amount_cents
     const buyerEmail = body.email ? String(body.email).slice(0, 320) : null
     const buyerPhone = body.phone ? String(body.phone).slice(0, 40) : null
     const buyerName = body.name ? String(body.name).slice(0, 160) : null
+    const firstName = body.firstName ? String(body.firstName).slice(0, 80) : null
+    const lastName = body.lastName ? String(body.lastName).slice(0, 80) : null
+
     const { data: order, error: orderError } = await supabase.from('payment_orders').insert({
-      organization_id: tariff.organization_id, funnel_id: tariff.funnel_id, tariff_id: tariff.id, provider_id: providerId, payment_page_id: paymentPageId,
-      amount_cents: orderAmount, currency: tariff.currency, subtotal: orderAmount, total_amount: orderAmount, status: 'pending',
-      buyer_email: buyerEmail, buyer_phone: buyerPhone, buyer_name: buyerName, customer_email: buyerEmail, customer_phone: buyerPhone,
-      customer_first_name: body.firstName ? String(body.firstName).slice(0, 80) : null, customer_last_name: body.lastName ? String(body.lastName).slice(0, 80) : null,
-      product_label: tariff.product_label || tariff.name, metadata: { checkout_source: 'conik_checkout', method_code: methodCode },
+      organization_id: tariff.organization_id,
+      funnel_id: tariff.funnel_id,
+      tariff_id: tariff.id,
+      provider_id: providerId,
+      payment_page_id: paymentPageId,
+      amount_cents: orderAmount,
+      currency: tariff.currency,
+      subtotal: orderAmount,
+      total_amount: orderAmount,
+      status: 'pending',
+      buyer_email: buyerEmail,
+      buyer_phone: buyerPhone,
+      buyer_name: buyerName,
+      customer_email: buyerEmail,
+      customer_phone: buyerPhone,
+      customer_first_name: firstName,
+      customer_last_name: lastName,
+      product_label: digitalProduct?.name || tariff.product_label || tariff.name,
+      metadata: {
+        checkout_source: 'conik_checkout',
+        method_code: methodCode,
+        product_id: digitalProduct?.id || null,
+        product_slug: digitalProduct?.slug || null,
+        product_type: digitalProduct?.product_type || null,
+      },
     }).select('id,order_number,amount_cents,total_amount,currency,status,payment_page_id').single()
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 })
 
     const { data: transaction, error: transactionError } = await supabase.from('payment_transactions').insert({
-      organization_id: tariff.organization_id, order_id: order.id, provider_id: providerId,
-      amount: transactionAmount, currency: tariff.currency, status: 'pending', provider_transaction_id: null,
-      method_code: methodCode, raw_response: null,
+      organization_id: tariff.organization_id,
+      order_id: order.id,
+      provider_id: providerId,
+      amount: transactionAmount,
+      currency: tariff.currency,
+      status: 'pending',
+      provider_transaction_id: null,
+      method_code: methodCode,
+      raw_response: null,
     }).select('id,order_id,provider_id,amount,currency,status,provider_transaction_id,method_code,created_at').single()
 
     if (transactionError) {
@@ -117,7 +172,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: transactionError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ order, transaction, message: 'Commande créée. Initialisez maintenant la transaction auprès du prestataire.' }, { status: 201 })
+    // Pending access — activated when payment succeeds
+    let access: { id: string; access_token: string; status: string } | null = null
+    if (digitalProduct && buyerEmail) {
+      const { data: accessRow } = await supabase
+        .from('product_access')
+        .insert({
+          organization_id: tariff.organization_id,
+          product_id: digitalProduct.id,
+          order_id: order.id,
+          buyer_email: buyerEmail.toLowerCase(),
+          buyer_first_name: firstName,
+          buyer_last_name: lastName,
+          buyer_phone: buyerPhone,
+          status: 'pending',
+          metadata: { source: 'funnel_checkout' },
+        })
+        .select('id,access_token,status')
+        .single()
+      access = accessRow
+    }
+
+    return NextResponse.json({
+      order,
+      transaction,
+      access,
+      product: digitalProduct,
+      message: 'Commande créée. Initialisez maintenant la transaction auprès du prestataire.',
+    }, { status: 201 })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur paiement' }, { status: 500 })
   }
