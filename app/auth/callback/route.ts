@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const error = url.searchParams.get('error') || url.searchParams.get('error_description')
-  const next = safeNext(url.searchParams.get('next'))
+  let next = safeNext(url.searchParams.get('next'))
 
   if (error) {
     const destination = next === '/reset-password' ? '/forgot-password' : '/login'
@@ -28,9 +28,7 @@ export async function GET(request: Request) {
   }
 
   if (!code) {
-    return NextResponse.redirect(
-      new URL('/login?error=missing_code', url.origin),
-    )
+    return NextResponse.redirect(new URL('/login?error=missing_code', url.origin))
   }
 
   const supabase = await createClient()
@@ -41,6 +39,22 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       new URL(`${destination}?error=${encodeURIComponent(friendlyAuthError(exchangeError.message))}`, url.origin),
     )
+  }
+
+  // Compte existant avec espace → dashboard ; nouveau compte → onboarding
+  if (next === '/dashboard' || next === '/onboarding' || next.startsWith('/dashboard')) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      next = membership ? '/dashboard' : '/onboarding'
+    }
   }
 
   return NextResponse.redirect(new URL(next, url.origin))
