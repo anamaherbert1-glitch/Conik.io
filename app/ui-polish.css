@@ -1,0 +1,273 @@
+/* =========================================================
+   Conik UI polish — cartes, lisibilité, responsivité globale
+   ========================================================= */
+
+/* ----- Cartes : isolation anti-chevauchement ----- */
+.card,
+.panel,
+.choice,
+.emptybox,
+.metric-card,
+.settings-section,
+.hero,
+.auth-card,
+.capture-card,
+.funnel-row,
+.table-wrap,
+.editor-config-card {
+  position: relative !important;
+  z-index: 1 !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.stats,
+.grid,
+.choices,
+.form-grid,
+.funnel-table {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important;
+}
+
+.stats > *,
+.grid > *,
+.choices > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  align-self: stretch !important;
+}
+
+.stats > .card,
+.stats > .panel,
+.grid > .card,
+.grid > .panel,
+.choices > .choice,
+.choices > .card {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+.page > .panel,
+.page > .card,
+.page > section,
+.page > .hero {
+  margin-bottom: 14px;
+}
+
+/* ----- Lisibilité textes ----- */
+body {
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+h1, h2, h3, h4, h5, strong, b, label {
+  color: var(--ink) !important;
+}
+
+.muted,
+.hint,
+p.muted,
+span.muted,
+small.muted {
+  color: var(--muted) !important;
+  opacity: 1 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+h1 { font-size: clamp(22px, 4vw, 28px) !important; line-height: 1.2 !important; }
+h2 { font-size: clamp(18px, 3.2vw, 22px) !important; line-height: 1.25 !important; }
+h3 { font-size: clamp(15px, 2.6vw, 18px) !important; }
+
+.page p,
+.panel p,
+.card p,
+.hero p {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: var(--muted) !important;
+}
+
+.panel b,
+.card b,
+.choice b,
+.stats b {
+  font-size: 15px !important;
+  color: var(--ink) !important;
+}
+
+/* ----- Masquer micro-textes peu utiles ----- */
+header > div > small,
+.page > header small,
+.page > small,
+.step,
+.hint,
+.brand small {
+  display: none !important;
+}
+
+.form-hint:not(.error):not(.notice),
+.field-hint:not(.error) {
+  display: none !important;
+}
+
+.funnel-row span:not(.status),
+.page-item small,
+.status {
+  font-size: 12px !important;
+}
+
+.live {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+/* ----- Contraste clair / sombre ----- */
+:root[data-theme="light"],
+:root:not([data-theme="dark"]):not(.dark) {
+  --ink: #0a0e17 !important;
+  --muted: #3a4456 !important;
+  --panel: #f5f7fb !important;
+  --bg: #e9edf5 !important;
+  --line: #c3c9d6 !important;
+}
+
+:root[data-theme="dark"],
+.dark {
+  --ink: #f2f4f9 !important;
+  --muted: #b4bbcc !important;
+  --panel: #151922 !important;
+  --bg: #0b0d12 !important;
+  --line: #2c313e !important;
+}
+
+.card,
+.panel,
+.choice,
+.hero,
+.table-wrap,
+.auth-card {
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink) !important;
+}
+
+/* ----- Responsivité globale ----- */
+.page {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.main,
+.shell > main,
+main {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+@media (min-width: 1280px) {
+  .stats { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .grid.two,
+  .choices { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 1279px) and (min-width: 981px) {
+  .stats { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .editor-grid { grid-template-columns: 160px minmax(0, 1fr) minmax(220px, 0.9fr) !important; }
+}
+
+@media (max-width: 980px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .grid,
+  .choices,
+  .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .editor-grid { grid-template-columns: 1fr !important; }
+  .hero {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+  }
+  .hero .primary,
+  .hero a.primary {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .section-head,
+  .head {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .section-head .button-row,
+  .head .button-row { width: 100% !important; }
+  .funnel-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .page {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  .card,
+  .panel,
+  .choice,
+  .hero {
+    border-radius: 12px !important;
+    padding: 14px !important;
+  }
+  .button-row {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+  .button-row > * { width: 100% !important; }
+  .primary,
+  .outline,
+  button.primary,
+  a.primary {
+    min-height: 44px !important;
+  }
+  header { gap: 10px !important; }
+  h1 { font-size: 22px !important; }
+  .page { padding: 12px !important; }
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 390px) {
+  .card,
+  .panel { padding: 12px !important; }
+  h1 { font-size: 20px !important; }
+}
+
+@supports (padding: max(0px)) {
+  @media (max-width: 820px) {
+    .page {
+      padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    }
+  }
+}

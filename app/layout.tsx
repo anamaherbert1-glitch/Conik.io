@@ -6,12 +6,13 @@ import './card-isolation.css'
 import './mobile-shell.css'
 import './landing.css'
 import './readability.css'
+import './ui-polish.css'
 import './plans.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
 export const metadata: Metadata = {
   title: 'Conik.io — Marketing OS',
-  description: 'Plateforme de tunnels et d’automatisation marketing propulsée par l’IA',
+  description: 'Plateforme de tunnels et d\u2019automatisation marketing propuls\u00e9e par l\u2019IA',
   applicationName: 'Conik',
   icons: {
     icon: [{ url: '/icon', type: 'image/png' }],
@@ -78,10 +79,6 @@ const responsiveSpacing = `
     .button-row{width:100%;gap:8px;row-gap:10px}
     .head .button-row,.section-head .button-row{align-items:stretch}
     .head .button-row>.primary,.head .button-row>.outline{min-height:42px}
-    .capture-workspace{width:calc(100% - 20px)}
-    .capture-card-heading{padding-left:16px!important;padding-right:16px!important}
-    .capture-import-row{padding-left:16px!important;padding-right:16px!important}
-    .capture-preview-frame{min-height:460px}
   }
 `
 
@@ -89,8 +86,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
-        <meta name="color-scheme" content="light dark" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
         <style dangerouslySetInnerHTML={{ __html: responsiveSpacing }} />
       </head>

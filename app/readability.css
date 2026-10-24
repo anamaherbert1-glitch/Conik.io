@@ -78,7 +78,6 @@ textarea::placeholder {
   background: var(--outline-bg) !important;
 }
 
-/* Tableaux plus lisibles */
 .table-wrap th {
   color: var(--muted) !important;
   font-weight: 800;
@@ -87,7 +86,6 @@ textarea::placeholder {
   color: var(--ink) !important;
 }
 
-/* Status badges lisibles en clair */
 :root[data-theme="light"] .status {
   background: #e2e6ef;
   color: #1f2937;
@@ -97,15 +95,12 @@ textarea::placeholder {
   color: #166534;
 }
 
-/* Auth pages */
-.auth-page {
-  color: var(--ink);
-}
-.auth-card h1,
-.auth-card p,
-.auth-card label {
-  color: inherit;
-}
-.auth-card > p {
+/* Extra contrast for cards body text */
+.card p, .panel p, .choice p, .hero p {
   color: var(--muted) !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+.card b, .panel b, .stats b, .choice b, .hero h2 {
+  color: var(--ink) !important;
 }
