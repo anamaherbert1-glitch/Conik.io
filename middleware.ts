@@ -20,14 +20,18 @@ const PUBLIC_PREFIXES = [
   '/api/lives/token',
   '/api/lives/chat',
   '/api/payments/checkout',
+  '/api/products/public',
+  '/api/products/access',
   '/r/',
   '/live/',
   '/pay',
+  '/p/',
 ]
 const PUBLIC_FUNNEL_RESERVED = new Set([
   'dashboard','login','signup','forgot-password','reset-password','auth','onboarding',
   'funnels','contacts','campaigns','automations','whatsapp','emails','links','analytics',
   'domains','settings','integrations','api','_next','r','segments','lives','live','pay',
+  'ventes','p','revenus','performance','subscriptions','admin','tutorial','official',
 ])
 const ROOT_DOMAIN = (process.env.CONIK_ROOT_DOMAIN || 'conik.io').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
 const PLATFORM_HOSTS = new Set([
