@@ -27,12 +27,34 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search)
     setNext(safeNext(params.get('next')))
     const prefillEmail = params.get('email')
-    if (prefillEmail) setEmail(prefillEmail)
+    if (prefillEmail) {
+      setEmail(prefillEmail)
+      setShowEmailForm(true)
+    }
     const rawError = params.get('error')
     const reset = params.get('reset')
     if (rawError) setError(authErrorMessage(rawError))
     if (reset === 'success') setInfo('Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.')
   }, [])
+
+  async function resolveDestination(fallback: string) {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return fallback
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      return membership ? fallback : '/onboarding'
+    } catch {
+      return fallback
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -62,7 +84,8 @@ export default function LoginPage() {
         return
       }
 
-      window.location.replace(next)
+      const dest = await resolveDestination(next)
+      window.location.replace(dest)
     } catch (e) {
       setError(authErrorMessage(e instanceof Error ? e.message : ''))
     } finally {
@@ -77,6 +100,7 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
       const origin = window.location.origin
+      // next=/dashboard : le callback bascule vers /onboarding si pas d'espace
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -108,7 +132,7 @@ export default function LoginPage() {
           <span>Conik.io</span>
         </Link>
         <Link href="/signup" className="outline" style={{ fontSize: 13, textDecoration: 'none' }}>
-          Créer un compte
+          S’inscrire
         </Link>
       </header>
 
@@ -129,79 +153,103 @@ export default function LoginPage() {
               <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.5 39.6 16.2 44 24 44z" />
               <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.6 7.1l.1.1 6.3 5.3C36.9 39.2 44 34 44 24c0-1.3-.1-2.5-.4-3.5z" />
             </svg>
-            {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
+            {googleLoading ? 'Redirection…' : 'Se connecter avec Google'}
           </button>
 
           {!showEmailForm && (
-            <button type="button" className="primary full" onClick={() => { setShowEmailForm(true); setError(''); setInfo('') }}>
-              Continuer avec mon e-mail
+            <button
+              type="button"
+              className="primary full"
+              onClick={() => {
+                setShowEmailForm(true)
+                setError('')
+                setInfo('')
+              }}
+            >
+              Se connecter avec mon e-mail
             </button>
           )}
 
           {showEmailForm && (
             <>
-          <button type="button" className="outline full" onClick={() => { setShowEmailForm(false); setError(''); setInfo('') }}>
-            ← Retour aux choix de connexion
-          </button>
-          <div className="auth-divider" aria-hidden="true">
-            <span>ou avec votre e-mail</span>
-          </div>
-
-          <form className="home-form" onSubmit={submit} noValidate>
-            <label>
-              E-mail
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="vous@email.com"
-                aria-invalid={Boolean(error)}
-              />
-            </label>
-
-            <label>
-              Mot de passe
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Votre mot de passe"
-                  style={{ paddingRight: 88 }}
-                  aria-invalid={Boolean(error)}
-                />
-                <button
-                  type="button"
-                  className="outline"
-                  onClick={() => setShowPassword((value) => !value)}
-                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                  style={{ position: 'absolute', right: 6, top: 6, minHeight: 34, padding: '0 10px' }}
-                >
-                  {showPassword ? 'Masquer' : 'Afficher'}
-                </button>
+              <button
+                type="button"
+                className="outline full"
+                onClick={() => {
+                  setShowEmailForm(false)
+                  setError('')
+                  setInfo('')
+                }}
+              >
+                ← Retour aux choix de connexion
+              </button>
+              <div className="auth-divider" aria-hidden="true">
+                <span>ou avec votre e-mail</span>
               </div>
-            </label>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}>
-              <Link href="/forgot-password">Mot de passe oublié ?</Link>
-            </div>
+              <form className="home-form" onSubmit={submit} noValidate>
+                <label>
+                  E-mail
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="vous@email.com"
+                    aria-invalid={Boolean(error)}
+                  />
+                </label>
 
-            {error && <div className="error" role="alert">{error}</div>}
-            {info && <div className="auth-ok" role="status">{info}</div>}
+                <label>
+                  Mot de passe
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Votre mot de passe"
+                      style={{ paddingRight: 88 }}
+                      aria-invalid={Boolean(error)}
+                    />
+                    <button
+                      type="button"
+                      className="outline"
+                      onClick={() => setShowPassword((value) => !value)}
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      style={{ position: 'absolute', right: 6, top: 6, minHeight: 34, padding: '0 10px' }}
+                    >
+                      {showPassword ? 'Masquer' : 'Afficher'}
+                    </button>
+                  </div>
+                </label>
 
-            <button type="submit" className="primary full" disabled={loading || googleLoading}>
-              {loading ? 'Connexion…' : 'Se connecter'}
-            </button>
-          </form>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}>
+                  <Link href="/forgot-password">Mot de passe oublié ?</Link>
+                </div>
+
+                {error && (
+                  <div className="error" role="alert">
+                    {error}
+                  </div>
+                )}
+                {info && (
+                  <div className="auth-ok" role="status">
+                    {info}
+                  </div>
+                )}
+
+                <button type="submit" className="primary full" disabled={loading || googleLoading}>
+                  {loading ? 'Connexion…' : 'Se connecter'}
+                </button>
+              </form>
             </>
           )}
 
           <p className="home-switch">
-            Pas encore de compte ? <Link href="/signup">Créer un compte</Link>
+            Pas encore de compte ? <Link href="/signup">S’inscrire</Link>
           </p>
         </div>
       </section>
