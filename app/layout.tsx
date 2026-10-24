@@ -5,6 +5,7 @@ import './brand.css'
 import './card-isolation.css'
 import './mobile-shell.css'
 import './landing.css'
+import './readability.css'
 import './plans.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
