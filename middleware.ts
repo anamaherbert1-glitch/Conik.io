@@ -12,6 +12,7 @@ const PUBLIC_EXACT_PATHS = new Set([
 ])
 const PUBLIC_PREFIXES = [
   '/auth/',
+  '/api/auth/signup',
   '/api/funnels/public',
   '/api/funnels/capture',
   '/api/events/',
@@ -155,6 +156,19 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && (pathname === '/login' || pathname === '/signup')) {
+    // Nouveau compte sans espace → onboarding ; sinon dashboard
+    const userId = typeof user.sub === 'string' ? user.sub : null
+    if (userId) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle()
+      if (!membership) {
+        return addSecurityHeaders(NextResponse.redirect(new URL('/onboarding', request.url)))
+      }
+    }
     return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
   }
 
