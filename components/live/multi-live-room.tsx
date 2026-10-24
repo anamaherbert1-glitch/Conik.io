@@ -15,7 +15,7 @@ type Props = {
 }
 
 type VideoItem = { id: string; label: string; track: any; local: boolean }
-type CameraSize = 'small' | 'medium'
+type CameraSize = 'small' | 'medium' | 'large'
 type Position = { x: number; y: number }
 
 const BACKGROUNDS: Record<string, { label: string; value: string }> = {
@@ -59,7 +59,13 @@ function VideoTile({ item, featured, selected, moveMode, size, position, onSelec
     }
   }, [item.track])
 
-  const width = featured ? 'clamp(260px,42%,460px)' : size === 'medium' ? 'clamp(210px,30%,360px)' : 'clamp(130px,30%,360px)'
+  const width = featured
+    ? (size === 'large' ? 'clamp(320px,72%,920px)' : size === 'medium' ? 'clamp(280px,58%,720px)' : 'clamp(240px,48%,560px)')
+    : size === 'large'
+      ? 'clamp(240px,48%,560px)'
+      : size === 'medium'
+        ? 'clamp(180px,34%,400px)'
+        : 'clamp(120px,26%,280px)'
 
   function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     onSelect()
@@ -321,8 +327,9 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
   }
 
   function toggleCameraSize() {
-    if (!activeCameraId || featuredId === activeCameraId) return
-    setCameraSize((current) => current === 'small' ? 'medium' : 'small')
+    if (!activeCameraId) return
+    setSelectedCameraId(activeCameraId)
+    setCameraSize((current) => current === 'small' ? 'medium' : current === 'medium' ? 'large' : 'small')
   }
 
   function toggleMoveMode() {
@@ -360,35 +367,35 @@ export default function MultiLiveRoom({ tokenUrl, tokenBody, host = false, label
       )}
       {status === 'error' && <div style={{ padding: '9px 11px', borderRadius: 9, background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.35)', fontSize: 12, fontWeight: 600 }}>{message}</div>}
 
-      <div style={{ position: 'relative', width: '100%', margin: '0 auto', minHeight: 340, height: 'min(62vh, 620px)', overflow: 'hidden', borderRadius: 13, background: stageBackground, border: '1px solid var(--line)' }}>
+      <div style={{ position: 'relative', width: '100%', margin: '0 auto', minHeight: 380, height: 'min(72vh, 760px)', overflow: 'hidden', borderRadius: 13, background: stageBackground, border: '1px solid var(--line)' }}>
         {!screenTrack && !sortedItems.length && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', opacity: .8, zIndex: 2, textAlign: 'center', padding: 20 }}>{status === 'connected' ? 'En attente des caméras…' : message}</div>}
-        {screenTrack && <div ref={screenRef} style={{ position: 'absolute', inset: 0, zIndex: 1, background: '#000', padding: 4, overflow: 'hidden' }} />}
-        {sortedItems.length > 0 && <div style={{ position: 'absolute', inset: 0, zIndex: 5, overflow: 'hidden' }}>
-          {sortedItems.map((item, index) => <VideoTile
-            key={`${item.id}-${item.track?.sid || ''}`}
+        {screenTrack && <div ref={screenRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />}
+        {sortedItems.map((item, index) => (
+          <VideoTile
+            key={item.id}
             item={item}
             featured={featuredId === item.id}
             selected={selectedCameraId === item.id}
             moveMode={moveMode && selectedCameraId === item.id}
             size={cameraSize}
-            position={cameraPositions[item.id] || { x: 2 + (index % 3) * 33, y: screenTrack ? 72 + Math.floor(index / 3) * 14 : 2 + Math.floor(index / 3) * 32 }}
+            position={cameraPositions[item.id] || { x: 2 + (index % 3) * 33, y: screenTrack ? 72 + Math.floor(index / 3) * 14 : 8 + Math.floor(index / 3) * 34 }}
             onSelect={() => setSelectedCameraId(item.id)}
             onMove={(x, y) => moveCamera(item.id, x, y)}
-          />)}
-        </div>}
+          />
+        ))}
       </div>
 
-      {host && status === 'connected' && <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center', padding: '6px 4px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel)' }}>
-        <button className="outline" onClick={() => void toggleCamera()} title={camera ? 'Couper la caméra' : 'Mettre la caméra'} aria-label={camera ? 'Couper la caméra' : 'Mettre la caméra'} style={controlButtonStyle}>{camera ? <CameraOff size={14} /> : <Camera size={14} />} {camera ? 'Couper la caméra' : 'Mettre la caméra'}</button>
-        <button className="outline" onClick={() => void toggleMic()} title={mic ? 'Couper le micro' : 'Mettre le micro'} aria-label={mic ? 'Couper le micro' : 'Mettre le micro'} style={controlButtonStyle}>{mic ? <MicOff size={14} /> : <Mic size={14} />} {mic ? 'Couper le micro' : 'Mettre le micro'}</button>
-        <button className="outline" onClick={toggleMoveMode} disabled={!activeCameraId} title={moveMode ? 'Terminer le déplacement' : 'Déplacer la caméra sélectionnée'} aria-label={moveMode ? 'Terminer le déplacement' : 'Déplacer la caméra sélectionnée'} style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5 }}><Move size={14} /> {moveMode ? 'Terminer le déplacement' : 'Déplacer'}</button>
+      {host && status === 'connected' && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+        <button className="outline" onClick={() => void toggleCamera()} title={camera ? 'Couper la caméra' : 'Mettre la caméra'} aria-label={camera ? 'Couper la caméra' : 'Mettre la caméra'} style={controlButtonStyle}>{camera ? <Camera size={14} /> : <CameraOff size={14} />} {camera ? 'Caméra' : 'Caméra off'}</button>
+        <button className="outline" onClick={() => void toggleMic()} title={mic ? 'Couper le micro' : 'Mettre le micro'} aria-label={mic ? 'Couper le micro' : 'Mettre le micro'} style={controlButtonStyle}>{mic ? <Mic size={14} /> : <MicOff size={14} />} {mic ? 'Micro' : 'Micro off'}</button>
+        <button className="outline" onClick={toggleMoveMode} disabled={!activeCameraId} title={moveMode ? 'Terminer le déplacement' : 'Déplacer la caméra sélectionnée'} aria-label={moveMode ? 'Terminer le déplacement' : 'Déplacer la caméra'} style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5, borderColor: moveMode ? 'var(--accent)' : undefined }}><Move size={14} /> {moveMode ? 'Fin déplacement' : 'Déplacer'}</button>
         <button className="outline" onClick={toggleFeature} disabled={!activeCameraId} title={featuredId === activeCameraId ? 'Réduire la caméra mise en avant' : 'Mettre la caméra sélectionnée en avant'} aria-label={featuredId === activeCameraId ? 'Réduire la caméra mise en avant' : 'Mettre la caméra sélectionnée en avant'} style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5 }}><Maximize2 size={14} /> {featuredId === activeCameraId ? 'Réduire l’avant' : 'Mettre en avant'}</button>
-        <button className="outline" onClick={toggleCameraSize} disabled={!activeCameraId || featuredId === activeCameraId} title={cameraSize === 'small' ? 'Passer la caméra en taille moyenne' : 'Revenir à la petite caméra'} aria-label={cameraSize === 'small' ? 'Agrandir la caméra' : 'Réduire la caméra'} style={{ ...controlButtonStyle, opacity: activeCameraId && featuredId !== activeCameraId ? 1 : .5 }}>{cameraSize === 'small' ? <Maximize2 size={14} /> : <Minimize2 size={14} />} {cameraSize === 'small' ? 'Agrandir' : 'Réduire'}</button>
+        <button className="outline" onClick={toggleCameraSize} disabled={!activeCameraId} title={cameraSize === 'small' ? 'Taille moyenne' : cameraSize === 'medium' ? 'Grande taille' : 'Petite taille'} aria-label="Changer la taille de la caméra" style={{ ...controlButtonStyle, opacity: activeCameraId ? 1 : .5 }}>{cameraSize === 'large' ? <Minimize2 size={14} /> : <Maximize2 size={14} />} {cameraSize === 'small' ? 'Agrandir' : cameraSize === 'medium' ? 'Encore +' : 'Réduire'}</button>
         <button className="outline" onClick={() => void toggleScreen()} title={screenTrack ? "Arrêter le partage d'écran" : "Partager mon écran"} aria-label={screenTrack ? "Arrêter le partage d'écran" : "Partager mon écran"} style={controlButtonStyle}>{screenTrack ? <MonitorStop size={14} /> : <MonitorUp size={14} />} {screenTrack ? 'Arrêter le partage' : 'Partager mon écran'}</button>
         {onEndLive && <button type="button" onClick={onEndLive} disabled={endingLive} title="Couper le Live" aria-label="Couper le Live" style={{ ...controlButtonStyle, border: '1px solid rgba(239,68,68,.5)', background: 'rgba(127,29,29,.16)', color: '#f87171', fontWeight: 800, cursor: endingLive ? 'wait' : 'pointer', borderRadius: 8 }}><Square size={13} fill="currentColor" /> {endingLive ? 'Arrêt…' : 'Couper le Live'}</button>}
       </div>}
 
-      {host && status === 'connected' && selectedItem && <div className="muted" style={{ textAlign: 'center', fontSize: 10 }}>Caméra sélectionnée : {selectedItem.label} · petite par défaut. « Agrandir » passe à une taille moyenne, « Mettre en avant » l’agrandit fortement, et « Déplacer » active le déplacement sur l’écran central.</div>}
+      {host && status === 'connected' && selectedItem && <div className="muted" style={{ textAlign: 'center', fontSize: 10 }}>Caméra : {selectedItem.label}. Agrandir (S → M → L), Mettre en avant, Déplacer pour bouger la grande caméra sur la scène.</div>}
 
       {!host && audioBlocked && status === 'connected' && <button className="outline" onClick={() => void roomRef.current?.startAudio().then(() => setAudioBlocked(false)).catch(() => {})} style={{ justifySelf: 'center', minHeight: 34, padding: '0 10px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Volume2 size={14} /> Activer le son</button>}
     </div>
