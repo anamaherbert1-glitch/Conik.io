@@ -32,6 +32,7 @@ type Product = {
   delivery: Record<string, string>
   funnel_id: string | null
   payment_provider_id: string | null
+  tariff_id?: string | null
   enabled_methods: string[]
   success_message: string | null
 }
@@ -47,6 +48,7 @@ export default function ProductConfigPage() {
   const id = String(params.id || '')
 
   const [product, setProduct] = useState<Product | null>(null)
+  const [buyLink, setBuyLink] = useState<string | null>(null)
   const [funnels, setFunnels] = useState<Funnel[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
   const [name, setName] = useState('')
@@ -79,6 +81,7 @@ export default function ProductConfigPage() {
     }
     const p = pj.product as Product
     setProduct(p)
+    setBuyLink(pj.buy_link || null)
     setName(p.name)
     setDescription(p.description || '')
     setProductType(p.product_type)
@@ -148,8 +151,15 @@ export default function ProductConfigPage() {
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Enregistrement impossible')
       setProduct(j.product)
+      setBuyLink(j.buy_link || null)
       setStatus(j.product.status)
-      setMessage(nextStatus === 'published' ? 'Produit publié. Le lien de vente est actif.' : 'Enregistré.')
+      setMessage(
+        nextStatus === 'published'
+          ? 'Produit publié. Collez le lien Acheter sur le bouton de votre tunnel.'
+          : j.buy_link
+            ? 'Enregistré. Lien Acheter prêt pour le tunnel.'
+            : 'Enregistré.',
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur')
     } finally {
@@ -167,11 +177,10 @@ export default function ProductConfigPage() {
     }
   }
 
-  function copyLink() {
-    if (!product) return
-    const link = `${origin}/p/${product.slug}`
-    void navigator.clipboard.writeText(link)
-    setMessage(`Lien copié : ${link}`)
+  function copyBuyLink() {
+    if (!buyLink) return
+    void navigator.clipboard.writeText(buyLink)
+    setMessage('Lien Acheter copié — collez-le sur le bouton de votre tunnel.')
   }
 
   if (!product && !error) {
@@ -196,9 +205,11 @@ export default function ProductConfigPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="outline" onClick={copyLink} disabled={!product}>
-            <Copy size={15} /> Copier le lien
-          </button>
+          {buyLink && (
+            <button type="button" className="outline" onClick={copyBuyLink}>
+              <Copy size={15} /> Copier lien Acheter
+            </button>
+          )}
           {status !== 'published' ? (
             <button type="button" className="primary" disabled={busy} onClick={() => void save('published')}>
               <ExternalLink size={15} /> Publier
@@ -323,8 +334,8 @@ export default function ProductConfigPage() {
             </>
           )}
 
-          <h4 style={{ marginTop: 8 }}>Livraison</h4>
-          <label className="form-label">URL fichier<input className="form-input" value={delivery.file_url || ''} onChange={(e) => setDel('file_url', e.target.value)} /></label>
+          <h4 style={{ marginTop: 8 }}>Livraison (après paiement)</h4>
+          <label className="form-label">URL fichier (PDF, ZIP…)<input className="form-input" value={delivery.file_url || ''} onChange={(e) => setDel('file_url', e.target.value)} /></label>
           <label className="form-label">URL vidéo<input className="form-input" value={delivery.video_url || ''} onChange={(e) => setDel('video_url', e.target.value)} /></label>
           <label className="form-label">URL cours<input className="form-input" value={delivery.course_url || ''} onChange={(e) => setDel('course_url', e.target.value)} /></label>
           <label className="form-label">Instructions<textarea className="form-input" rows={2} value={delivery.instructions || ''} onChange={(e) => setDel('instructions', e.target.value)} /></label>
@@ -333,52 +344,31 @@ export default function ProductConfigPage() {
 
         <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CreditCard size={18} />
-            <h3 style={{ margin: 0 }}>Prestataire de paiement</h3>
-          </div>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Connectez d’abord un prestataire dans Intégrations. L’acheteur choisira carte, Wave, Mobile Money, etc. selon ce que le prestataire propose.
-          </p>
-          <label className="form-label">
-            Prestataire
-            <select className="form-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>
-              <option value="">— Choisir —</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {PROVIDER_LABEL[p.provider] || p.provider} · {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {providers.length === 0 && (
-            <p className="muted">
-              Aucun prestataire actif.{' '}
-              <Link href="/integrations" style={{ color: 'var(--accent)', fontWeight: 700 }}>Ouvrir Intégrations</Link>
-            </p>
-          )}
-        </section>
-
-        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Zap size={18} />
-            <h3 style={{ margin: 0 }}>Tunnel de vente (optionnel)</h3>
+            <h3 style={{ margin: 0 }}>1. Associer au tunnel de vente</h3>
           </div>
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Associez ce produit à un tunnel existant pour l’intégrer dans un parcours de pages.
+            Choisissez le tunnel qui contient votre page de capture et votre page de paiement.
+            Un tarif sera créé automatiquement pour ce produit.
           </p>
           <label className="form-label">
             Tunnel
             <select className="form-input" value={funnelId} onChange={(e) => setFunnelId(e.target.value)}>
-              <option value="">— Aucun —</option>
+              <option value="">— Choisir un tunnel —</option>
               {funnels.map((f) => (
                 <option key={f.id} value={f.id}>{f.name} (/{f.slug})</option>
               ))}
             </select>
           </label>
           {funnelId && (
-            <Link className="outline" href={`/funnels/${funnelId}`} style={{ width: 'fit-content' }}>
-              Ouvrir le tunnel
-            </Link>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link className="outline" href={`/funnels/${funnelId}`} style={{ width: 'fit-content' }}>
+                Ouvrir le tunnel
+              </Link>
+              <Link className="outline" href={`/funnels/${funnelId}/payment`} style={{ width: 'fit-content' }}>
+                Page de paiement du tunnel
+              </Link>
+            </div>
           )}
           <Link className="outline" href="/funnels/new" style={{ width: 'fit-content' }}>
             Créer un nouveau tunnel
@@ -387,22 +377,61 @@ export default function ProductConfigPage() {
 
         <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Link2 size={18} />
-            <h3 style={{ margin: 0 }}>Lien de partage</h3>
+            <CreditCard size={18} />
+            <h3 style={{ margin: 0 }}>2. Prestataire (côté tunnel)</h3>
           </div>
-          {product && (
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            Le paiement se fait via la page de paiement du tunnel. Vérifiez qu’un prestataire est connecté
+            dans le tunnel (Wave, CinetPay, carte, etc.).
+          </p>
+          <label className="form-label">
+            Prestataire (optionnel, info produit)
+            <select className="form-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>
+              <option value="">— Voir Intégrations —</option>
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {PROVIDER_LABEL[p.provider] || p.provider} · {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Link href="/integrations" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13 }}>
+            Gérer les prestataires →
+          </Link>
+        </section>
+
+        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Link2 size={18} />
+            <h3 style={{ margin: 0 }}>3. Lien à coller sur le bouton « Acheter »</h3>
+          </div>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            Après enregistrement avec un tunnel sélectionné, copiez ce lien et placez-le sur le bouton Acheter
+            de votre page (éditeur HTML du tunnel ou page importée). L’acheteur passera par la page de
+            paiement du tunnel, paiera, puis recevra le téléchargement automatiquement.
+          </p>
+          {buyLink ? (
             <>
-              <code style={{ wordBreak: 'break-all', padding: 12, background: 'var(--panel-2, #f3f4f6)', borderRadius: 8 }}>
-                {origin}/p/{product.slug}
+              <code style={{ wordBreak: 'break-all', padding: 12, background: 'var(--panel-2, #f3f4f6)', borderRadius: 8, fontSize: 13 }}>
+                {buyLink}
               </code>
-              <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-                Partagez ce lien. L’acheteur renseigne ses coordonnées, paie, puis reçoit l’accès au produit.
-                {status !== 'published' && ' Publiez d’abord le produit pour activer le lien.'}
-              </p>
-              <button type="button" className="outline" onClick={copyLink} style={{ width: 'fit-content' }}>
-                <Copy size={14} /> Copier
+              <button type="button" className="primary" onClick={copyBuyLink} style={{ width: 'fit-content' }}>
+                <Copy size={14} /> Copier le lien Acheter
               </button>
             </>
+          ) : (
+            <div className="emptybox" style={{ padding: 16 }}>
+              <b>Lien pas encore prêt</b>
+              <p style={{ margin: '8px 0 0' }}>
+                1) Choisissez un tunnel · 2) Renseignez le prix et la livraison · 3) Cliquez sur Enregistrer
+                {status !== 'published' ? ' · 4) Publiez le produit' : ''}.
+              </p>
+            </div>
+          )}
+          {product && (
+            <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+              Lien alternatif (page produit) : {origin}/p/{product.slug}
+            </p>
           )}
         </section>
 
