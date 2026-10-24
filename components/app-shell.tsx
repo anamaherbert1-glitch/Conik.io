@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Globe2,
   Settings2, LogOut, Plug, Radio, CreditCard, ChevronDown, Wallet, LineChart,
-  Menu, X, Gift,
+  Menu, X, Gift, ShoppingBag,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react'
 
 const itemsBefore = [
   ['Dashboard', LayoutDashboard, '/dashboard'],
+  ['Ventes', ShoppingBag, '/ventes'],
 ] as const
 
 const itemsAfter = [
