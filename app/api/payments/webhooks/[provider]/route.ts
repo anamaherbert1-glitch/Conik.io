@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { extractProviderReference, mapProviderStatus } from '@/lib/payments/provider-adapters'
+import { grantProductAccessOnPaid } from '@/lib/products/grant-access'
 
 export const runtime = 'nodejs'
 
@@ -134,6 +135,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
                 })
                 .eq('id', subscription.id)
             }
+          }
+
+          // Digital product delivery
+          const { data: fullOrder } = await supabase
+            .from('payment_orders')
+            .select('id,organization_id,metadata,tariff_id,customer_email,buyer_email,customer_first_name,customer_last_name,customer_phone,buyer_phone')
+            .eq('id', transaction.order_id)
+            .maybeSingle()
+          if (fullOrder) {
+            await grantProductAccessOnPaid(supabase, fullOrder)
           }
         }
 
