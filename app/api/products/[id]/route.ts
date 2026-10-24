@@ -1,12 +1,36 @@
 import { NextResponse } from 'next/server'
 import { requireWorkspaceRole } from '@/lib/auth/require-user'
 import { PRODUCT_TYPES, slugify, type ProductType } from '@/lib/products/types'
+import { buildBuyLink, syncProductTariff } from '@/lib/products/sync-tariff'
 
 export const runtime = 'nodejs'
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function GET(_request: Request, { params }: Params) {
+async function attachBuyLink(
+  supabase: Awaited<ReturnType<typeof requireWorkspaceRole>>['supabase'],
+  product: Record<string, unknown>,
+  origin: string,
+) {
+  if (!product.funnel_id || !product.tariff_id) {
+    return { product, buy_link: null as string | null, funnel_slug: null as string | null, tariff_slug: null as string | null }
+  }
+  const [{ data: funnel }, { data: tariff }] = await Promise.all([
+    supabase.from('funnels').select('slug').eq('id', product.funnel_id).maybeSingle(),
+    supabase.from('payment_tariffs').select('slug').eq('id', product.tariff_id).maybeSingle(),
+  ])
+  if (!funnel?.slug || !tariff?.slug) {
+    return { product, buy_link: null, funnel_slug: null, tariff_slug: null }
+  }
+  return {
+    product,
+    buy_link: buildBuyLink(origin, funnel.slug, tariff.slug),
+    funnel_slug: funnel.slug as string,
+    tariff_slug: tariff.slug as string,
+  }
+}
+
+export async function GET(request: Request, { params }: Params) {
   const { id } = await params
   const { supabase, organization } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
   const { data, error } = await supabase
@@ -17,7 +41,9 @@ export async function GET(_request: Request, { params }: Params) {
     .maybeSingle()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Produit introuvable' }, { status: 404 })
-  return NextResponse.json({ product: data })
+  const origin = new URL(request.url).origin
+  const enriched = await attachBuyLink(supabase, data, origin)
+  return NextResponse.json(enriched)
 }
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -30,7 +56,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const { data: existing } = await supabase
     .from('digital_products')
-    .select('id,slug,status')
+    .select('*')
     .eq('id', id)
     .eq('organization_id', organization.id)
     .maybeSingle()
@@ -83,7 +109,7 @@ export async function PATCH(request: Request, { params }: Params) {
     }
   }
 
-  const { data, error } = await supabase
+  const { data: updated, error } = await supabase
     .from('digital_products')
     .update(patch)
     .eq('id', id)
@@ -91,7 +117,43 @@ export async function PATCH(request: Request, { params }: Params) {
     .select('*')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ product: data })
+
+  let product = updated
+  const funnelId = (product.funnel_id as string | null) || null
+
+  // Sync tariff so the product can be sold via the funnel payment page
+  if (funnelId) {
+    try {
+      const { tariff } = await syncProductTariff(supabase, {
+        organizationId: organization.id,
+        productId: product.id,
+        productName: product.name,
+        productSlug: product.slug,
+        funnelId,
+        priceCents: product.price_cents,
+        currency: product.currency,
+        existingTariffId: product.tariff_id,
+      })
+      if (tariff?.id && tariff.id !== product.tariff_id) {
+        const { data: withTariff } = await supabase
+          .from('digital_products')
+          .update({ tariff_id: tariff.id })
+          .eq('id', product.id)
+          .select('*')
+          .single()
+        if (withTariff) product = withTariff
+      }
+    } catch (e) {
+      return NextResponse.json({
+        error: e instanceof Error ? e.message : 'Impossible de lier le tarif au tunnel',
+        product,
+      }, { status: 400 })
+    }
+  }
+
+  const origin = new URL(request.url).origin
+  const enriched = await attachBuyLink(supabase, product, origin)
+  return NextResponse.json(enriched)
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
