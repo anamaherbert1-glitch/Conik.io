@@ -1,0 +1,49 @@
+/* Scope app chrome to .shell only — landing must use full viewport */
+.shell > aside {
+  position: fixed !important;
+  inset: 0 auto 0 0 !important;
+  width: 245px !important;
+  z-index: 40;
+}
+.shell > main {
+  margin-left: 245px !important;
+  width: calc(100% - 245px) !important;
+  max-width: 1450px !important;
+  padding: 30px 38px !important;
+  box-sizing: border-box !important;
+}
+
+/* Neutralize global main/aside when NOT inside .shell (landing, auth, public) */
+main.landing,
+main.landing-light,
+main.landing-dark {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Landing mock sidebar must never be fixed like the app shell */
+.landing-app aside,
+main.landing aside {
+  position: relative !important;
+  inset: auto !important;
+  width: auto !important;
+  height: auto !important;
+  left: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  right: auto !important;
+  display: grid !important;
+  z-index: 1 !important;
+}
+
+@media (max-width: 850px) {
+  .shell > aside { width: 68px !important; }
+  .shell > main {
+    margin-left: 68px !important;
+    width: calc(100% - 68px) !important;
+    padding: 20px !important;
+  }
+}
