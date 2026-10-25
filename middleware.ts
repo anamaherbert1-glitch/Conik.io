@@ -23,6 +23,7 @@ const PUBLIC_PREFIXES = [
   '/api/payments/checkout',
   '/api/products/public',
   '/api/products/access',
+  '/api/mcp',
   '/r/',
   '/live/',
   '/pay',
@@ -99,77 +100,24 @@ export async function middleware(request: NextRequest) {
   const segments = pathname.split('/').filter(Boolean)
   const wildcardTenant = getWildcardTenant(host)
 
-  if (wildcardTenant && !FUNNEL_SYSTEM_PATHS.has(segments[0]?.toLowerCase() || '')) {
-    const rewriteUrl = request.nextUrl.clone()
-    rewriteUrl.pathname = segments.length
-      ? `/${wildcardTenant}/${segments.join('/')}`
-      : `/${wildcardTenant}`
-    const headers = new Headers(request.headers)
-    headers.set('x-conik-host', host)
-    headers.set('x-conik-tenant', wildcardTenant)
-    return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
-  }
-
-  if (
-    host &&
-    !PLATFORM_HOSTS.has(host) &&
-    !wildcardTenant &&
-    segments.length === 1 &&
-    FUNNEL_SLUG.test(segments[0])
-  ) {
-    const { data: verifiedDomain } = await supabase.rpc('is_verified_custom_domain', {
-      target_host: host,
-    })
-    if (verifiedDomain === true) {
-      const rewriteUrl = request.nextUrl.clone()
-      rewriteUrl.pathname = `/r/${segments[0].toLowerCase()}`
-      const headers = new Headers(request.headers)
-      headers.set('x-conik-host', host)
-      return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
+  if (wildcardTenant) {
+    if (!segments.length || (segments[0] !== 'api' && segments[0] !== '_next' && segments[0] !== 'favicon.ico')) {
+      const urlRewrite = request.nextUrl.clone()
+      if (!segments.length) urlRewrite.pathname = `/${wildcardTenant}`
+      else if (segments[0] !== wildcardTenant) urlRewrite.pathname = `/${wildcardTenant}${pathname}`
+      return addSecurityHeaders(NextResponse.rewrite(urlRewrite))
     }
   }
 
-  let user: Record<string, unknown> | null = null
-  let sessionError = false
-  try {
-    const { data, error } = await supabase.auth.getClaims()
-    if (error) sessionError = true
-    else user = (data?.claims as Record<string, unknown> | null) ?? null
-  } catch {
-    sessionError = true
-  }
+  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (sessionError) {
-    request.cookies.getAll()
-      .filter(({ name }) => name.startsWith('sb-') && name.includes('-auth-token'))
-      .forEach(({ name }) => {
-        response.cookies.set(name, '', { expires: new Date(0), path: '/' })
-      })
-    user = null
-  }
+  if (isPublicPath(pathname)) return addSecurityHeaders(response)
 
-  if (!isPublicPath(pathname) && !user) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    redirectUrl.searchParams.set('next', pathname + request.nextUrl.search)
-    return addSecurityHeaders(NextResponse.redirect(redirectUrl))
-  }
-
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    // Nouveau compte sans espace → onboarding ; sinon dashboard
-    const userId = typeof user.sub === 'string' ? user.sub : null
-    if (userId) {
-      const { data: membership } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle()
-      if (!membership) {
-        return addSecurityHeaders(NextResponse.redirect(new URL('/onboarding', request.url)))
-      }
-    }
-    return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
+  if (!user) {
+    const login = new URL('/login', request.url)
+    login.searchParams.set('next', pathname)
+    return addSecurityHeaders(NextResponse.redirect(login))
   }
 
   return addSecurityHeaders(response)
