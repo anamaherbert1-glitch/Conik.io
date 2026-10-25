@@ -71,3 +71,6 @@ The reconciliation and security changes have already been applied to the active 
 - Configure/verify Supabase Auth leaked-password protection in the dashboard; the connected tool did not expose a safe in-chat setting to change this.
 - Run the production smoke tests below after the latest Vercel build: create product as an editor; publish and attach a tariff; create a checkout; confirm order reference is present; test unpaid/pending access; test paid access; test revoked/expired access; test that payment status JSON contains no buyer email/phone; test cross-organization isolation.
 - No payment was simulated or marked paid as part of this work.
+
+- The order-number trigger helper has explicit EXECUTE revoked from `PUBLIC`, `anon`, and `authenticated`; only `service_role` is granted direct execution. The trigger itself remains installed.
+- Added migration: `supabase/migrations/20261025_revoke_order_trigger_function_rpc.sql`.
