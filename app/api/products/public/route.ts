@@ -13,12 +13,12 @@ export async function GET(request: Request) {
     const supabase = createAdminClient()
     const { data: product, error } = await supabase
       .from('digital_products')
-      .select('id,organization_id,name,slug,description,product_type,status,currency,price_cents,attributes,cover_url,funnel_id,payment_provider_id,payment_page_id,enabled_methods,success_message')
+      .select('id,organization_id,name,slug,description,product_type,status,currency,price_cents,attributes,cover_url,funnel_id,tariff_id,payment_provider_id,payment_page_id,enabled_methods,success_message')
       .eq('slug', slug)
       .eq('status', 'published')
       .maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    if (!product) return NextResponse.json({ error: 'Produit introuvable ou non publié' }, { status: 404 })
+    if (!product) return NextResponse.json({ error: 'Produit introuvable ou non publi\u00e9' }, { status: 404 })
 
     let provider: { id: string; provider: string; label: string; status: string } | null = null
     if (product.payment_provider_id) {
@@ -53,7 +53,18 @@ export async function GET(request: Request) {
       methods = methods.filter((m) => enabled.includes(m.method_code))
     }
 
-    // Never expose delivery URLs before payment
+    let buy_link: string | null = null
+    if (product.funnel_id && product.tariff_id) {
+      const [{ data: funnel }, { data: tariff }] = await Promise.all([
+        supabase.from('funnels').select('slug').eq('id', product.funnel_id).maybeSingle(),
+        supabase.from('payment_tariffs').select('slug').eq('id', product.tariff_id).maybeSingle(),
+      ])
+      if (funnel?.slug && tariff?.slug) {
+        const origin = new URL(request.url).origin
+        buy_link = `${origin}/pay?funnel=${encodeURIComponent(funnel.slug)}&tarif=${encodeURIComponent(tariff.slug)}`
+      }
+    }
+
     return NextResponse.json({
       product: {
         id: product.id,
@@ -69,6 +80,7 @@ export async function GET(request: Request) {
       },
       provider,
       methods,
+      buy_link,
     })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, { status: 500 })
@@ -87,7 +99,7 @@ export async function POST(request: Request) {
   const methodCode = body.methodCode ? String(body.methodCode).slice(0, 100) : null
 
   if (!firstName || !lastName || !email) {
-    return NextResponse.json({ error: 'Prénom, nom et e-mail sont requis.' }, { status: 400 })
+    return NextResponse.json({ error: 'Pr\u00e9nom, nom et e-mail sont requis.' }, { status: 400 })
   }
 
   try {
@@ -113,78 +125,40 @@ export async function POST(request: Request) {
       providerId = method.provider_id
     }
     if (!providerId) {
-      return NextResponse.json({ error: 'Aucun prestataire de paiement configuré pour ce produit.' }, { status: 400 })
+      return NextResponse.json({ error: 'Aucun prestataire de paiement configur\u00e9 pour ce produit.' }, { status: 400 })
     }
 
     const { data: provider } = await supabase
       .from('payment_providers')
-      .select('id,status')
+      .select('id,provider,status')
       .eq('id', providerId)
       .eq('organization_id', product.organization_id)
       .maybeSingle()
     if (!provider || !['connected', 'active'].includes(provider.status)) {
-      return NextResponse.json({ error: 'Prestataire de paiement inactif.' }, { status: 400 })
+      return NextResponse.json({ error: 'Prestataire de paiement indisponible.' }, { status: 400 })
     }
 
-    const isMinor = !['XOF', 'XAF'].includes(String(product.currency).toUpperCase())
-    const orderAmount = product.price_cents
-    const transactionAmount = isMinor ? Number((product.price_cents / 100).toFixed(2)) : product.price_cents
-
-    const orderNumber = `P-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
-
+    const amount = Math.max(0, Number(product.price_cents || 0))
     const { data: order, error: orderError } = await supabase
       .from('payment_orders')
       .insert({
         organization_id: product.organization_id,
-        payment_page_id: product.payment_page_id || null,
-        funnel_id: product.funnel_id || null,
-        order_number: orderNumber,
-        customer_first_name: firstName,
-        customer_last_name: lastName,
-        customer_email: email,
-        customer_phone: phone,
+        funnel_id: product.funnel_id,
+        provider_id: providerId,
+        amount_cents: amount,
+        currency: product.currency || 'XOF',
+        status: 'pending',
         buyer_email: email,
         buyer_phone: phone,
         buyer_name: `${firstName} ${lastName}`.trim(),
-        currency: product.currency,
-        subtotal: orderAmount,
-        total_amount: orderAmount,
-        amount_cents: orderAmount,
-        status: 'pending',
         product_label: product.name,
-        metadata: {
-          product_id: product.id,
-          product_slug: product.slug,
-          product_type: product.product_type,
-          method_code: methodCode,
-          source: 'digital_product',
-        },
+        metadata: { product_id: product.id, source: 'public_product_page' },
       })
-      .select('id,order_number,status,total_amount,currency')
+      .select('*')
       .single()
 
-    if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 })
-
-    const { data: transaction, error: txError } = await supabase
-      .from('payment_transactions')
-      .insert({
-        organization_id: product.organization_id,
-        order_id: order.id,
-        payment_provider_id: providerId,
-        provider_id: providerId,
-        provider_code: 'unknown',
-        method_code: methodCode || 'default',
-        idempotency_key: `prod-${product.id}-${order.id}`,
-        amount: transactionAmount,
-        currency: product.currency,
-        status: 'pending',
-      })
-      .select('id,order_id,status')
-      .single()
-
-    if (txError) {
-      await supabase.from('payment_orders').delete().eq('id', order.id)
-      return NextResponse.json({ error: txError.message }, { status: 400 })
+    if (orderError || !order) {
+      return NextResponse.json({ error: orderError?.message || 'Commande impossible' }, { status: 400 })
     }
 
     const { data: access } = await supabase
@@ -198,16 +172,29 @@ export async function POST(request: Request) {
         buyer_last_name: lastName,
         buyer_phone: phone,
         status: 'pending',
-        metadata: { method_code: methodCode },
+        metadata: { source: 'public_checkout' },
       })
       .select('id,access_token,status')
-      .single()
+      .maybeSingle()
+
+    const { data: transaction } = await supabase
+      .from('payment_transactions')
+      .insert({
+        organization_id: product.organization_id,
+        order_id: order.id,
+        provider_id: providerId,
+        amount_cents: amount,
+        currency: product.currency || 'XOF',
+        status: 'pending',
+        method_code: methodCode,
+      })
+      .select('id')
+      .maybeSingle()
 
     return NextResponse.json({
       order,
-      transaction,
       access,
-      message: 'Commande créée. Initialisez le paiement auprès du prestataire.',
+      transaction,
     }, { status: 201 })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, { status: 500 })
