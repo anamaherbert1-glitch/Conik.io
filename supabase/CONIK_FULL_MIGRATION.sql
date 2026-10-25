@@ -147,3 +147,32 @@ with check (
   and char_length(coalesce(message, '')) <= 3000
 );
 
+
+-- Ensure every newly created payment order has a unique, high-entropy public reference.
+-- Existing rows are preserved; legacy null references are not rewritten here.
+create or replace function public.ensure_payment_order_number()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $function$
+declare candidate text;
+begin
+  if new.order_number is null or btrim(new.order_number) = '' then
+    loop
+      candidate := 'CNK-' || upper(replace(gen_random_uuid()::text, '-', ''));
+      exit when not exists (select 1 from public.payment_orders po where po.order_number = candidate);
+    end loop;
+    new.order_number := candidate;
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists payment_orders_ensure_order_number on public.payment_orders;
+create trigger payment_orders_ensure_order_number
+before insert on public.payment_orders
+for each row execute function public.ensure_payment_order_number();
+
+create unique index if not exists payment_orders_order_number_unique
+on public.payment_orders (order_number)
+where order_number is not null and btrim(order_number) <> '';
