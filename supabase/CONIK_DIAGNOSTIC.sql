@@ -68,3 +68,25 @@ select version, name
 from supabase_migrations.schema_migrations
 order by version desc
 limit 30;
+
+
+-- 8) Payment order reference integrity.
+select
+  count(*) as total_orders,
+  count(*) filter (where order_number is null or btrim(order_number) = '') as missing_order_number,
+  count(*) filter (where order_number is not null and btrim(order_number) <> '') as referenced_orders
+from public.payment_orders;
+
+select
+  exists (
+    select 1 from pg_trigger
+    where tgname = 'payment_orders_ensure_order_number'
+      and tgrelid = 'public.payment_orders'::regclass
+      and not tgisinternal
+  ) as order_number_trigger_exists,
+  exists (
+    select 1 from pg_indexes
+    where schemaname = 'public'
+      and tablename = 'payment_orders'
+      and indexname = 'payment_orders_order_number_unique'
+  ) as order_number_unique_index_exists;
