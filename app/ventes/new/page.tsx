@@ -1,72 +1,81 @@
 'use client'
 
+import './product-studio.css'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
+import { FormEvent, useRef, useState } from 'react'
 import {
-  ArrowLeft, BookOpen, Film, GraduationCap, Package, Save, ShoppingBag,
+  ArrowLeft, FileUp, Save, Package, CircleDollarSign, CheckCircle2, X,
 } from 'lucide-react'
-import { AppShell } from '@/components/app-shell'
-import {
-  FORMATION_FORMAT_LABELS,
-  FORMATION_FORMATS,
-  PRODUCT_TYPE_LABELS,
-  PRODUCT_TYPES,
-  VIDEO_FORMATS,
-  slugify,
-  type ProductType,
-} from '@/lib/products/types'
+import { createClient } from '@/lib/supabase/client'
 
-const TYPE_ICONS: Record<ProductType, React.ElementType> = {
-  formation: GraduationCap,
-  ebook: BookOpen,
-  video: Film,
-  bundle: Package,
-  other: ShoppingBag,
-}
+type Step = 'infos' | 'fichier' | 'prix'
 
-function NewProductForm() {
+export default function NewProductPage() {
   const router = useRouter()
-  const search = useSearchParams()
-  const initialType = (search.get('type') as ProductType) || 'formation'
+  const fileRef = useRef<HTMLInputElement>(null)
 
+  const [step, setStep] = useState<Step>('infos')
   const [name, setName] = useState('')
-  const [productType, setProductType] = useState<ProductType>(
-    PRODUCT_TYPES.includes(initialType) ? initialType : 'formation',
-  )
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
   const [currency, setCurrency] = useState('XOF')
-  const [attributes, setAttributes] = useState<Record<string, unknown>>({})
-  const [delivery, setDelivery] = useState<Record<string, string>>({})
+  const [fileName, setFileName] = useState('')
+  const [fileUrl, setFileUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    // Reset type-specific fields when type changes
-    setAttributes({})
-  }, [productType])
+  async function onPickFile(file: File | null) {
+    if (!file) return
+    setError('')
+    setFileName(file.name)
+    setUploading(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Session expir\u00e9e. Reconnectez-vous.')
 
-  const slugPreview = useMemo(() => slugify(name || 'produit'), [name])
+      const { data: member } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      if (!member) throw new Error('Espace de travail introuvable.')
 
-  function setAttr(key: string, value: unknown) {
-    setAttributes((prev) => ({ ...prev, [key]: value }))
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
+      const path = `${member.organization_id}/${Date.now()}-${safe}`
+
+      const { error: upErr } = await supabase.storage
+        .from('product-files')
+        .upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' })
+
+      if (upErr) {
+        setFileUrl('')
+        setError(`T\u00e9l\u00e9versement Storage indisponible. Collez une URL de fichier ci-dessous. (${upErr.message})`)
+      } else {
+        const { data: pub } = supabase.storage.from('product-files').getPublicUrl(path)
+        setFileUrl(pub?.publicUrl || '')
+        setError('')
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'T\u00e9l\u00e9versement impossible')
+    }
+    setUploading(false)
   }
 
-  function setDel(key: string, value: string) {
-    setDelivery((prev) => ({ ...prev, [key]: value }))
-  }
-
-  async function submit(e: React.FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
-      setError('Le nom du produit est requis.')
+      setStep('infos')
+      setError('Indiquez le nom du produit.')
       return
     }
     setBusy(true)
     setError('')
     try {
-      const priceNum = Number(price)
+      const priceNum = Number(String(price).replace(/\s/g, '').replace(',', '.')) || 0
       const price_cents =
         currency === 'XOF' || currency === 'XAF'
           ? Math.round(priceNum)
@@ -77,256 +86,192 @@ function NewProductForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          product_type: productType,
+          product_type: 'other',
           description: description.trim() || null,
           currency,
           price_cents,
-          attributes,
-          delivery,
+          attributes: {},
+          delivery: {
+            file_url: fileUrl || undefined,
+            instructions: fileName ? `Fichier : ${fileName}` : undefined,
+          },
           status: 'draft',
         }),
       })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error || 'Création impossible')
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || 'Enregistrement impossible')
       router.push(`/ventes/${j.product.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Création impossible')
+      setError(err instanceof Error ? err.message : 'Enregistrement impossible')
       setBusy(false)
     }
   }
 
+  const steps: { id: Step; label: string; icon: typeof Package }[] = [
+    { id: 'infos', label: 'Informations', icon: Package },
+    { id: 'fichier', label: 'Fichier', icon: FileUp },
+    { id: 'prix', label: 'Prix', icon: CircleDollarSign },
+  ]
+
   return (
-    <AppShell active="Ventes">
-      <header>
-        <div>
-          <Link href="/ventes" className="back" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <ArrowLeft size={15} /> Retour aux ventes
+    <div className="product-studio">
+      <aside className="product-studio-aside">
+        <div className="product-studio-brand">
+          <Link href="/ventes" className="product-studio-back">
+            <ArrowLeft size={16} /> Produits
           </Link>
-          <small>NOUVEAU PRODUIT</small>
-          <h1>Ajouter un produit</h1>
-          <p className="muted">Choisissez le type, renseignez les rubriques, puis configurez paiement et tunnel.</p>
+          <strong>Nouveau produit</strong>
         </div>
-      </header>
+        <nav className="product-studio-nav">
+          {steps.map((s) => {
+            const Icon = s.icon
+            const active = step === s.id
+            return (
+              <button key={s.id} type="button" className={active ? 'active' : ''} onClick={() => setStep(s.id)}>
+                <Icon size={16} />
+                {s.label}
+                {(s.id === 'fichier' && fileName) || (s.id === 'infos' && name.trim()) ? (
+                  <CheckCircle2 size={14} style={{ marginLeft: 'auto', opacity: 0.8 }} />
+                ) : null}
+              </button>
+            )
+          })}
+        </nav>
+        <div className="product-studio-aside-foot">
+          <button
+            type="button"
+            className="primary full"
+            disabled={busy}
+            onClick={() => void submit({ preventDefault() {} } as FormEvent)}
+          >
+            <Save size={16} /> {busy ? 'Enregistrement\u2026' : 'Enregistrer'}
+          </button>
+        </div>
+      </aside>
 
-      {error && <div className="error">{error}</div>}
-
-      <form onSubmit={submit} className="panel" style={{ maxWidth: 720, display: 'grid', gap: 20, padding: 24 }}>
-        <section>
-          <h3 style={{ marginBottom: 12 }}>1. Type de produit</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-            {PRODUCT_TYPES.map((t) => {
-              const Icon = TYPE_ICONS[t]
-              const active = productType === t
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setProductType(t)}
-                  className={active ? 'primary' : 'outline'}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 14 }}
-                >
-                  <Icon size={22} />
-                  <span style={{ fontSize: 13 }}>{PRODUCT_TYPE_LABELS[t]}</span>
-                </button>
-              )
-            })}
+      <main className="product-studio-main">
+        <header className="product-studio-top">
+          <div>
+            <h1>{name.trim() || 'Ajouter un produit'}</h1>
+            <p className="muted">Configurez l\u2019offre. Le tunnel de vente se branche ensuite depuis Funnels.</p>
           </div>
-        </section>
+          <Link href="/ventes" className="outline" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <X size={15} /> Fermer
+          </Link>
+        </header>
 
-        <section style={{ display: 'grid', gap: 12 }}>
-          <h3>2. Informations générales</h3>
-          <label className="form-label">
-            Nom du produit *
-            <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Formation Marketing Digital" required />
-          </label>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Lien public : <code>/p/{slugPreview}</code>
-          </p>
-          <label className="form-label">
-            Description
-            <textarea className="form-input" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ce que l’acheteur reçoit…" />
-          </label>
-          <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <label className="form-label">
-              Prix
-              <input className="form-input" type="number" min="0" step="any" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="25000" required />
-            </label>
-            <label className="form-label">
-              Devise
-              <select className="form-input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="XOF">XOF (FCFA)</option>
-                <option value="XAF">XAF</option>
-                <option value="EUR">EUR</option>
-                <option value="USD">USD</option>
-              </select>
-            </label>
-          </div>
-        </section>
+        {error ? <div className="error" style={{ marginBottom: 14 }}>{error}</div> : null}
 
-        <section style={{ display: 'grid', gap: 12 }}>
-          <h3>3. Rubriques — {PRODUCT_TYPE_LABELS[productType]}</h3>
-          {productType === 'formation' && (
-            <>
+        <form onSubmit={submit} className="product-studio-panel">
+          {step === 'infos' && (
+            <div className="product-studio-section">
+              <h2>Informations</h2>
               <label className="form-label">
-                Format de la formation
-                <select
+                Nom du produit
+                <input
                   className="form-input"
-                  value={String(attributes.format || '')}
-                  onChange={(e) => setAttr('format', e.target.value)}
-                >
-                  <option value="">— Choisir —</option>
-                  {FORMATION_FORMATS.map((f) => (
-                    <option key={f} value={f}>{FORMATION_FORMAT_LABELS[f]}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label className="form-label">
-                  Nombre de modules
-                  <input className="form-input" type="number" min="0" value={String(attributes.modules_count ?? '')} onChange={(e) => setAttr('modules_count', Number(e.target.value) || 0)} />
-                </label>
-                <label className="form-label">
-                  Durée (heures)
-                  <input className="form-input" type="number" min="0" step="0.5" value={String(attributes.duration_hours ?? '')} onChange={(e) => setAttr('duration_hours', Number(e.target.value) || 0)} />
-                </label>
-              </div>
-              <label className="form-label">
-                Niveau
-                <select className="form-input" value={String(attributes.level || '')} onChange={(e) => setAttr('level', e.target.value)}>
-                  <option value="">— Choisir —</option>
-                  <option value="debutant">Débutant</option>
-                  <option value="intermediaire">Intermédiaire</option>
-                  <option value="avance">Avancé</option>
-                  <option value="tous">Tous niveaux</option>
-                </select>
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex. Guide PDF \u2014 Lancer son offre"
+                  autoFocus
+                  required
+                />
               </label>
               <label className="form-label">
-                Langue
-                <input className="form-input" value={String(attributes.language || '')} onChange={(e) => setAttr('language', e.target.value)} placeholder="Français" />
+                Description
+                <textarea
+                  className="form-input"
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ce que l\u2019acheteur re\u00e7oit."
+                  style={{ resize: 'vertical' }}
+                />
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={Boolean(attributes.includes_certificate)} onChange={(e) => setAttr('includes_certificate', e.target.checked)} />
-                Certificat inclus
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={Boolean(attributes.includes_community)} onChange={(e) => setAttr('includes_community', e.target.checked)} />
-                Accès communauté
-              </label>
-            </>
+              <button type="button" className="primary" onClick={() => setStep('fichier')}>
+                Continuer \u2192 Fichier
+              </button>
+            </div>
           )}
 
-          {productType === 'ebook' && (
-            <>
-              <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {step === 'fichier' && (
+            <div className="product-studio-section">
+              <h2>T\u00e9l\u00e9verser le produit</h2>
+              <p className="muted">PDF, ZIP, vid\u00e9o, audio\u2026 livr\u00e9 apr\u00e8s paiement via le tunnel.</p>
+              <input
+                ref={fileRef}
+                type="file"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null
+                  void onPickFile(f)
+                  e.currentTarget.value = ''
+                }}
+              />
+              <button
+                type="button"
+                className="outline"
+                style={{ minHeight: 120, width: '100%', display: 'grid', placeItems: 'center', gap: 8 }}
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+              >
+                <FileUp size={28} />
+                <span>{uploading ? 'T\u00e9l\u00e9versement\u2026' : fileName || 'Choisir un fichier'}</span>
+                {fileUrl ? <span className="muted" style={{ fontSize: 12 }}>Fichier pr\u00eat</span> : null}
+              </button>
+              <label className="form-label" style={{ marginTop: 14 }}>
+                Ou coller une URL de fichier
+                <input
+                  className="form-input"
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
+                  placeholder="https://\u2026"
+                />
+              </label>
+              <div className="button-row" style={{ marginTop: 8 }}>
+                <button type="button" className="outline" onClick={() => setStep('infos')}>Retour</button>
+                <button type="button" className="primary" onClick={() => setStep('prix')}>Continuer \u2192 Prix</button>
+              </div>
+            </div>
+          )}
+
+          {step === 'prix' && (
+            <div className="product-studio-section">
+              <h2>Prix</h2>
+              <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 12 }}>
                 <label className="form-label">
-                  Nombre de pages
-                  <input className="form-input" type="number" min="0" value={String(attributes.pages ?? '')} onChange={(e) => setAttr('pages', Number(e.target.value) || 0)} />
+                  Montant
+                  <input
+                    className="form-input"
+                    inputMode="decimal"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder={currency === 'XOF' || currency === 'XAF' ? '25000' : '29.99'}
+                  />
                 </label>
                 <label className="form-label">
-                  Format fichier
-                  <select className="form-input" value={String(attributes.format || 'pdf')} onChange={(e) => setAttr('format', e.target.value)}>
-                    <option value="pdf">PDF</option>
-                    <option value="epub">ePub</option>
-                    <option value="mobi">Mobi</option>
-                    <option value="other">Autre</option>
+                  Devise
+                  <select className="form-input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                    <option value="XOF">XOF</option>
+                    <option value="XAF">XAF</option>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
                   </select>
                 </label>
               </div>
-              <label className="form-label">
-                Auteur
-                <input className="form-input" value={String(attributes.author || '')} onChange={(e) => setAttr('author', e.target.value)} />
-              </label>
-              <label className="form-label">
-                Langue
-                <input className="form-input" value={String(attributes.language || '')} onChange={(e) => setAttr('language', e.target.value)} placeholder="Français" />
-              </label>
-            </>
-          )}
-
-          {productType === 'video' && (
-            <>
-              <label className="form-label">
-                Type / format vidéo
-                <select className="form-input" value={String(attributes.format || '')} onChange={(e) => setAttr('format', e.target.value)}>
-                  <option value="">— Choisir —</option>
-                  {VIDEO_FORMATS.map((f) => (
-                    <option key={f} value={f}>{f.toUpperCase()}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label className="form-label">
-                  Durée (minutes)
-                  <input className="form-input" type="number" min="0" value={String(attributes.duration_minutes ?? '')} onChange={(e) => setAttr('duration_minutes', Number(e.target.value) || 0)} />
-                </label>
-                <label className="form-label">
-                  Résolution
-                  <input className="form-input" value={String(attributes.resolution || '')} onChange={(e) => setAttr('resolution', e.target.value)} placeholder="1080p" />
-                </label>
+              <p className="muted" style={{ fontSize: 13 }}>
+                Paiement et page de vente : configurez-les dans le tunnel (Funnels).
+              </p>
+              <div className="button-row">
+                <button type="button" className="outline" onClick={() => setStep('fichier')}>Retour</button>
+                <button type="submit" className="primary" disabled={busy}>
+                  <Save size={16} /> {busy ? 'Enregistrement\u2026' : 'Enregistrer le produit'}
+                </button>
               </div>
-              <label className="form-label">
-                Langue
-                <input className="form-input" value={String(attributes.language || '')} onChange={(e) => setAttr('language', e.target.value)} />
-              </label>
-            </>
+            </div>
           )}
-
-          {productType === 'bundle' && (
-            <label className="form-label">
-              Nombre d’éléments inclus
-              <input className="form-input" type="number" min="1" value={String(attributes.items_count ?? '')} onChange={(e) => setAttr('items_count', Number(e.target.value) || 0)} />
-            </label>
-          )}
-
-          {productType === 'other' && (
-            <p className="muted">Produit digital personnalisé. Ajoutez les détails de livraison ci-dessous.</p>
-          )}
-        </section>
-
-        <section style={{ display: 'grid', gap: 12 }}>
-          <h3>4. Livraison (après paiement)</h3>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Ces URLs ne sont visibles qu’après un paiement réussi.
-          </p>
-          {(productType === 'ebook' || productType === 'bundle' || productType === 'other') && (
-            <label className="form-label">
-              URL du fichier (PDF, ZIP…)
-              <input className="form-input" value={delivery.file_url || ''} onChange={(e) => setDel('file_url', e.target.value)} placeholder="https://…" />
-            </label>
-          )}
-          {(productType === 'video' || productType === 'formation') && (
-            <label className="form-label">
-              URL vidéo / plateforme
-              <input className="form-input" value={delivery.video_url || ''} onChange={(e) => setDel('video_url', e.target.value)} placeholder="https://…" />
-            </label>
-          )}
-          {productType === 'formation' && (
-            <label className="form-label">
-              URL espace cours
-              <input className="form-input" value={delivery.course_url || ''} onChange={(e) => setDel('course_url', e.target.value)} placeholder="https://…" />
-            </label>
-          )}
-          <label className="form-label">
-            Instructions d’accès
-            <textarea className="form-input" rows={2} value={delivery.instructions || ''} onChange={(e) => setDel('instructions', e.target.value)} placeholder="Ex. Téléchargez le PDF via le lien ci-dessous…" />
-          </label>
-        </section>
-
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button type="submit" className="primary" disabled={busy}>
-            <Save size={16} /> {busy ? 'Création…' : 'Créer le produit'}
-          </button>
-          <Link className="outline" href="/ventes">Annuler</Link>
-        </div>
-      </form>
-    </AppShell>
-  )
-}
-
-export default function NewProductPage() {
-  return (
-    <Suspense fallback={<AppShell active="Ventes"><p className="muted">Chargement…</p></AppShell>}>
-      <NewProductForm />
-    </Suspense>
+        </form>
+      </main>
+    </div>
   )
 }

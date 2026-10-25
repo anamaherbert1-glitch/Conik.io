@@ -1,0 +1,125 @@
+.product-studio {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+}
+.product-studio-aside {
+  background: var(--sidebar);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px;
+  border-right: 1px solid var(--sidebar-border);
+}
+.product-studio-brand {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 0 6px;
+}
+.product-studio-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sidebar-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.product-studio-back:hover { color: #fff; }
+.product-studio-brand strong {
+  font-size: 15px;
+  color: #fff;
+}
+.product-studio-nav {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+.product-studio-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--sidebar-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.product-studio-nav button:hover,
+.product-studio-nav button.active {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+.product-studio-aside-foot {
+  padding-top: 12px;
+}
+.product-studio-main {
+  padding: 28px 32px 48px;
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.product-studio-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.product-studio-top h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+}
+.product-studio-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px;
+}
+.product-studio-section {
+  display: grid;
+  gap: 14px;
+}
+.product-studio-section h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+@media (max-width: 800px) {
+  .product-studio {
+    grid-template-columns: 1fr;
+  }
+  .product-studio-aside {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .product-studio-nav {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .product-studio-nav button {
+    white-space: nowrap;
+  }
+  .product-studio-aside-foot {
+    width: 100%;
+  }
+  .product-studio-main {
+    padding: 16px;
+  }
+}
