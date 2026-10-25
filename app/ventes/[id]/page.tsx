@@ -4,42 +4,22 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ArrowLeft, CheckCircle2, Copy, CreditCard, ExternalLink, Link2, Save, Trash2, Zap,
+  ArrowLeft, CheckCircle2, Copy, ExternalLink, Save, ShoppingCart, Trash2, Zap,
 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import {
-  FORMATION_FORMAT_LABELS,
-  FORMATION_FORMATS,
-  PRODUCT_TYPE_LABELS,
-  PRODUCT_TYPES,
-  VIDEO_FORMATS,
-  formatPrice,
-  type ProductType,
-} from '@/lib/products/types'
+import { formatPrice } from '@/lib/products/types'
 
-type Funnel = { id: string; name: string; slug: string; status: string }
-type Provider = { id: string; provider: string; label: string; status: string }
 type Product = {
   id: string
   name: string
   slug: string
   description: string | null
-  product_type: ProductType
   status: string
   currency: string
   price_cents: number
-  attributes: Record<string, unknown>
   delivery: Record<string, string>
   funnel_id: string | null
-  payment_provider_id: string | null
   tariff_id?: string | null
-  enabled_methods: string[]
-  success_message: string | null
-}
-
-const PROVIDER_LABEL: Record<string, string> = {
-  wave: 'Wave', cinetpay: 'CinetPay', flutterwave: 'Flutterwave', paydunya: 'PayDunya',
-  saspay: 'SasPay', ligdicash: 'LigdiCash', hub2: 'Hub2', fedapay: 'FedaPay', campay: 'CamPay',
 }
 
 export default function ProductConfigPage() {
@@ -49,127 +29,103 @@ export default function ProductConfigPage() {
 
   const [product, setProduct] = useState<Product | null>(null)
   const [buyLink, setBuyLink] = useState<string | null>(null)
-  const [funnels, setFunnels] = useState<Funnel[]>([])
-  const [providers, setProviders] = useState<Provider[]>([])
+  const [storeLink, setStoreLink] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [productType, setProductType] = useState<ProductType>('other')
   const [price, setPrice] = useState('')
   const [currency, setCurrency] = useState('XOF')
-  const [attributes, setAttributes] = useState<Record<string, unknown>>({})
-  const [delivery, setDelivery] = useState<Record<string, string>>({})
-  const [funnelId, setFunnelId] = useState('')
-  const [providerId, setProviderId] = useState('')
-  const [status, setStatus] = useState('draft')
-  const [successMessage, setSuccessMessage] = useState('')
+  const [fileUrl, setFileUrl] = useState('')
   const [busy, setBusy] = useState(false)
+  const [activating, setActivating] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [origin, setOrigin] = useState('')
 
   const load = useCallback(async () => {
     if (!id) return
-    const [pr, fr, pvr] = await Promise.all([
-      fetch(`/api/products/${id}`),
-      fetch('/api/funnels'),
-      fetch('/api/payments/providers'),
-    ])
-    const pj = await pr.json()
-    if (!pr.ok) {
-      setError(pj.error || 'Produit introuvable')
+    setError('')
+    const r = await fetch(`/api/products/${id}`)
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      setError(j.error || 'Produit introuvable')
       return
     }
-    const p = pj.product as Product
+    const p = j.product as Product
     setProduct(p)
-    setBuyLink(pj.buy_link || null)
-    setName(p.name)
+    setName(p.name || '')
     setDescription(p.description || '')
-    setProductType(p.product_type)
-    setCurrency(p.currency)
-    setPrice(
-      p.currency === 'XOF' || p.currency === 'XAF'
-        ? String(p.price_cents)
-        : String(p.price_cents / 100),
-    )
-    setAttributes(p.attributes || {})
-    setDelivery((p.delivery as Record<string, string>) || {})
-    setFunnelId(p.funnel_id || '')
-    setProviderId(p.payment_provider_id || '')
-    setStatus(p.status)
-    setSuccessMessage(p.success_message || '')
-
-    if (fr.ok) {
-      const fj = await fr.json()
-      setFunnels(fj.funnels || [])
-    }
-    if (pvr.ok) {
-      const pvj = await pvr.json()
-      setProviders((pvj.providers || []).filter((x: Provider) => ['connected', 'active'].includes(x.status)))
+    setCurrency(p.currency || 'XOF')
+    const cents = Number(p.price_cents || 0)
+    const display =
+      p.currency === 'XOF' || p.currency === 'XAF' ? String(cents) : (cents / 100).toFixed(2)
+    setPrice(display)
+    setFileUrl(p.delivery?.file_url || '')
+    setBuyLink(j.buy_link || null)
+    if (typeof window !== 'undefined') {
+      setStoreLink(`${window.location.origin}/p/${p.slug}`)
     }
   }, [id])
 
   useEffect(() => {
     void load()
-    setOrigin(typeof window !== 'undefined' ? window.location.origin : '')
   }, [load])
 
-  function setAttr(key: string, value: unknown) {
-    setAttributes((prev) => ({ ...prev, [key]: value }))
-  }
-  function setDel(key: string, value: string) {
-    setDelivery((prev) => ({ ...prev, [key]: value }))
-  }
-
-  async function save(nextStatus?: string) {
-    if (!id) return
+  async function save() {
+    if (!product) return
     setBusy(true)
-    setError('')
     setMessage('')
+    setError('')
     try {
-      const priceNum = Number(price)
+      const priceNum = Number(String(price).replace(/\s/g, '').replace(',', '.')) || 0
       const price_cents =
-        currency === 'XOF' || currency === 'XAF'
-          ? Math.round(priceNum)
-          : Math.round(priceNum * 100)
-      const r = await fetch(`/api/products/${id}`, {
+        currency === 'XOF' || currency === 'XAF' ? Math.round(priceNum) : Math.round(priceNum * 100)
+      const r = await fetch(`/api/products/${product.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          description: description || null,
-          product_type: productType,
+          name: name.trim(),
+          description: description.trim() || null,
           currency,
           price_cents,
-          attributes,
-          delivery,
-          funnel_id: funnelId || null,
-          payment_provider_id: providerId || null,
-          success_message: successMessage || null,
-          status: nextStatus || status,
+          delivery: {
+            ...(product.delivery || {}),
+            file_url: fileUrl.trim() || undefined,
+          },
         }),
       })
-      const j = await r.json()
+      const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j.error || 'Enregistrement impossible')
       setProduct(j.product)
-      setBuyLink(j.buy_link || null)
-      setStatus(j.product.status)
-      setMessage(
-        nextStatus === 'published'
-          ? 'Produit publié. Collez le lien Acheter sur le bouton de votre tunnel.'
-          : j.buy_link
-            ? 'Enregistré. Lien Acheter prêt pour le tunnel.'
-            : 'Enregistré.',
-      )
+      setBuyLink(j.buy_link || buyLink)
+      setMessage('Produit enregistr\u00e9.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur')
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
+  }
+
+  async function activateSales() {
+    if (!product) return
+    setActivating(true)
+    setMessage('')
+    setError('')
+    try {
+      await save()
+      const r = await fetch(`/api/products/${product.id}/activate-sales`, { method: 'POST' })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || 'Activation impossible')
+      setProduct(j.product)
+      setBuyLink(j.buy_link || null)
+      setStoreLink(j.store_link || storeLink)
+      setMessage('Vente activ\u00e9e. Partagez le lien d\u2019achat avec vos clients.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Activation impossible')
+    }
+    setActivating(false)
   }
 
   async function remove() {
-    if (!confirm('Supprimer ce produit définitivement ?')) return
-    const r = await fetch(`/api/products/${id}`, { method: 'DELETE' })
+    if (!product || !confirm('Supprimer ce produit ?')) return
+    const r = await fetch(`/api/products/${product.id}`, { method: 'DELETE' })
     if (r.ok) router.push('/ventes')
     else {
       const j = await r.json().catch(() => ({}))
@@ -177,84 +133,76 @@ export default function ProductConfigPage() {
     }
   }
 
-  function copyBuyLink() {
-    if (!buyLink) return
-    void navigator.clipboard.writeText(buyLink)
-    setMessage('Lien Acheter copié — collez-le sur le bouton de votre tunnel.')
+  function copy(text: string) {
+    void navigator.clipboard.writeText(text)
+    setMessage('Lien copi\u00e9.')
   }
 
   if (!product && !error) {
     return (
       <AppShell active="Ventes">
-        <p className="muted">Chargement…</p>
+        <p className="muted">Chargement\u2026</p>
       </AppShell>
     )
   }
+
+  if (!product) {
+    return (
+      <AppShell active="Ventes">
+        <div className="error">{error}</div>
+        <Link href="/ventes" className="outline" style={{ marginTop: 12, display: 'inline-flex' }}>
+          Retour
+        </Link>
+      </AppShell>
+    )
+  }
+
+  const isLive = product.status === 'published' && Boolean(buyLink)
 
   return (
     <AppShell active="Ventes">
       <header>
         <div>
-          <Link href="/ventes" className="back" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <Link href="/ventes" className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8, textDecoration: 'none' }}>
             <ArrowLeft size={15} /> Produits
           </Link>
-          <small>ESPACE DE VENTE</small>
-          <h1>{product?.name || 'Produit'}</h1>
-          <p className="muted">
-            {PRODUCT_TYPE_LABELS[productType]} · {status === 'published' ? 'Publié' : status === 'archived' ? 'Archivé' : 'Brouillon'}
+          <h1 style={{ margin: 0 }}>{name || product.name}</h1>
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            {isLive ? 'En vente' : 'Brouillon'} \u00b7 {formatPrice(product.price_cents, product.currency)}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {buyLink && (
-            <button type="button" className="outline" onClick={copyBuyLink}>
-              <Copy size={15} /> Copier lien Acheter
-            </button>
-          )}
-          {status !== 'published' ? (
-            <button type="button" className="primary" disabled={busy} onClick={() => void save('published')}>
-              <ExternalLink size={15} /> Publier
-            </button>
-          ) : (
-            <button type="button" className="outline" disabled={busy} onClick={() => void save('draft')}>
-              Dépublier
-            </button>
-          )}
-          <button type="button" className="primary" disabled={busy} onClick={() => void save()}>
-            <Save size={15} /> {busy ? '…' : 'Enregistrer'}
+        <div className="button-row">
+          <button type="button" className="outline" disabled={busy} onClick={() => void save()}>
+            <Save size={15} /> Enregistrer
+          </button>
+          <button type="button" className="primary" disabled={activating || busy} onClick={() => void activateSales()}>
+            <Zap size={15} /> {isLive ? 'Mettre \u00e0 jour la vente' : 'Activer la vente'}
           </button>
         </div>
       </header>
 
       {message && (
-        <div className="capture-alert success" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <CheckCircle2 size={17} /> {message}
+        <div className="notice" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CheckCircle2 size={16} /> {message}
         </div>
       )}
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" style={{ marginBottom: 14 }}>{error}</div>}
 
-      <div style={{ display: 'grid', gap: 16, maxWidth: 800 }}>
-        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
-          <h3>Informations</h3>
+      <div className="grid" style={{ gap: 14 }}>
+        <section className="panel" style={{ display: 'grid', gap: 12 }}>
+          <h3 style={{ margin: 0 }}>Offre</h3>
           <label className="form-label">
             Nom
             <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="form-label">
-            Type
-            <select className="form-input" value={productType} onChange={(e) => setProductType(e.target.value as ProductType)}>
-              {PRODUCT_TYPES.map((t) => (
-                <option key={t} value={t}>{PRODUCT_TYPE_LABELS[t]}</option>
-              ))}
-            </select>
-          </label>
-          <label className="form-label">
             Description
-            <textarea className="form-input" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea className="form-input" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} style={{ resize: 'vertical' }} />
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12 }}>
             <label className="form-label">
               Prix
-              <input className="form-input" type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <input className="form-input" value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
             </label>
             <label className="form-label">
               Devise
@@ -266,178 +214,60 @@ export default function ProductConfigPage() {
               </select>
             </label>
           </div>
-          {product && (
-            <p className="muted" style={{ fontSize: 13 }}>
-              Prix affiché : <strong>{formatPrice(
-                currency === 'XOF' || currency === 'XAF' ? Math.round(Number(price) || 0) : Math.round((Number(price) || 0) * 100),
-                currency,
-              )}</strong>
-            </p>
-          )}
+          <label className="form-label">
+            Fichier / URL de livraison (apr\u00e8s paiement)
+            <input className="form-input" value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://\u2026" />
+          </label>
         </section>
 
-        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
-          <h3>Rubriques — {PRODUCT_TYPE_LABELS[productType]}</h3>
-          {productType === 'formation' && (
-            <>
-              <label className="form-label">
-                Format
-                <select className="form-input" value={String(attributes.format || '')} onChange={(e) => setAttr('format', e.target.value)}>
-                  <option value="">—</option>
-                  {FORMATION_FORMATS.map((f) => (
-                    <option key={f} value={f}>{FORMATION_FORMAT_LABELS[f]}</option>
-                  ))}
-                </select>
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label className="form-label">Modules<input className="form-input" type="number" value={String(attributes.modules_count ?? '')} onChange={(e) => setAttr('modules_count', Number(e.target.value) || 0)} /></label>
-                <label className="form-label">Durée (h)<input className="form-input" type="number" value={String(attributes.duration_hours ?? '')} onChange={(e) => setAttr('duration_hours', Number(e.target.value) || 0)} /></label>
+        <section className="panel" style={{ display: 'grid', gap: 12 }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShoppingCart size={18} /> Liens de vente
+          </h3>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            Apr\u00e8s activation, vos clients paient puis re\u00e7oivent l\u2019acc\u00e8s. Configurez un prestataire dans Int\u00e9grations si besoin.
+          </p>
+
+          {storeLink && (
+            <div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Page boutique</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <code style={{ fontSize: 12, wordBreak: 'break-all' }}>{storeLink}</code>
+                <button type="button" className="outline" onClick={() => copy(storeLink)}>
+                  <Copy size={14} /> Copier
+                </button>
+                <a className="outline" href={storeLink} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14} /> Ouvrir
+                </a>
               </div>
-              <label className="form-label">
-                Niveau
-                <select className="form-input" value={String(attributes.level || '')} onChange={(e) => setAttr('level', e.target.value)}>
-                  <option value="">—</option>
-                  <option value="debutant">Débutant</option>
-                  <option value="intermediaire">Intermédiaire</option>
-                  <option value="avance">Avancé</option>
-                  <option value="tous">Tous niveaux</option>
-                </select>
-              </label>
-            </>
-          )}
-          {productType === 'ebook' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <label className="form-label">Pages<input className="form-input" type="number" value={String(attributes.pages ?? '')} onChange={(e) => setAttr('pages', Number(e.target.value) || 0)} /></label>
-              <label className="form-label">
-                Format
-                <select className="form-input" value={String(attributes.format || 'pdf')} onChange={(e) => setAttr('format', e.target.value)}>
-                  <option value="pdf">PDF</option>
-                  <option value="epub">ePub</option>
-                  <option value="mobi">Mobi</option>
-                </select>
-              </label>
             </div>
           )}
-          {productType === 'video' && (
-            <>
-              <label className="form-label">
-                Format vidéo
-                <select className="form-input" value={String(attributes.format || '')} onChange={(e) => setAttr('format', e.target.value)}>
-                  <option value="">—</option>
-                  {VIDEO_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label className="form-label">Durée (min)<input className="form-input" type="number" value={String(attributes.duration_minutes ?? '')} onChange={(e) => setAttr('duration_minutes', Number(e.target.value) || 0)} /></label>
-                <label className="form-label">Résolution<input className="form-input" value={String(attributes.resolution || '')} onChange={(e) => setAttr('resolution', e.target.value)} /></label>
-              </div>
-            </>
-          )}
 
-          <h4 style={{ marginTop: 8 }}>Livraison (après paiement)</h4>
-          <label className="form-label">URL fichier (PDF, ZIP…)<input className="form-input" value={delivery.file_url || ''} onChange={(e) => setDel('file_url', e.target.value)} /></label>
-          <label className="form-label">URL vidéo<input className="form-input" value={delivery.video_url || ''} onChange={(e) => setDel('video_url', e.target.value)} /></label>
-          <label className="form-label">URL cours<input className="form-input" value={delivery.course_url || ''} onChange={(e) => setDel('course_url', e.target.value)} /></label>
-          <label className="form-label">Instructions<textarea className="form-input" rows={2} value={delivery.instructions || ''} onChange={(e) => setDel('instructions', e.target.value)} /></label>
-          <label className="form-label">Message après achat<textarea className="form-input" rows={2} value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} placeholder="Merci ! Voici votre accès…" /></label>
-        </section>
-
-        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Zap size={18} />
-            <h3 style={{ margin: 0 }}>1. Associer au tunnel de vente</h3>
-          </div>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Choisissez le tunnel qui contient votre page de capture et votre page de paiement.
-            Un tarif sera créé automatiquement pour ce produit.
-          </p>
-          <label className="form-label">
-            Tunnel
-            <select className="form-input" value={funnelId} onChange={(e) => setFunnelId(e.target.value)}>
-              <option value="">— Choisir un tunnel —</option>
-              {funnels.map((f) => (
-                <option key={f.id} value={f.id}>{f.name} (/{f.slug})</option>
-              ))}
-            </select>
-          </label>
-          {funnelId && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link className="outline" href={`/funnels/${funnelId}`} style={{ width: 'fit-content' }}>
-                Ouvrir le tunnel
-              </Link>
-              <Link className="outline" href={`/funnels/${funnelId}/payment`} style={{ width: 'fit-content' }}>
-                Page de paiement du tunnel
-              </Link>
-            </div>
-          )}
-          <Link className="outline" href="/funnels/new" style={{ width: 'fit-content' }}>
-            Créer un nouveau tunnel
-          </Link>
-        </section>
-
-        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CreditCard size={18} />
-            <h3 style={{ margin: 0 }}>2. Prestataire (côté tunnel)</h3>
-          </div>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Le paiement se fait via la page de paiement du tunnel. Vérifiez qu’un prestataire est connecté
-            dans le tunnel (Wave, CinetPay, carte, etc.).
-          </p>
-          <label className="form-label">
-            Prestataire (optionnel, info produit)
-            <select className="form-input" value={providerId} onChange={(e) => setProviderId(e.target.value)}>
-              <option value="">— Voir Intégrations —</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {PROVIDER_LABEL[p.provider] || p.provider} · {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Link href="/integrations" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13 }}>
-            Gérer les prestataires →
-          </Link>
-        </section>
-
-        <section className="panel" style={{ padding: 20, display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Link2 size={18} />
-            <h3 style={{ margin: 0 }}>3. Lien à coller sur le bouton « Acheter »</h3>
-          </div>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Après enregistrement avec un tunnel sélectionné, copiez ce lien et placez-le sur le bouton Acheter
-            de votre page (éditeur HTML du tunnel ou page importée). L’acheteur passera par la page de
-            paiement du tunnel, paiera, puis recevra le téléchargement automatiquement.
-          </p>
           {buyLink ? (
-            <>
-              <code style={{ wordBreak: 'break-all', padding: 12, background: 'var(--panel-2, #f3f4f6)', borderRadius: 8, fontSize: 13 }}>
-                {buyLink}
-              </code>
-              <button type="button" className="primary" onClick={copyBuyLink} style={{ width: 'fit-content' }}>
-                <Copy size={14} /> Copier le lien Acheter
-              </button>
-            </>
-          ) : (
-            <div className="emptybox" style={{ padding: 16 }}>
-              <b>Lien pas encore prêt</b>
-              <p style={{ margin: '8px 0 0' }}>
-                1) Choisissez un tunnel · 2) Renseignez le prix et la livraison · 3) Cliquez sur Enregistrer
-                {status !== 'published' ? ' · 4) Publiez le produit' : ''}.
-              </p>
+            <div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Lien de paiement direct</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <code style={{ fontSize: 12, wordBreak: 'break-all' }}>{buyLink}</code>
+                <button type="button" className="outline" onClick={() => copy(buyLink)}>
+                  <Copy size={14} /> Copier
+                </button>
+                <a className="outline" href={buyLink} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14} /> Ouvrir
+                </a>
+              </div>
             </div>
-          )}
-          {product && (
-            <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-              Lien alternatif (page produit) : {origin}/p/{product.slug}
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>
+              Cliquez sur <b>Activer la vente</b> pour g\u00e9n\u00e9rer le tunnel, le tarif et le lien d\u2019achat.
             </p>
           )}
         </section>
 
-        <button type="button" className="outline" onClick={() => void remove()} style={{ color: '#b91c1c', width: 'fit-content' }}>
-          <Trash2 size={15} /> Supprimer le produit
-        </button>
+        <div className="button-row">
+          <button type="button" className="outline" onClick={() => void remove()} style={{ color: 'var(--error-text)' }}>
+            <Trash2 size={14} /> Supprimer
+          </button>
+        </div>
       </div>
     </AppShell>
   )
