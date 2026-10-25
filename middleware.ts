@@ -100,24 +100,66 @@ export async function middleware(request: NextRequest) {
   const segments = pathname.split('/').filter(Boolean)
   const wildcardTenant = getWildcardTenant(host)
 
-  if (wildcardTenant) {
-    if (!segments.length || (segments[0] !== 'api' && segments[0] !== '_next' && segments[0] !== 'favicon.ico')) {
-      const urlRewrite = request.nextUrl.clone()
-      if (!segments.length) urlRewrite.pathname = `/${wildcardTenant}`
-      else if (segments[0] !== wildcardTenant) urlRewrite.pathname = `/${wildcardTenant}${pathname}`
-      return addSecurityHeaders(NextResponse.rewrite(urlRewrite))
-    }
+  if (wildcardTenant && !FUNNEL_SYSTEM_PATHS.has(segments[0]?.toLowerCase() || '')) {
+    const headers = new Headers(request.headers)
+    const rewritePath = segments.length
+      ? `/${wildcardTenant}/${segments.join('/')}`
+      : `/${wildcardTenant}`
+    headers.set('x-conik-tenant', wildcardTenant)
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = rewritePath
+    return addSecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers } }))
   }
 
-  await supabase.auth.getUser()
-  const { data: { user } } = await supabase.auth.getUser()
+  if (
+    !wildcardTenant &&
+    segments.length === 1 &&
+    FUNNEL_SLUG.test(segments[0]) &&
+    !PUBLIC_FUNNEL_RESERVED.has(segments[0].toLowerCase())
+  ) {
+    // public funnel path handled by page routes
+  }
 
-  if (isPublicPath(pathname)) return addSecurityHeaders(response)
+  let sessionError = false
+  let user: { sub?: string } | null = null
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    if (error) sessionError = true
+    user = data?.user ? { sub: data.user.id } : null
+  } catch {
+    sessionError = true
+  }
 
-  if (!user) {
-    const login = new URL('/login', request.url)
-    login.searchParams.set('next', pathname)
-    return addSecurityHeaders(NextResponse.redirect(login))
+  if (sessionError) {
+    request.cookies.getAll()
+      .filter(({ name }) => name.startsWith('sb-') && name.includes('-auth-token'))
+      .forEach(({ name }) => {
+        response.cookies.set(name, '', { expires: new Date(0), path: '/' })
+      })
+    user = null
+  }
+
+  if (!isPublicPath(pathname) && !user) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/login'
+    redirectUrl.searchParams.set('next', pathname + request.nextUrl.search)
+    return addSecurityHeaders(NextResponse.redirect(redirectUrl))
+  }
+
+  if (user && (pathname === '/login' || pathname === '/signup')) {
+    const userId = typeof user.sub === 'string' ? user.sub : null
+    if (userId) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle()
+      if (!membership) {
+        return addSecurityHeaders(NextResponse.redirect(new URL('/onboarding', request.url)))
+      }
+    }
+    return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)))
   }
 
   return addSecurityHeaders(response)
