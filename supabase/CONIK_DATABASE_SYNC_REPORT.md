@@ -54,3 +54,20 @@ A repository code search found no references to `digital_products` or `product_a
 ## Execution guidance
 
 The reconciliation and security changes have already been applied to the active Supabase project. Do not blindly replay all historical migrations over production data. Use the diagnostic script, inspect the output, and apply future changes as new timestamped migrations.
+
+
+## Follow-up hardening — 2026-10-25
+
+- Added a database trigger that creates a high-entropy `CNK-…` order reference for every new `payment_orders` row when no reference is supplied.
+- Added a partial unique index for non-empty order references. Existing records are preserved; existing null references were not rewritten.
+- Hardened `GET /api/payments/status`: responses are private/no-store and no longer include buyer contact fields, internal metadata, organization IDs, or provider transaction references.
+- Hardened `/api/products/access`: added a POST mode so clients can send bearer tokens in the request body, disabled caching, added token input limits, and explicitly deny revoked/expired access states. GET remains for compatibility with existing links.
+- Added migration: `supabase/migrations/20261025_payment_order_number_integrity.sql`.
+
+## Current verification and remaining release gates
+
+- Vercel's latest production deployment was reported `READY` for commit `aef4083a89360298642563ddf4a4085755f02f75` before these follow-up GitHub commits. The new code still requires its own successful build/deployment confirmation.
+- Supabase security advisor still reports public `SECURITY DEFINER` RPCs. Several are intentional public flows (published funnel delivery, public lead capture, token-gated Live access, click analytics, license activation), but the full set has not yet passed endpoint-by-endpoint abuse testing. Do not mark the security audit clean yet.
+- Configure/verify Supabase Auth leaked-password protection in the dashboard; the connected tool did not expose a safe in-chat setting to change this.
+- Run the production smoke tests below after the latest Vercel build: create product as an editor; publish and attach a tariff; create a checkout; confirm order reference is present; test unpaid/pending access; test paid access; test revoked/expired access; test that payment status JSON contains no buyer email/phone; test cross-organization isolation.
+- No payment was simulated or marked paid as part of this work.
