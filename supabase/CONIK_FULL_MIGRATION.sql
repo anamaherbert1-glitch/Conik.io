@@ -176,3 +176,7 @@ for each row execute function public.ensure_payment_order_number();
 create unique index if not exists payment_orders_order_number_unique
 on public.payment_orders (order_number)
 where order_number is not null and btrim(order_number) <> '';
+
+-- Keep the trigger-only helper out of the exposed RPC surface.
+revoke all on function public.ensure_payment_order_number() from public, anon, authenticated;
+grant execute on function public.ensure_payment_order_number() to service_role;
