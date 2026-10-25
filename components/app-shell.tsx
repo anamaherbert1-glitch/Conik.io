@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Zap, Users, Send, Bot, MessageSquare, MousePointer2, BarChart3, Globe2,
   Settings2, LogOut, Plug, Radio, CreditCard, ChevronDown, Wallet, LineChart,
-  Menu, X, Gift, ShoppingBag,
+  Menu, X, Gift, ShoppingBag, Sparkles,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { usePreferences } from '@/components/preferences-provider'
@@ -239,13 +239,17 @@ export function AppShell({ children, active, compact = false }: Props) {
             </button>
             {integrationsOpen && (
               <div className="sidebar-group-children">
-                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations" onClick={closeMenu}>
+                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations?tab=payments" onClick={closeMenu}>
                   <CreditCard size={15} />
                   <span className="shell-label">{t.paymentSolutions}</span>
                 </Link>
                 <Link className={active === 'WhatsApp' ? 'active' : ''} href="/whatsapp" onClick={closeMenu}>
                   <MessageSquare size={15} />
                   <span className="shell-label">{dict.nav.WhatsApp}</span>
+                </Link>
+                <Link className={active === 'Integrations' ? 'active' : ''} href="/integrations?tab=mcp" onClick={closeMenu}>
+                  <Sparkles size={15} />
+                  <span className="shell-label">MCP</span>
                 </Link>
               </div>
             )}
