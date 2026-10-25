@@ -1,0 +1,201 @@
+/* Force landing to full desktop viewport — overrides shell main/aside bleed */
+main.landing,
+main.landing-light,
+main.landing-dark {
+  margin: 0 !important;
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+.landing-nav {
+  width: min(1200px, calc(100% - 48px)) !important;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.landing-hero {
+  width: min(1100px, calc(100% - 48px)) !important;
+  max-width: 1100px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding: 56px 0 48px !important;
+  text-align: center !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.landing-product {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 28px auto 0 !important;
+  position: relative !important;
+  z-index: 2 !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+}
+
+.landing-app {
+  display: grid !important;
+  grid-template-columns: 200px minmax(0, 1fr) !important;
+  width: 100% !important;
+  min-height: 360px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.landing-app aside {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  z-index: 1 !important;
+  display: grid !important;
+  align-content: start !important;
+  padding: 18px 14px !important;
+  box-sizing: border-box !important;
+}
+
+.landing-dashboard {
+  position: relative !important;
+  z-index: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  display: grid !important;
+  gap: 14px !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+.landing-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.landing-stats > div {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.landing-section {
+  width: min(1100px, calc(100% - 48px)) !important;
+  max-width: 1100px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.landing-cards {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.landing-card,
+.landing-step {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.landing-steps {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.landing-cta {
+  width: min(900px, calc(100% - 48px)) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.landing-footer {
+  width: min(1100px, calc(100% - 48px)) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+@media (min-width: 1280px) {
+  .landing-nav,
+  .landing-hero,
+  .landing-section,
+  .landing-footer {
+    width: min(1180px, calc(100% - 64px)) !important;
+  }
+  .landing-hero {
+    padding-top: 72px !important;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .landing-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .landing-nav,
+  .landing-hero,
+  .landing-section,
+  .landing-cta,
+  .landing-footer {
+    width: calc(100% - 32px) !important;
+  }
+  .landing-cards {
+    grid-template-columns: 1fr !important;
+  }
+  .landing-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .landing-app {
+    grid-template-columns: 1fr !important;
+  }
+  .landing-app aside {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-stats,
+  .landing-steps {
+    grid-template-columns: 1fr !important;
+  }
+  .landing-nav,
+  .landing-hero,
+  .landing-section,
+  .landing-cta,
+  .landing-footer {
+    width: calc(100% - 24px) !important;
+  }
+}

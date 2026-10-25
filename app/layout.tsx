@@ -5,13 +5,14 @@ import './brand.css'
 import './card-isolation.css'
 import './mobile-shell.css'
 import './landing.css'
+import './landing-desktop-fix.css'
 import './readability.css'
 import './ui-polish.css'
 import './plans.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
 export const metadata: Metadata = {
-  title: 'Conik.io — Marketing OS',
+  title: 'Conik.io \u2014 Marketing OS',
   description: 'Plateforme de tunnels et d\u2019automatisation marketing propuls\u00e9e par l\u2019IA',
   applicationName: 'Conik',
   icons: {
