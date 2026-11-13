@@ -14,7 +14,6 @@ export async function getOrganizationPlanCode(_organizationId: string): Promise<
   try {
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase.rpc('conik_get_plan_access', {
       p_organization_id: _organizationId,
       p_feature_key: 'whatsapp',
@@ -48,6 +47,33 @@ export async function getOrganizationSubscription(organizationId: string) {
 
 export async function getOrganizationLimits(organizationId: string): Promise<PlanLimits & { plan: PlanCode }> {
   const plan = await getOrganizationPlanCode(organizationId)
+  if (!BILLING_ENABLED) {
+    const unlimited = Number.MAX_SAFE_INTEGER
+    return {
+      plan: 'business',
+      tunnels: unlimited,
+      pagesPerTunnel: unlimited,
+      importsHtmlPerMonth: unlimited,
+      importZip: true,
+      importMaxMb: 200,
+      storageMb: unlimited,
+      customDomain: true,
+      removeBranding: true,
+      analytics: 'advanced',
+      payments: 'advanced',
+      products: unlimited,
+      whatsapp: true,
+      automations: 'advanced',
+      emailsPerMonth: unlimited,
+      contacts: unlimited,
+      live: true,
+      liveCohosts: unlimited,
+      teamSeats: unlimited,
+      dataExport: true,
+      advancedReports: true,
+      support: 'dedicated',
+    }
+  }
   return { plan, ...getPlan(plan).limits }
 }
 
