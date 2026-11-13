@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { extractProviderReference, mapProviderStatus } from '@/lib/payments/provider-adapters'
 import { grantProductAccessOnPaid } from '@/lib/products/grant-access'
+import { BILLING_ENABLED } from '@/lib/billing/enforce'
 
 export const runtime = 'nodejs'
 
@@ -115,7 +116,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
         if (status === 'succeeded') {
           const metadata = (order as any)?.metadata || {}
           const subscriptionId = metadata?.subscription_id
-          if (subscriptionId) {
+          if (subscriptionId && BILLING_ENABLED) {
             const { data: subscription } = await supabase
               .from('conik_subscriptions')
               .select('id,organization_id,plan_code,amount,currency,starts_at,ends_at')
