@@ -1,15 +1,22 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPlan, type PlanCode, type PlanLimits } from '@/lib/billing/plans'
-import { isInternalUnlimitedEmail } from '@/lib/billing/internal-access'
 
-export async function getOrganizationPlanCode(organizationId: string): Promise<PlanCode> {
+/**
+ * TEMPORARY PUBLIC TEST MODE.
+ * Billing and plan enforcement are intentionally bypassed while Conik is tested.
+ * Keep subscription tables, plans, checkout code and history intact for later reactivation.
+ * Re-enable by changing this flag and restoring the matching database enforcement migration.
+ */
+export const BILLING_ENABLED = false
+
+export async function getOrganizationPlanCode(_organizationId: string): Promise<PlanCode> {
+  if (!BILLING_ENABLED) return 'business'
   try {
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (isInternalUnlimitedEmail(user?.email)) return 'business'
     const { data, error } = await supabase.rpc('conik_get_plan_access', {
-      p_organization_id: organizationId,
+      p_organization_id: _organizationId,
       p_feature_key: 'whatsapp',
     })
     if (error) return 'free'
