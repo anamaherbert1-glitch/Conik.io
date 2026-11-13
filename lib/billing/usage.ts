@@ -5,7 +5,7 @@ export type UsageKey = 'tunnels' | 'pages' | 'importsHtml' | 'contacts' | 'stora
 
 export async function checkOrganizationUsage(organizationId: string, usageKey: UsageKey) {
   if (!BILLING_ENABLED) {
-    return { allowed: true, current: 0, limit: Number.MAX_SAFE_INTEGER, period: null, plan: 'test' }
+    return { allowed: true, current: 0, limit: Number.MAX_SAFE_INTEGER, period: null, plan: 'business' }
   }
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('conik_check_usage', {
