@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const { membership } = await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
+    await requireWorkspaceRole(['owner', 'admin', 'editor', 'viewer'])
     const key = new URL(request.url).searchParams.get('feature') as FeatureKey | null
     if (!key) return NextResponse.json({ error: 'Feature requise.' }, { status: 400 })
     if (!BILLING_ENABLED) {
