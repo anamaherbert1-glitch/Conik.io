@@ -189,8 +189,8 @@ export default function SettingsPage() {
           {t.language || 'Langue'}
           <select className="form-input" value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
             {locales.map((l) => (
-              <option key={l} value={l}>
-                {l}
+              <option key={l.code} value={l.code}>
+                {l.native}
               </option>
             ))}
           </select>
