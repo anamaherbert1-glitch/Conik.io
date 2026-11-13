@@ -54,8 +54,26 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
 
   const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor
 
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', name: 'Conik', url: 'https://conik-io.vercel.app', description: 'Plateforme marketing pour créer des pages web et des tunnels de vente.' },
+      { '@type': 'SoftwareApplication', name: 'Conik', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', url: 'https://conik-io.vercel.app', description: 'Conik aide les entrepreneurs et les entreprises à créer des pages web professionnelles, construire des tunnels de vente, publier leurs offres et collecter des prospects.', inLanguage: 'fr' },
+      {
+        '@type': 'FAQPage',
+        mainEntity: [
+          { '@type': 'Question', name: 'Qu’est-ce que Conik ?', acceptedAnswer: { '@type': 'Answer', text: 'Conik est une plateforme marketing en ligne pour créer des pages web professionnelles, construire des tunnels de vente et transformer les visiteurs en prospects et clients.' } },
+          { '@type': 'Question', name: 'À qui s’adresse Conik ?', acceptedAnswer: { '@type': 'Answer', text: 'Conik s’adresse aux entrepreneurs, indépendants, créateurs, petites entreprises et équipes qui souhaitent développer leur activité en ligne.' } },
+          { '@type': 'Question', name: 'Faut-il savoir coder pour utiliser Conik ?', acceptedAnswer: { '@type': 'Answer', text: 'Non. Conik est conçu pour permettre de construire et personnaliser une présence en ligne sans compétences avancées en programmation.' } },
+        ],
+      },
+    ],
+  }
+
   return (
-    <main className={`landing ${isDark ? 'landing-dark' : 'landing-light'}`}>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <main className={`landing ${isDark ? 'landing-dark' : 'landing-light'}`}>
       <div className="landing-bg" aria-hidden="true">
         <span className="landing-orb landing-orb-a" />
         <span className="landing-orb landing-orb-b" />
@@ -283,6 +301,20 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
         </div>
       </section>
 
+      <section className="landing-section" id="questions">
+        <div className="landing-center">
+          <label>Questions fréquentes</label>
+          <h2>Comprendre ce que Conik vous permet de faire</h2>
+          <p>Les réponses essentielles pour découvrir la plateforme.</p>
+        </div>
+        <div className="landing-steps">
+          <article className="landing-glass landing-step"><h3>Qu’est-ce que Conik ?</h3><p>Conik est une plateforme marketing en ligne qui permet de créer des pages web professionnelles, de construire des tunnels de vente et de transformer les visiteurs en prospects et clients.</p></article>
+          <article className="landing-glass landing-step"><h3>À qui s’adresse Conik ?</h3><p>Conik s’adresse aux entrepreneurs, indépendants, créateurs, petites entreprises et équipes qui souhaitent présenter leurs offres et développer leur activité en ligne.</p></article>
+          <article className="landing-glass landing-step"><h3>Que peut-on créer avec Conik ?</h3><p>Vous pouvez créer des pages de présentation, des pages d’offres et des parcours de conversion, puis les publier et partager leur lien.</p></article>
+          <article className="landing-glass landing-step"><h3>Faut-il savoir coder ?</h3><p>Non. Conik est conçu pour permettre de construire et personnaliser une présence en ligne sans compétences avancées en programmation.</p></article>
+          <article className="landing-glass landing-step"><h3>Comment commencer à utiliser Conik ?</h3><p>Créez un compte depuis la page d’inscription, ouvrez votre espace et commencez à construire votre premier projet.</p></article>
+        </div>
+      </section>
       <section className="landing-cta landing-glass" id="start">
         <label>Prêt à commencer ?</label>
         <h2>Votre prochaine page peut être en ligne aujourd’hui</h2>
@@ -300,5 +332,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
         </div>
       </footer>
     </main>
+    </>
   )
 }
