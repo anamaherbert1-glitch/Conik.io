@@ -12,10 +12,42 @@ import './ui-polish.css'
 import './plans.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
+const SITE_URL = 'https://conik-io.vercel.app'
+
 export const metadata: Metadata = {
-  title: 'Conik.io \u2014 Marketing OS',
-  description: 'Plateforme de tunnels et d\u2019automatisation marketing propuls\u00e9e par l\u2019IA',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Conik — Créez vos pages, tunnels de vente et automatisez votre marketing',
+    template: '%s | Conik',
+  },
+  description: 'Conik est une plateforme marketing tout-en-un pour créer des pages web professionnelles, construire des tunnels de vente, publier vos offres, collecter des prospects et automatiser votre marketing avec l’IA.',
   applicationName: 'Conik',
+  category: 'technology',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: 'Conik',
+    title: 'Conik — Pages web, tunnels de vente et automatisation marketing',
+    description: 'Créez des pages professionnelles, construisez vos tunnels de vente, collectez des prospects et développez votre activité avec Conik.',
+    locale: 'fr_FR',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Conik — Pages web, tunnels de vente et automatisation marketing',
+    description: 'La plateforme pour créer, publier et optimiser vos pages et tunnels de vente.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   icons: {
     icon: [{ url: '/icon', type: 'image/png' }],
     apple: [{ url: '/apple-icon', type: 'image/png' }],
