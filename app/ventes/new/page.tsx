@@ -259,9 +259,7 @@ export default function NewProductPage() {
                   </select>
                 </label>
               </div>
-              <p className="muted" style={{ fontSize: 13 }}>
-                Paiement et page de vente : configurez-les dans le tunnel (Funnels).
-              </p>
+
               <div className="button-row">
                 <button type="button" className="outline" onClick={() => setStep('fichier')}>Retour</button>
                 <button type="submit" className="primary" disabled={busy}>
