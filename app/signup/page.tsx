@@ -153,7 +153,6 @@ export default function SignupPage() {
 
       <section className="home-center">
         <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>S’inscrire</h1>
-        <p className="home-desc">Créez votre compte avec Google ou votre e-mail, puis accédez directement à Conik.</p>
 
         <div className="home-form-wrap">
           <button
