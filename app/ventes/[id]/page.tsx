@@ -167,9 +167,6 @@ export default function ProductConfigPage() {
             <ArrowLeft size={15} /> Produits
           </Link>
           <h1 style={{ margin: 0 }}>{name || product.name}</h1>
-          <p className="muted" style={{ margin: '6px 0 0' }}>
-            {isLive ? 'En vente' : 'Brouillon'} \u00b7 {formatPrice(product.price_cents, product.currency)}
-          </p>
         </div>
         <div className="button-row">
           <button type="button" className="outline" disabled={busy} onClick={() => void save()}>
@@ -224,9 +221,6 @@ export default function ProductConfigPage() {
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ShoppingCart size={18} /> Liens de vente
           </h3>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Apr\u00e8s activation, vos clients paient puis re\u00e7oivent l\u2019acc\u00e8s. Configurez un prestataire dans Int\u00e9grations si besoin.
-          </p>
 
           {storeLink && (
             <div>
@@ -257,9 +251,6 @@ export default function ProductConfigPage() {
               </div>
             </div>
           ) : (
-            <p className="muted" style={{ margin: 0 }}>
-              Cliquez sur <b>Activer la vente</b> pour g\u00e9n\u00e9rer le tunnel, le tarif et le lien d\u2019achat.
-            </p>
           )}
         </section>
 
