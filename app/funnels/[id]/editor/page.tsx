@@ -281,7 +281,10 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
       const finalHtml = applyButtonRedirects(html, redirectControls)
       const needsRedirectApply = redirectControls.some((c) => c.target) && finalHtml !== html
       let versionId = version.id
-      if (needsRedirectApply && (finalHtml.length + css.length + js.length) <= 400000) {
+      if (needsRedirectApply) {
+        if ((finalHtml.length + css.length + js.length) > 400000) {
+          throw new Error('Les redirections modifiées ne peuvent pas être intégrées à cette page volumineuse. Réduisez la taille du HTML ou publiez sans modifier les redirections.')
+        }
         const normalized = redirectControls.filter((c) => c.target).map((c) => ({ key: c.key, target: safeRedirect(c.target) || c.target }))
         const saveRes = await fetch('/api/funnels/pages/save', {
           method: 'POST',
@@ -291,11 +294,12 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
         const saveText = await saveRes.text()
         let saveData: any = {}
         try { saveData = saveText ? JSON.parse(saveText) : {} } catch {}
-        if (saveRes.ok && saveData.version?.id) {
-          setVersion(saveData.version)
-          setHtml(saveData.version.html)
-          versionId = saveData.version.id
+        if (!saveRes.ok || !saveData.version?.id) {
+          throw new Error(saveData.error || saveData.message || 'Impossible d’enregistrer les redirections. La publication a été annulée.')
         }
+        setVersion(saveData.version)
+        setHtml(saveData.version.html)
+        versionId = saveData.version.id
       }
       const response = await fetch('/api/funnels/pages/publish', {
         method: 'POST',
