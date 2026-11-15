@@ -198,9 +198,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
           Créez. Publiez.
           <span className="landing-gradient-text"> Convertissez.</span>
         </h1>
-        <p className="landing-lead landing-fade-up landing-delay-2">
-          Conik vous aide à créer des pages et des tunnels professionnels, à les publier et à transformer vos visiteurs en prospects et clients.
-        </p>
         <div className="landing-hero-actions landing-fade-up landing-delay-3">
           <Link href="/signup" className="landing-btn landing-primary landing-btn-lg">
             Commencer gratuitement <span aria-hidden>→</span>
@@ -209,7 +206,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
             Découvrir Conik
           </a>
         </div>
-        <p className="landing-hint landing-fade-up landing-delay-4">Aucune compétence technique requise.</p>
 
         <div className="landing-product landing-glass landing-fade-up landing-delay-5">
           <div className="landing-browserbar">
@@ -256,7 +252,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
                 </div>
                 <div className="landing-mock-page">
                   <h4>Votre offre, enfin en ligne.</h4>
-                  <p>Une page claire qui présente votre activité et pousse vos visiteurs à agir.</p>
                   <span className="landing-mock-cta">Commencer maintenant</span>
                 </div>
               </div>
@@ -269,14 +264,12 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
         <div className="landing-center">
           <label>Pourquoi Conik</label>
           <h2>Tout pour passer de l’idée à l’action</h2>
-          <p>Un seul outil pour construire une expérience qui donne envie d’agir.</p>
         </div>
         <div className="landing-cards">
           {features.map((f, idx) => (
             <article key={f.n} className={`landing-glass landing-card landing-fade-up landing-delay-${idx + 1}`}>
               <div className="landing-card-n">{f.n}</div>
               <h3>{f.title}</h3>
-              <p>{f.text}</p>
             </article>
           ))}
         </div>
@@ -286,7 +279,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
         <div className="landing-center">
           <label>Simple par conception</label>
           <h2>Votre parcours avec Conik</h2>
-          <p>Quatre étapes. Sans vous demander quoi faire ensuite.</p>
         </div>
         <div className="landing-steps">
           {steps.map(([n, k, title, text], idx) => (
@@ -295,7 +287,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
                 {n} — {k}
               </b>
               <h3>{title}</h3>
-              <p>{text}</p>
             </article>
           ))}
         </div>
@@ -305,7 +296,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
         <div className="landing-center">
           <label>Questions fréquentes</label>
           <h2>Comprendre ce que Conik vous permet de faire</h2>
-          <p>Les réponses essentielles pour découvrir la plateforme.</p>
         </div>
         <div className="landing-steps">
           <article className="landing-glass landing-step"><h3>Qu’est-ce que Conik ?</h3><p>Conik est une plateforme marketing en ligne qui permet de créer des pages web professionnelles, de construire des tunnels de vente et de transformer les visiteurs en prospects et clients.</p></article>
@@ -318,7 +308,6 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
       <section className="landing-cta landing-glass" id="start">
         <label>Prêt à commencer ?</label>
         <h2>Votre prochaine page peut être en ligne aujourd’hui</h2>
-        <p>Créez votre espace Conik et construisez une présence en ligne qui travaille pour vous.</p>
         <Link href="/signup" className="landing-btn landing-primary landing-btn-lg">
           Commencer gratuitement <span aria-hidden>→</span>
         </Link>
