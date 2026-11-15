@@ -27,7 +27,7 @@ export default async function VentesPage() {
       <header>
         <div>
           <h1>Produits</h1>
-          <p className="muted">Catalogue de vos offres digitales. Liez-les ensuite \u00e0 un tunnel pour vendre.</p>
+
         </div>
         <Link className="primary" href="/ventes/new">
           <Plus size={17} /> Ajouter un produit
@@ -38,9 +38,7 @@ export default async function VentesPage() {
         <section className="panel emptybox" style={{ textAlign: 'center', padding: 48 }}>
           <ShoppingBag size={36} style={{ opacity: 0.45, marginBottom: 12 }} />
           <h2 style={{ margin: '0 0 8px' }}>Aucun produit</h2>
-          <p className="muted" style={{ marginBottom: 18 }}>
-            Cr\u00e9ez votre premi\u00e8re offre, t\u00e9l\u00e9versez le fichier et d\u00e9finissez le prix.
-          </p>
+
           <Link className="primary" href="/ventes/new">
             <Plus size={16} /> Ajouter un produit
           </Link>
