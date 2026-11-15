@@ -59,9 +59,6 @@ export default function ForgotPasswordPage() {
 
       <section className="home-center">
         <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>Mot de passe oublié</h1>
-        <p className="home-desc">
-          Entrez votre adresse e-mail et nous vous enverrons un lien pour créer un nouveau mot de passe.
-        </p>
 
         <div className="home-form-wrap">
           {success ? (
