@@ -61,9 +61,6 @@ export function IntegrationsHub({
         <section className="panel" style={{ display: 'grid', gap: 14, padding: 22 }}>
           <div>
             <h2 style={{ margin: '0 0 6px' }}>WhatsApp Business</h2>
-            <p className="muted" style={{ margin: 0 }}>
-              Connectez Meta ou Green API, g\u00e9rez conversations, templates et campagnes.
-            </p>
           </div>
           <div className="button-row">
             <Link className="primary" href="/whatsapp">
