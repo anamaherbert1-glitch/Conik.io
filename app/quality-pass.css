@@ -1,0 +1,150 @@
+/* Conik quality pass — palette, contrast and editor visibility */
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f5f7 !important;
+  --panel: #ffffff !important;
+  --ink: #111827 !important;
+  --muted: #4b5563 !important;
+  --line: #d7dce5 !important;
+  --accent: #ff6b00 !important;
+  --accent-strong: #e85d04 !important;
+  --input-bg: #ffffff !important;
+  --table-bg: #ffffff !important;
+  --table-head: #f1f3f6 !important;
+  --hero-from: #ffffff !important;
+  --hero-to: #fff6ee !important;
+  --outline-bg: #ffffff !important;
+  --outline-border: #cbd2dd !important;
+  --outline-text: #1f2937 !important;
+}
+:root[data-theme="dark"],
+.dark {
+  --bg: #0b0d12 !important;
+  --panel: #151922 !important;
+  --ink: #f3f5f9 !important;
+  --muted: #c0c7d4 !important;
+  --line: #303746 !important;
+  --accent: #ff7a1a !important;
+  --accent-strong: #f06400 !important;
+  --input-bg: #10141c !important;
+  --table-bg: #151922 !important;
+  --table-head: #1b202b !important;
+  --hero-from: #151922 !important;
+  --hero-to: #201a16 !important;
+  --outline-bg: #1b202b !important;
+  --outline-border: #465064 !important;
+  --outline-text: #f3f5f9 !important;
+}
+body { background: var(--bg) !important; color: var(--ink) !important; }
+h1,h2,h3,h4,h5,strong,b,label { color: var(--ink); }
+p,.muted,.hint,small.muted,.field-hint,.form-hint { color: var(--muted); opacity: 1; }
+input,textarea,select,.form-input,.home-form input {
+  color: var(--ink) !important;
+  background: var(--input-bg) !important;
+  border-color: var(--line) !important;
+}
+input::placeholder,textarea::placeholder { color: var(--muted) !important; opacity: .82 !important; }
+.primary,.landing-primary,.capture-actions .primary,.capture-bottom-actions .primary {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+.primary:hover,.landing-primary:hover { background: var(--accent-strong) !important; }
+.outline { color: var(--outline-text) !important; background: var(--outline-bg) !important; border-color: var(--outline-border) !important; }
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .choice,
+:root[data-theme="dark"] .auth-card,
+:root[data-theme="dark"] .capture-card,
+:root[data-theme="dark"] .editor-grid .panel,
+.dark .panel,.dark .card,.dark .choice,.dark .auth-card,.dark .capture-card,.dark .editor-grid .panel {
+  background: var(--panel) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+}
+:root[data-theme="dark"] .auth-page,.dark .auth-page {
+  background: radial-gradient(circle at 50% 0%, #2b1b11 0, #11151d 42%, var(--bg) 100%) !important;
+}
+:root[data-theme="dark"] .auth-card,.dark .auth-card {
+  background: var(--panel) !important;
+  border-color: var(--line) !important;
+}
+:root[data-theme="dark"] .home-plain,.dark .home-plain { background: var(--bg) !important; color: var(--ink) !important; }
+:root[data-theme="dark"] .home-top,.dark .home-top { color: var(--ink) !important; }
+:root[data-theme="dark"] .home-desc,.dark .home-desc,
+:root[data-theme="dark"] .home-switch,.dark .home-switch { color: var(--muted) !important; }
+
+/* Remove remaining small explanatory subtitles under auth titles */
+.home-center > .home-desc { display: none !important; }
+
+/* Keep the public landing within the orange / charcoal Conik identity */
+.landing-orb-a,.landing-orb-b,.landing-orb-c {
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%) !important;
+}
+.landing-gradient-text {
+  background: linear-gradient(120deg, #ff6b00, #ff9a3d) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+.landing-primary {
+  background: linear-gradient(135deg, #ff6b00, #f45b00) !important;
+}
+.landing-mini-btn,.landing-card-n,.landing-center label,.landing-step b,.landing-cta label {
+  color: var(--accent) !important;
+}
+.landing-mini-btn,.landing-card-n { background: color-mix(in srgb, var(--accent) 13%, transparent) !important; }
+
+/* Funnel, capture and payment editors: replace low-contrast fixed greys and white-only surfaces */
+.head h1,.capture-title h1,.capture-card-heading h2,.side-heading h2,
+.redirect-list-heading h3,.redirect-control>b,.capture-file-state b,
+.editor-grid .section-head h3,.page-tab,.page-tab span,
+.capture-field>span,.capture-toggle-field>span { color: var(--ink) !important; }
+.head p,.capture-title p,.capture-card-heading p,.side-heading p,
+.editor-grid .muted,.capture-file-state small,.capture-empty-preview,
+.redirect-help,.redirect-list-heading span,.redirect-empty {
+  color: var(--muted) !important;
+  opacity: 1 !important;
+}
+.page-tabs,.page-tab-wrap,.code-tabs,.capture-tabs,.capture-card,
+.capture-file-state,.redirect-input,.capture-field select,
+.capture-preview-frame-wrap,.preview-frame {
+  background: var(--panel) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+}
+.page-tab-wrap.active,.capture-tabs .active {
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel)) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+.page-tab-wrap.active .page-tab,.page-tab-wrap.active .page-tab span { color: var(--accent) !important; }
+.page-tab small { color: var(--muted) !important; }
+.capture-info {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line)) !important;
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel)) !important;
+  color: var(--ink) !important;
+}
+.capture-info svg,.heading-icon { color: var(--accent) !important; }
+.heading-icon { background: color-mix(in srgb, var(--accent) 12%, var(--panel)) !important; }
+.file-icon { background: color-mix(in srgb, var(--accent) 10%, var(--panel)) !important; color: var(--accent) !important; }
+.capture-empty-preview b { color: var(--ink) !important; }
+.redirect-input input { color: var(--ink) !important; background: transparent !important; }
+.code-tabs>.code-tab { color: var(--muted) !important; }
+.code-tabs>.code-tab.active { color: var(--accent) !important; background: color-mix(in srgb, var(--accent) 12%, var(--panel)) !important; }
+:root[data-theme="dark"] .capture-status,.dark .capture-status {
+  background: #252b36 !important; color: #d1d5df !important;
+}
+:root[data-theme="dark"] .capture-status.is-on,.dark .capture-status.is-on {
+  background: #123522 !important; color: #86efac !important;
+}
+:root[data-theme="dark"] .status,.dark .status {
+  background: #293140 !important; color: #e5e7eb !important;
+}
+:root[data-theme="dark"] .status.published,.dark .status.published {
+  background: #123522 !important; color: #86efac !important;
+}
+
+/* Visible focus and readable disabled states */
+:focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 2px !important; }
+button:disabled,.primary:disabled,.outline:disabled { opacity: .68 !important; }
