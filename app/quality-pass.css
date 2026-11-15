@@ -569,3 +569,32 @@ td,th { overflow-wrap:anywhere; }
   .country-modal,.role-modal { width:100% !important; }
   .conik-capture-dialog { max-height:calc(100dvh - 16px) !important; }
 }
+
+
+/* Contact contextual actions: detached from cards so overflow never clips the menu */
+.conik-menu-backdrop {
+  position:fixed !important; inset:0 !important; z-index:1900 !important;
+  display:grid !important; place-items:end center !important;
+  padding:12px !important; background:rgba(3,6,12,.48) !important;
+  backdrop-filter:blur(4px) !important;
+}
+.conik-action-menu {
+  width:min(400px,100%) !important;
+  display:grid !important; gap:5px !important;
+  padding:12px !important;
+  border-radius:16px !important;
+  background:var(--panel) !important;
+  color:var(--ink) !important;
+  border:1px solid var(--line) !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.38) !important;
+}
+.conik-action-menu-title {
+  padding:6px 8px 8px !important;
+  color:var(--muted) !important;
+  font-size:11px !important; font-weight:800 !important;
+  letter-spacing:.07em !important; text-transform:uppercase !important;
+}
+.conik-action-menu a,.conik-action-menu button {
+  width:100% !important; justify-content:flex-start !important;
+  min-height:42px !important; border-radius:10px !important;
+}
