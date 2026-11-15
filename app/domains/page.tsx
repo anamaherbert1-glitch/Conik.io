@@ -18,6 +18,7 @@ export default function DomainsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{id:string; hostname:string} | null>(null)
 
   async function load() {
     const [d, f] = await Promise.all([
@@ -82,7 +83,6 @@ export default function DomainsPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Supprimer ce domaine ?')) return
     setBusy(true)
     setError('')
     setMessage('')
@@ -91,6 +91,7 @@ export default function DomainsPage() {
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j.error || 'Suppression impossible.')
       setMessage('Domaine supprimé.')
+      setDeleteTarget(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Suppression impossible.')
@@ -168,7 +169,7 @@ export default function DomainsPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {d.status !== 'verified' && <button className="outline" onClick={() => verify(d.id)} disabled={busy}>Vérifier DNS</button>}
-                  <button className="outline" onClick={() => remove(d.id)} disabled={busy}>Supprimer</button>
+                  <button className="outline" onClick={() => setDeleteTarget({id:d.id,hostname:d.hostname})} disabled={busy}>Supprimer</button>
                 </div>
               </div>
             ))}
@@ -176,6 +177,7 @@ export default function DomainsPage() {
         )}
       </section>
       </FeatureGate>
+      <ConikDialog open={!!deleteTarget} title="Supprimer ce domaine ?" message={deleteTarget ? `Le domaine ${deleteTarget.hostname} sera retiré de votre espace.` : undefined} tone="danger" confirmLabel="Supprimer" busy={busy} onConfirm={() => deleteTarget && void remove(deleteTarget.id)} onCancel={() => !busy && setDeleteTarget(null)} />
     </AppShell>
   )
 }
