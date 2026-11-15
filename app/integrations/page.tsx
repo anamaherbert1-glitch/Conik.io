@@ -39,7 +39,6 @@ export default async function IntegrationsPage({ searchParams }: Props) {
       ? {
           small: 'INTELLIGENCE ARTIFICIELLE',
           h1: 'Conik MCP',
-          muted: 'Connectez Grok, Claude ou Cursor \u00e0 votre espace Conik.',
         }
       : tab === 'whatsapp'
         ? {
