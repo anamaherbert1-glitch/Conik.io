@@ -398,3 +398,24 @@ td,th { overflow-wrap:anywhere; }
   .shell > aside { overflow-y:auto !important; }
   .shell > aside > nav { overflow:visible; flex:0 0 auto; }
 }
+
+
+/* Text inside cards must wrap instead of forcing neighbouring cards to overlap */
+.panel h1,.panel h2,.panel h3,.panel p,.panel span,.panel small,.panel b,.panel strong,
+.card h1,.card h2,.card h3,.card p,.card span,.card small,.card b,.card strong,
+.choice h1,.choice h2,.choice h3,.choice p,.choice span,.choice small,.choice b,.choice strong,
+.emptybox h1,.emptybox h2,.emptybox h3,.emptybox p,.emptybox span,.emptybox small,.emptybox b,.emptybox strong {
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+  word-break:normal;
+  min-width:0;
+}
+.panel .button-row,.card .button-row,.choice .button-row {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+}
+.panel .button-row > *, .card .button-row > *, .choice .button-row > * {
+  flex:0 1 auto;
+}
