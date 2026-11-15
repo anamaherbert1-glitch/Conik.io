@@ -51,7 +51,7 @@ export default function LinksPage() {
   async function copy(link:TrackedLink){const url=linkUrl(link);try{await navigator.clipboard.writeText(url);setNotice(`Lien copié : ${url}`)}catch{setNotice(`Copiez ce lien : ${url}`)}}
 
   return <AppShell active="Links">
-    <header><div><small>LIENS</small><h1>Liens de redirection</h1><p className="muted">Créez des liens courts, utilisez un domaine personnalisé vérifié et mesurez chaque clic.</p></div></header>
+    <header><div><small>LIENS</small><h1>Liens de redirection</h1></div></header>
     {error&&<div className="error">{error}</div>}{notice&&<div className="notice">{notice}</div>}
 
     <section className="panel" style={{marginTop:20}}>
@@ -66,7 +66,7 @@ export default function LinksPage() {
 
     <section className="panel" style={{marginTop:20}}>
       <div className="section-head"><h3>Vos liens</h3><span>{links.length} au total</span></div>
-      {loading?<div className="emptybox">Chargement des liens…</div>:links.length===0?<div className="emptybox"><Link2 size={28}/><b>Aucun lien pour le moment</b><p>Créez votre premier lien de redirection avec le formulaire ci-dessus.</p></div>:<div className="table-wrap"><table><thead><tr><th>Lien Conik</th><th>Destination</th><th>Clics</th><th>Créé le</th><th aria-label="Actions"/></tr></thead><tbody>{links.map(link=><tr key={link.id}><td><b>{link.domain_hostname?`${link.domain_hostname}/${link.slug}`:`/r/${link.slug}`}</b></td><td style={{maxWidth:320,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{link.destination_url}</td><td>{link.clicks}</td><td>{new Date(link.created_at).toLocaleDateString('fr-FR')}</td><td style={{display:'flex',gap:6}}><button type="button" className="outline" onClick={()=>copy(link)} title="Copier le lien"><Copy size={14}/></button><a className="outline" href={linkUrl(link)} target="_blank" rel="noopener noreferrer" title="Tester la redirection"><ExternalLink size={14}/></a><button type="button" className="outline" onClick={()=>remove(link.id,link.slug)} title="Supprimer le lien"><Trash2 size={14}/></button></td></tr>)}</tbody></table></div>}
+      {loading?<div className="emptybox">Chargement des liens…</div>:links.length===0?<div className="emptybox"><Link2 size={28}/><b>Aucun lien pour le moment</b></div>:<div className="table-wrap"><table><thead><tr><th>Lien Conik</th><th>Destination</th><th>Clics</th><th>Créé le</th><th aria-label="Actions"/></tr></thead><tbody>{links.map(link=><tr key={link.id}><td><b>{link.domain_hostname?`${link.domain_hostname}/${link.slug}`:`/r/${link.slug}`}</b></td><td style={{maxWidth:320,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{link.destination_url}</td><td>{link.clicks}</td><td>{new Date(link.created_at).toLocaleDateString('fr-FR')}</td><td style={{display:'flex',gap:6}}><button type="button" className="outline" onClick={()=>copy(link)} title="Copier le lien"><Copy size={14}/></button><a className="outline" href={linkUrl(link)} target="_blank" rel="noopener noreferrer" title="Tester la redirection"><ExternalLink size={14}/></a><button type="button" className="outline" onClick={()=>remove(link.id,link.slug)} title="Supprimer le lien"><Trash2 size={14}/></button></td></tr>)}</tbody></table></div>}
     </section>
   </AppShell>
 }
