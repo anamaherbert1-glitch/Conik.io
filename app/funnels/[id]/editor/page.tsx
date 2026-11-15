@@ -119,7 +119,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
       setBusy(false)
       return
     }
-    setPages((p) => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectControls(detectRedirectControls(DEFAULT_HTML)); setSelected(data); setName(data.name); setSlug(data.slug); setShowCode(true); setActiveCodeTab('html'); setMessage(`Page ${pageNumber} créée.`); setBusy(false)
+    setPages((p) => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectControls(detectRedirectControls(DEFAULT_HTML)); setSelected(data); setName(data.name); setSlug(data.slug); setShowCode(false); setActiveCodeTab('html'); setMessage(`Page ${pageNumber} créée.`); setBusy(false)
   }
 
   async function importHtmlOrZip(file: File) {
