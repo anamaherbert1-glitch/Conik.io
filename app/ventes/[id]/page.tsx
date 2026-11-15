@@ -237,7 +237,7 @@ export default function ProductConfigPage() {
             </div>
           )}
 
-          {buyLink ? (
+          {buyLink && (
             <div>
               <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Lien de paiement direct</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
