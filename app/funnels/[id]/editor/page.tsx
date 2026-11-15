@@ -110,7 +110,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     if (!usage?.allowed) { setMessage(`Limite de pages atteinte (${Number(usage.current_value || 0)}/${Number(usage.limit_value || 0)}). Passez à une formule supérieure pour continuer.`); setBusy(false); return }
     const pageNumber = pages.length + 1; const base = pages.length === 0 ? 'home' : `page-${pageNumber}`; const pageName = `Page ${pageNumber}`; let clean = base, suffix = 2
     while (pages.some((p) => p.slug === clean)) clean = `${base}-${suffix++}`
-    const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: pageName, slug: clean, page_type: 'landing', position: pages.length }).select('id,name,slug,page_type,position,published_version_id').single()
+    const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: pageName, title: pageName, slug: clean, page_type: 'landing', position: pages.length }).select('id,name,slug,page_type,position,published_version_id').single()
     if (error) { setMessage(error.message); setBusy(false); return }
     const { data: v, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: data.id, version_number: 1, html: DEFAULT_HTML, css: DEFAULT_CSS, js: '', metadata: { editor: 'conik' } }).select('id,version_number,html,css,js,metadata').single()
     if (versionError || !v) {
