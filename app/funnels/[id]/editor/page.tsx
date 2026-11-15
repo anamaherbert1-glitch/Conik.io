@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Check, Copy, Eye, EyeOff, FileCode2, FileType2, Globe2, ImageIcon, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Eye, EyeOff, FileCode2, FileType2, Globe2, ImageIcon, Plus, Save, Trash2, UploadCloud, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CodeEditor } from '@/components/code-editor'
@@ -72,7 +72,7 @@ function applyButtonRedirects(source: string, controls: RedirectControl[]) {
 export default function FunnelEditor({ params }: { params: Promise<{ id: string }> }) {
   const [funnelId, setFunnelId] = useState(''), [funnel, setFunnel] = useState<{ name: string; slug: string; status: string } | null>(null), [pages, setPages] = useState<Page[]>([]), [selected, setSelected] = useState<Page | null>(null), [version, setVersion] = useState<Version | null>(null)
   const [name, setName] = useState('Home'), [slug, setSlug] = useState('home'), [html, setHtml] = useState(DEFAULT_HTML), [css, setCss] = useState(DEFAULT_CSS), [js, setJs] = useState(''), [redirectControls, setRedirectControls] = useState<RedirectControl[]>([]), [selectedControl, setSelectedControl] = useState<number | null>(null)
-  const [message, setMessage] = useState(''), [busy, setBusy] = useState(false), [showCode, setShowCode] = useState(true), [activeCodeTab, setActiveCodeTab] = useState<CodeTab>('html'), [copied, setCopied] = useState(false), [shareImageUrl, setShareImageUrl] = useState('')
+  const [message, setMessage] = useState(''), [busy, setBusy] = useState(false), [showCode, setShowCode] = useState(false), [activeCodeTab, setActiveCodeTab] = useState<CodeTab>('html'), [copied, setCopied] = useState(false), [shareImageUrl, setShareImageUrl] = useState('')
   const htmlInputRef = useRef<HTMLInputElement>(null), cssInputRef = useRef<HTMLInputElement>(null), jsInputRef = useRef<HTMLInputElement>(null), shareImageInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { params.then((p) => setFunnelId(p.id)) }, [params])
 
@@ -90,7 +90,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
   useEffect(() => { void load() }, [funnelId])
 
   async function selectPage(page: Page) {
-    setSelected(page); setName(page.name); setSlug(page.slug); setMessage(''); setShowCode(true); setActiveCodeTab('html'); setCopied(false); setSelectedControl(null); setShareImageUrl('')
+    setSelected(page); setName(page.name); setSlug(page.slug); setMessage(''); setShowCode(false); setActiveCodeTab('html'); setCopied(false); setSelectedControl(null); setShareImageUrl('')
     const supabase = createClient()
     const { data: v, error } = await supabase.from('funnel_versions').select('id,version_number,html,css,js,metadata').eq('page_id', page.id).order('version_number', { ascending: false }).limit(1).maybeSingle()
     if (error) { setMessage(error.message); return }
@@ -377,29 +377,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
       </div>
 
       <div className="editor-workspace">
-        <aside className="panel editor-sidebar">
-          <div className="editor-sidebar-head">
-            <div><small>PAGE</small><h3>Structure</h3></div>
-            <button className="outline" onClick={() => void createPage()} disabled={busy}><Plus size={14} /> Ajouter</button>
-          </div>
-          <div className="editor-page-list">
-            {pages.map((p) => (
-              <button key={p.id} className={`editor-page-item${selected?.id === p.id ? ' active' : ''}`} onClick={() => void selectPage(p)}>
-                <span><b>Page {p.position + 1}</b><small>/{p.slug}</small></span>
-                <span className="editor-page-status">{p.published_version_id ? 'Publié' : 'Brouillon'}</span>
-              </button>
-            ))}
-          </div>
-          <div className="editor-sidebar-section">
-            <small>CONFIGURATION</small>
-            <div className="editor-config-card">
-              <div><span>Page</span><b>{selected?.name || '—'}</b></div>
-              <div><span>URL</span><code>{selected ? pagePublicPath(selected.slug) : '—'}</code></div>
-              <div><span>État</span><b>{selected?.published_version_id ? 'Publié' : 'Brouillon'}</b></div>
-            </div>
-          </div>
-        </aside>
-
         <section className="panel preview-panel">
           <div className="section-head">
             <h3>Aperçu</h3>
@@ -414,7 +391,9 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
         </section>
 
         {selected && showCode && (
-          <section className="panel code-panel">
+          <div className="code-modal-backdrop" role="presentation" onClick={() => setShowCode(false)}>
+          <section className="panel code-panel code-modal" role="dialog" aria-modal="true" aria-label="Code et configuration" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="code-modal-close outline" onClick={() => setShowCode(false)} aria-label="Fermer le code"><X size={17} /> Fermer</button>
             <div className="code-panel-header">
               <div>
                 <small>ÉDITEUR</small>
@@ -539,6 +518,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
               )}
             </div>
           </section>
+          </div>
         )}
       </div>
     </div>
