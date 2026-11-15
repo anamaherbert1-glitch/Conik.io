@@ -112,7 +112,13 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     const { data, error } = await supabase.from('funnel_pages').insert({ funnel_id: funnelId, name: pageName, slug: clean, page_type: 'landing', position: pages.length }).select('id,name,slug,page_type,position,published_version_id').single()
     if (error) { setMessage(error.message); setBusy(false); return }
     const { data: v, error: versionError } = await supabase.from('funnel_versions').insert({ page_id: data.id, version_number: 1, html: DEFAULT_HTML, css: DEFAULT_CSS, js: '', metadata: { editor: 'conik' } }).select('id,version_number,html,css,js,metadata').single()
-    if (versionError || !v) { setMessage(versionError?.message || 'Impossible de créer la première version.'); setBusy(false); return }
+    if (versionError || !v) {
+      // Avoid leaving an empty page behind when the initial draft cannot be created.
+      await supabase.from('funnel_pages').delete().eq('id', data.id)
+      setMessage(versionError?.message || 'Impossible de créer la première version. La page incomplète a été annulée.')
+      setBusy(false)
+      return
+    }
     setPages((p) => [...p, data]); setVersion(v); setHtml(DEFAULT_HTML); setCss(DEFAULT_CSS); setJs(''); setRedirectControls(detectRedirectControls(DEFAULT_HTML)); setSelected(data); setName(data.name); setSlug(data.slug); setShowCode(true); setActiveCodeTab('html'); setMessage(`Page ${pageNumber} créée.`); setBusy(false)
   }
 
