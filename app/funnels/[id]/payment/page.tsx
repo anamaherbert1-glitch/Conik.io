@@ -85,10 +85,8 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
 
   async function importFiles(files: File[]) {
     if (!funnelId || !files.length) return
-    if (!providerId && providers.length === 0) {
-      setError('Connectez d’abord un prestataire dans Intégrations avant d’enregistrer la page de paiement.')
-      return
-    }
+    // Importing and designing the payment page is independent from connecting a provider.
+    // The API still prevents activation until a valid provider is selected.
     setBusy(true)
     setError('')
     setMessage('')
