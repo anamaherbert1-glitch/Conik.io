@@ -160,3 +160,103 @@ button:disabled,.primary:disabled,.outline:disabled { opacity: .68 !important; }
 .landing-logo-mark {
   background: linear-gradient(135deg, #ff6b00, #f45b00) !important;
 }
+
+
+/* Funnel editor: let the preview own the full workspace; code opens only on demand */
+.editor-workspace {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:14px !important;
+  width:100% !important;
+}
+.editor-workspace > .preview-panel {
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  min-width:0 !important;
+}
+.editor-workspace > .editor-sidebar { display:none !important; }
+.editor-workspace .preview-frame {
+  width:100% !important;
+  min-height: min(72vh, 760px) !important;
+}
+.code-modal-backdrop {
+  position:fixed !important;
+  inset:0 !important;
+  z-index:1000 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  padding:clamp(8px,2vw,24px) !important;
+  background:rgba(3,6,12,.78) !important;
+  backdrop-filter:blur(5px);
+}
+.code-modal {
+  position:relative !important;
+  display:block !important;
+  width:min(1120px,100%) !important;
+  max-width:1120px !important;
+  max-height:calc(100dvh - 24px) !important;
+  overflow-y:auto !important;
+  overscroll-behavior:contain;
+  background:#151922 !important;
+  border:1px solid #394252 !important;
+  border-radius:16px !important;
+  box-shadow:0 24px 90px rgba(0,0,0,.55) !important;
+}
+.code-modal-close {
+  position:sticky !important;
+  top:8px !important;
+  z-index:5 !important;
+  float:right !important;
+  margin:10px 12px 0 0 !important;
+  min-height:36px !important;
+  background:#202633 !important;
+  color:#f3f5f9 !important;
+  border-color:#465064 !important;
+}
+.code-modal .code-panel-header { clear:both; }
+@media(max-width:620px) {
+  .editor-workspace .preview-frame { min-height:68vh !important; height:68vh !important; }
+  .code-modal-backdrop { padding:6px !important; align-items:flex-end !important; }
+  .code-modal { width:100% !important; max-height:94dvh !important; border-radius:14px 14px 8px 8px !important; }
+  .code-modal .code-panel-header { padding:14px !important; }
+}
+
+/* Sidebar: compact navigation rows; the feature list scrolls instead of stretching items apart */
+@media(min-width:821px) {
+  .shell > aside > nav {
+    display:grid !important;
+    grid-auto-rows:max-content !important;
+    align-content:start !important;
+    justify-content:stretch !important;
+    gap:4px !important;
+    flex:1 1 0 !important;
+    min-height:0 !important;
+    overflow-y:auto !important;
+    padding-bottom:8px !important;
+  }
+  .shell > aside > nav > a,
+  .shell > aside > nav > .sidebar-group > .sidebar-group-trigger {
+    min-height:38px !important;
+    height:38px !important;
+    flex:0 0 38px !important;
+    margin:0 !important;
+  }
+  .shell > aside > nav > .sidebar-group {
+    display:grid !important;
+    grid-auto-rows:max-content !important;
+    align-content:start !important;
+    gap:2px !important;
+  }
+  .shell > aside .sidebar-group-children {
+    display:grid !important;
+    align-content:start !important;
+    gap:2px !important;
+    margin:0 !important;
+  }
+  .shell > aside .sidebar-group-children a {
+    min-height:34px !important;
+    height:34px !important;
+    padding-block:7px !important;
+  }
+}
