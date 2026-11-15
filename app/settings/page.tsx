@@ -118,7 +118,6 @@ export default function SettingsPage() {
       <header>
         <div>
           <h1>{t.title || 'Param\u00e8tres'}</h1>
-          <p className="muted">{t.subtitle || 'Profil, espace et pr\u00e9f\u00e9rences'}</p>
         </div>
       </header>
 
