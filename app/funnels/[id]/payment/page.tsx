@@ -210,10 +210,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               {enabled && payment?.payment_html ? 'Activée' : 'Non configurée'}
             </span>
           </div>
-          <p>
-            Importez votre page HTML ou un ZIP contenant HTML/CSS/JS. Créez des tarifs : chaque tarif donne un lien à coller sur le bouton du produit.
-            Prestataire obligatoire avant activation.
-          </p>
+
         </div>
         <div className="capture-actions">
           <Link className="outline" href="/integrations">
@@ -235,7 +232,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               <div className="heading-icon"><CreditCard size={19} /></div>
               <div>
                 <h2>1. Prestataire de paiement</h2>
-                <p>Choisissez le prestataire connecté qui exécutera les paiements de cette page.</p>
+
               </div>
             </div>
             <div className="capture-settings-grid">
@@ -258,10 +255,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               </label>
             </div>
             {providers.length === 0 && (
-              <p className="muted" style={{ padding: '0 20px 16px' }}>
-                Aucun prestataire connecté.{' '}
-                <Link href="/integrations" style={{ color: 'var(--accent)', fontWeight: 700 }}>Aller dans Intégrations</Link>
-              </p>
+
             )}
           </section>
 
@@ -278,7 +272,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               <div className="heading-icon"><UploadCloud size={19} /></div>
               <div>
                 <h2>2. Importer la page (ZIP ou HTML + CSS + JS)</h2>
-                <p>Importez directement un ZIP contenant votre page HTML et ses fichiers CSS/JS, ou sélectionnez les fichiers séparément.</p>
+
               </div>
             </div>
             <div className="capture-import-row">
@@ -318,7 +312,7 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
               <div className="heading-icon"><Plus size={19} /></div>
               <div>
                 <h2>3. Tarifs (liens préconfigurés)</h2>
-                <p>Créez un tarif par produit (2500, 5000…). Chaque tarif a un lien unique à coller sur le bouton « Acheter » de votre page de vente.</p>
+
               </div>
             </div>
 
