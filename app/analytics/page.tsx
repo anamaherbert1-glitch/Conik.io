@@ -19,13 +19,13 @@ type Analytics = {
 }
 
 const SERIES = [
-  { key: 'views' as const, label: 'Vues', default: '#2563EB' },
-  { key: 'clicks' as const, label: 'Clics', default: '#7C3AED' },
-  { key: 'submissions' as const, label: 'Soumissions', default: '#0891B2' },
-  { key: 'conversions' as const, label: 'Conversions', default: '#059669' },
+  { key: 'views' as const, label: 'Vues', default: '#FF6B00' },
+  { key: 'clicks' as const, label: 'Clics', default: '#F59E0B' },
+  { key: 'submissions' as const, label: 'Soumissions', default: '#C2410C' },
+  { key: 'conversions' as const, label: 'Conversions', default: '#15803D' },
 ]
 
-const PRESET_COLORS = ['#2563EB', '#7C3AED', '#0891B2', '#059669', '#EA580C', '#E11D48', '#0F172A', '#D97706']
+const PRESET_COLORS = ['#FF6B00', '#F59E0B', '#C2410C', '#9A3412', '#15803D', '#DC2626', '#374151', '#FDBA74']
 
 function formatDate(iso: string) {
   const [, m, d] = iso.split('-')
