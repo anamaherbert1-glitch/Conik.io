@@ -254,9 +254,6 @@ export default function PaymentPageConfig({ params }: { params: Promise<{ id: st
                 </button>
               </label>
             </div>
-            {providers.length === 0 && (
-
-            )}
           </section>
 
           {payment?.id && selectedProvider && (
