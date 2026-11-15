@@ -148,3 +148,11 @@ input::placeholder,textarea::placeholder { color: var(--muted) !important; opaci
 /* Visible focus and readable disabled states */
 :focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 2px !important; }
 button:disabled,.primary:disabled,.outline:disabled { opacity: .68 !important; }
+
+/* Accent consistency for legacy purple / blue elements */
+.ico,.empty { color: var(--accent) !important; }
+.auth-card input:focus,.form-input:focus,.code-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+}
+.tut-flow,.tut-checklist div { color: var(--accent) !important; }
