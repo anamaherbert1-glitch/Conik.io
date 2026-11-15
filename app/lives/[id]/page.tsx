@@ -458,11 +458,6 @@ export default function LiveDetail({ params }: { params: Promise<{ id: string }>
                     LIVE PRIVÉ
                   </div>
                   <h1 style={{ marginBottom: 6 }}>{live.title}</h1>
-                  {live.description && (
-                    <p className="muted" style={{ margin: 0, maxWidth: 650 }}>
-                      {live.description}
-                    </p>
-                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {live.status !== 'ended' && (
