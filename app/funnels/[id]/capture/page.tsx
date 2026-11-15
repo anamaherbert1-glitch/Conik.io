@@ -243,7 +243,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
               {enabled && capture?.capture_html ? 'Activée' : 'Non configurée'}
             </span>
           </div>
-          <p>Importez votre HTML, CSS et JavaScript — ils seront tous exécutés sur la page de capture.</p>
+          
         </div>
         <div className="capture-actions">
           <Link className="outline" href={`/funnels/${funnelId}/editor`}>
@@ -298,11 +298,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
               </div>
               <div>
                 <h2>Importer la page de capture</h2>
-                <p>
-                  Sélectionnez un fichier <b>HTML</b>, et éventuellement les fichiers <b>CSS</b> et{' '}
-                  <b>JavaScript</b> en même temps. Vous pouvez aussi importer un <b>ZIP</b> complet
-                  (HTML + CSS + JS + images).
-                </p>
+                
               </div>
             </div>
 
@@ -403,7 +399,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
               </div>
               <div>
                 <h2>Configuration d’affichage</h2>
-                <p>La capture apparaît uniquement sur la première page et une seule fois par session.</p>
+                
               </div>
             </div>
             <div className="capture-settings-grid">
@@ -443,7 +439,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
               </div>
               <div>
                 <h2>Aperçu de la page de capture</h2>
-                <p>Le HTML, le CSS et le JavaScript importés sont chargés et exécutés dans cet aperçu.</p>
+                
               </div>
             </div>
             <div className="capture-preview-grid">
@@ -473,9 +469,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
                   </div>
                   <Link2 size={18} />
                 </div>
-                <p className="redirect-help">
-                  Configurez une redirection pour chaque bouton ou lien trouvé dans votre HTML.
-                </p>
+                
                 {buttons.length ? (
                   buttons.map((b, i) => (
                     <div className="redirect-item" key={`${b.index}-${i}`}>
@@ -541,7 +535,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
             <div className="side-heading">
               <div>
                 <h2>Aperçu du tunnel</h2>
-                <p>Voici comment la page de capture s’affichera dans votre tunnel.</p>
+                
               </div>
             </div>
             <div className="funnel-steps">
@@ -595,7 +589,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
               </div>
               <div>
                 <h2>Fonctionnement</h2>
-                <p>Le comportement est géré automatiquement.</p>
+                
               </div>
             </div>
             <ol>
