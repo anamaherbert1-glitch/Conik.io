@@ -250,7 +250,6 @@ export default function ProductConfigPage() {
                 </a>
               </div>
             </div>
-          ) : (
           )}
         </section>
 
