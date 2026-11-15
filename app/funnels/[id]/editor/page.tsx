@@ -398,7 +398,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
               <div>
                 <small>ÉDITEUR</small>
                 <h3>Code & configuration</h3>
-                <p className="muted">Gérez le contenu, les fichiers et les redirections depuis un seul espace.</p>
               </div>
               <div className="button-row editor-actions">
                 <label className="outline upload-label import-button"><UploadCloud size={16} />Importer HTML / ZIP
@@ -450,9 +449,6 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
 
             <div className="field redirect-field" style={{ margin: '16px 18px 20px' }}>
               <h4 style={{ margin: '0 0 10px', fontSize: 14 }}>Redirections des boutons</h4>
-              <p className="muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
-                Conik détecte automatiquement les boutons et liens. Configurez ici ceux qui n’ont pas encore de destination.
-              </p>
               {redirectControls.length ? (
                 redirectControls.map((c, i) => {
                   const internalSlug = selectedInternalSlug(c.target)
