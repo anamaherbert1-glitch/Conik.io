@@ -80,10 +80,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         <div>
           <small>TUNNEL</small>
           <h1>{funnel.name}</h1>
-          <p>
-            /{funnel.slug} · {STATUS_FR[funnel.status] ?? funnel.status} · source :{' '}
-            {SOURCE_FR[funnel.source] ?? funnel.source}
-          </p>
+          
         </div>
         <div className="button-row">
           <Link className="outline" href={`/funnels/${id}/capture`}>
@@ -112,7 +109,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         <div className="section-head">
           <div>
             <h3 style={{ marginBottom: 4 }}>Page d’accueil de capture</h3>
-            <span className="muted">Cette capture est affichée avant la première page réelle du tunnel.</span>
+            
           </div>
           <span className={`status ${captureOn ? 'published' : 'draft'}`}>
             {captureOn ? 'Activée' : 'Non configurée'}
@@ -133,11 +130,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
                 ? 'Un HTML de capture est déjà importé.'
                 : 'Aucun fichier HTML de capture importé.'}
             </b>
-            <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-              {funnel.capture_html
-                ? `Délai : ${Math.max(1, Math.round((funnel.capture_delay_ms || 5000) / 1000))} seconde(s)`
-                : 'Importez votre fichier HTML pour commencer.'}
-            </span>
+            
           </div>
           <Link className="primary" href={`/funnels/${id}/capture`}>
             <UploadCloud size={16} />
@@ -150,9 +143,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         <div className="section-head">
           <div>
             <h3 style={{ marginBottom: 4 }}>Page de paiement</h3>
-            <span className="muted">
-              Import HTML + tarifs avec liens à coller sur les boutons produits. Prestataire obligatoire.
-            </span>
+            
           </div>
           <span className={`status ${paymentOn ? 'published' : 'draft'}`}>
             {paymentOn ? 'Activée' : 'Non configurée'}
@@ -169,9 +160,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         >
           <div>
             <b>{funnel.payment_html ? 'Page de paiement configurée.' : 'Aucune page de paiement.'}</b>
-            <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-              Créez des tarifs (2500, 5000…) puis copiez chaque lien sur le bouton du produit.
-            </span>
+            
           </div>
           <Link className="primary" href={`/funnels/${id}/payment`}>
             <CreditCard size={16} />
@@ -184,10 +173,7 @@ export default async function FunnelDetail({ params }: { params: Promise<{ id: s
         <div className="section-head">
           <div>
             <h3>Pages</h3>
-            <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-              Chaque page a un lien public. Ouvre l’éditeur pour importer le HTML, détecter les boutons et définir
-              les redirections.
-            </span>
+            
           </div>
           <span className="muted">{pages?.length || 0} page(s)</span>
         </div>
