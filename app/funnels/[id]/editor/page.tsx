@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Copy, Eye, EyeOff, FileCode2, FileType2, Globe2, Imag
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CodeEditor } from '@/components/code-editor'
+import { ConikDialog } from '@/components/conik-dialog'
 
 type Page = { id: string; name: string; slug: string; page_type: string; position: number; published_version_id: string | null }
 type Version = { id: string; version_number: number; html: string; css: string; js: string; metadata: Record<string, unknown> }
@@ -72,7 +73,7 @@ function applyButtonRedirects(source: string, controls: RedirectControl[]) {
 export default function FunnelEditor({ params }: { params: Promise<{ id: string }> }) {
   const [funnelId, setFunnelId] = useState(''), [funnel, setFunnel] = useState<{ name: string; slug: string; status: string } | null>(null), [pages, setPages] = useState<Page[]>([]), [selected, setSelected] = useState<Page | null>(null), [version, setVersion] = useState<Version | null>(null)
   const [name, setName] = useState('Home'), [slug, setSlug] = useState('home'), [html, setHtml] = useState(DEFAULT_HTML), [css, setCss] = useState(DEFAULT_CSS), [js, setJs] = useState(''), [redirectControls, setRedirectControls] = useState<RedirectControl[]>([]), [selectedControl, setSelectedControl] = useState<number | null>(null)
-  const [message, setMessage] = useState(''), [busy, setBusy] = useState(false), [showCode, setShowCode] = useState(false), [activeCodeTab, setActiveCodeTab] = useState<CodeTab>('html'), [copied, setCopied] = useState(false), [shareImageUrl, setShareImageUrl] = useState('')
+  const [message, setMessage] = useState(''), [busy, setBusy] = useState(false), [showCode, setShowCode] = useState(false), [deleteOpen, setDeleteOpen] = useState(false), [activeCodeTab, setActiveCodeTab] = useState<CodeTab>('html'), [copied, setCopied] = useState(false), [shareImageUrl, setShareImageUrl] = useState('')
   const htmlInputRef = useRef<HTMLInputElement>(null), cssInputRef = useRef<HTMLInputElement>(null), jsInputRef = useRef<HTMLInputElement>(null), shareImageInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { params.then((p) => setFunnelId(p.id)) }, [params])
 
@@ -325,11 +326,11 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
 
   async function deletePage() {
     if (!selected || pages.length <= 1) { setMessage('Un tunnel doit conserver au moins une page.'); return }
-    if (!window.confirm(`Supprimer « ${selected.name} » ?`)) return
     setBusy(true); setMessage('')
     const { error } = await createClient().from('funnel_pages').delete().eq('id', selected.id)
     if (error) setMessage(error.message)
-    else { const remaining = pages.filter((p) => p.id !== selected.id); setPages(remaining); await selectPage(remaining[0]); setMessage('Page supprimée.') }
+    else {
+      setDeleteOpen(false) const remaining = pages.filter((p) => p.id !== selected.id); setPages(remaining); await selectPage(remaining[0]); setMessage('Page supprimée.') }
     setBusy(false)
   }
 
@@ -409,7 +410,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
                 <label className="outline upload-label import-button"><FileCode2 size={16} />JS
                   <input ref={jsInputRef} type="file" accept=".js,.mjs,text/javascript" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importTextFile(f, 'js'); e.currentTarget.value = '' }} />
                 </label>
-                <button className="danger-button page-delete-button" onClick={() => void deletePage()} disabled={busy}><Trash2 size={15} /></button>
+                <button className="danger-button page-delete-button" onClick={() => setDeleteOpen(true)} disabled={busy}><Trash2 size={15} /></button>
               </div>
             </div>
             <div className="code-toolbar">
@@ -517,6 +518,7 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
           </div>
         )}
       </div>
+      <ConikDialog open={deleteOpen} title="Supprimer cette page ?" message={selected ? `La page « ${selected.name} » sera supprimée du tunnel.` : undefined} tone="danger" confirmLabel="Supprimer la page" busy={busy} onConfirm={() => void deletePage()} onCancel={() => !busy && setDeleteOpen(false)} />
     </div>
   )
 }
