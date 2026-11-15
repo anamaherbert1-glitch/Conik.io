@@ -45,12 +45,10 @@ export default async function IntegrationsPage({ searchParams }: Props) {
         ? {
             small: 'MESSAGERIE',
             h1: 'WhatsApp',
-            muted: 'Connexion Meta / Green API, conversations et campagnes.',
           }
         : {
             small: 'INT\u00c9GRATIONS',
             h1: 'Int\u00e9grations',
-            muted: 'Paiements, WhatsApp et MCP (IA) pour automatiser votre business.',
           }
 
   return (
@@ -59,7 +57,7 @@ export default async function IntegrationsPage({ searchParams }: Props) {
         <div>
           <small>{title.small}</small>
           <h1>{title.h1}</h1>
-          <p className="muted">{title.muted}</p>
+
         </div>
       </header>
 
