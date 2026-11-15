@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Users, UserMinus, Mail, Shield, ChevronDown } from 'lucide-react'
 import { usePreferences } from '@/components/preferences-provider'
+import { ConikDialog } from '@/components/conik-dialog'
 
 type Role = 'admin' | 'editor' | 'viewer'
 type Invite = { id: string; email: string; role: string; status: string; created_at?: string }
@@ -31,6 +32,7 @@ export function SettingsCollaboration() {
   const [isError, setIsError] = useState(false)
   const [invites, setInvites] = useState<Invite[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [pendingRemoval, setPendingRemoval] = useState<{kind:'invite'|'member';id:string}|null>(null)
 
   async function load() {
     const r = await fetch('/api/team/invite')
@@ -66,7 +68,6 @@ export function SettingsCollaboration() {
   }
 
   async function revokeInvite(id: string) {
-    if (!confirm('Retirer cette invitation ?')) return
     const r = await fetch('/api/team/invite', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -75,12 +76,12 @@ export function SettingsCollaboration() {
     if (r.ok) void load()
     else {
       const j = await r.json().catch(() => ({}))
-      alert(j.error || 'Impossible de retirer')
+      setMsg(j.error || 'Impossible de retirer')
+      setIsError(true)
     }
   }
 
   async function removeMember(memberId: string) {
-    if (!confirm('Retirer l’accès de ce collaborateur ?')) return
     const r = await fetch('/api/team/invite', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -155,7 +156,7 @@ export function SettingsCollaboration() {
                   </span>
                 </div>
                 {m.role !== 'owner' && (
-                  <button type="button" className="outline" onClick={() => void removeMember(m.id)}>
+                  <button type="button" className="outline" onClick={() => setPendingRemoval({kind:'member',id:m.id})}>
                     <UserMinus size={14} /> Retirer
                   </button>
                 )}
@@ -181,7 +182,7 @@ export function SettingsCollaboration() {
                       {({admin:t.admin,editor:t.editor,viewer:t.viewer}[i.role as Role] || i.role)}
                     </span>
                   </div>
-                  <button type="button" className="outline" onClick={() => void revokeInvite(i.id)}>
+                  <button type="button" className="outline" onClick={() => setPendingRemoval({kind:'invite',id:i.id})}>
                     Annuler
                   </button>
                 </li>
@@ -189,6 +190,8 @@ export function SettingsCollaboration() {
           </ul>
         </div>
       </div>
+
+      <ConikDialog open={!!pendingRemoval} title={pendingRemoval?.kind === 'invite' ? 'Retirer cette invitation ?' : 'Retirer ce collaborateur ?'} message={pendingRemoval?.kind === 'invite' ? 'L’invitation en attente sera annulée.' : 'Cette personne perdra son accès à cet espace de travail.'} tone="warning" confirmLabel="Confirmer" onConfirm={() => { const action = pendingRemoval; if (!action) return; setPendingRemoval(null); if (action.kind === 'invite') void revokeInvite(action.id); else void removeMember(action.id) }} onCancel={() => setPendingRemoval(null)} />
 
       {roleOpen && (
         <div
