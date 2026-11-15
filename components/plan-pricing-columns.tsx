@@ -140,10 +140,7 @@ export function PlanPricingColumns({
       <header className="pricing-hero">
         <small>ABONNEMENTS CONIK</small>
         <h1>Choisissez la formule adaptée</h1>
-        <p className="muted">
-          Free pour découvrir · Basic pour vendre · Premium pour scaler · Business pour les équipes.
-          Basic, Premium et Business incluent <strong>14 jours d’essai gratuit</strong>.
-        </p>
+        
         <div className="billing-toggle" role="group" aria-label="Période de facturation">
           <button type="button" className={!annual ? 'active' : ''} onClick={() => setAnnual(false)}>
             Mensuel
@@ -174,7 +171,7 @@ export function PlanPricingColumns({
               {isCurrent && <div className="pricing-current-tag">Formule actuelle</div>}
               <div className="pricing-col-head">
                 <h2>{plan.name}</h2>
-                <p>{plan.tagline}</p>
+                
                 <div className="pricing-col-price">
                   {price <= 0 ? (
                     <strong className="pricing-price-main">Gratuit</strong>
