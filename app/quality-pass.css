@@ -419,3 +419,115 @@ td,th { overflow-wrap:anywhere; }
 .panel .button-row > *, .card .button-row > *, .choice .button-row > * {
   flex:0 1 auto;
 }
+
+
+/* Full-screen code workspace: replaces the preview instead of opening a popup */
+.code-fullscreen-shell {
+  position:fixed !important;
+  inset:0 !important;
+  z-index:1200 !important;
+  width:100vw !important;
+  height:100vh !important;
+  height:100dvh !important;
+  overflow:auto !important;
+  padding:clamp(10px,2vw,24px) !important;
+  background:var(--bg,#0b0d12) !important;
+  box-sizing:border-box !important;
+}
+.code-fullscreen {
+  position:relative !important;
+  width:100% !important;
+  max-width:none !important;
+  min-height:calc(100dvh - 2 * clamp(10px,2vw,24px)) !important;
+  max-height:none !important;
+  overflow:visible !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:var(--panel,#151922) !important;
+  border:1px solid var(--line,#303746) !important;
+  border-radius:14px !important;
+  box-shadow:none !important;
+}
+.code-fullscreen-close {
+  position:sticky !important;
+  top:8px !important;
+  float:right !important;
+  z-index:8 !important;
+  margin:10px 12px 0 0 !important;
+  min-height:38px !important;
+  background:var(--panel,#151922) !important;
+  color:var(--ink,#f3f5f9) !important;
+  border-color:var(--line,#465064) !important;
+}
+.code-fullscreen .code-panel-header { clear:both; padding:18px 18px 12px !important; }
+.code-fullscreen .code-toolbar,
+.code-fullscreen .code-tabs { margin-inline:18px !important; }
+.code-fullscreen .code-editor,
+.code-fullscreen [data-code-editor] { min-width:0 !important; max-width:100% !important; }
+.code-fullscreen .redirect-field { margin:16px 18px 20px !important; }
+@media(max-width:620px) {
+  .code-fullscreen-shell { padding:5px !important; }
+  .code-fullscreen { min-height:calc(100dvh - 10px) !important; border-radius:10px !important; }
+  .code-fullscreen .code-panel-header { padding:14px 12px !important; }
+  .code-fullscreen .code-toolbar,.code-fullscreen .code-tabs { margin-inline:12px !important; }
+  .code-fullscreen .redirect-field { margin:12px !important; }
+}
+
+/* One shared visual language for confirmation dialogs and pop-up panels */
+.conik-dialog-backdrop {
+  position:fixed !important; inset:0 !important; z-index:2000 !important;
+  display:grid !important; place-items:center !important;
+  padding:16px !important;
+  background:rgba(3,6,12,.68) !important;
+  backdrop-filter:blur(6px) !important;
+  -webkit-backdrop-filter:blur(6px) !important;
+}
+.conik-dialog {
+  width:min(460px,100%) !important; max-height:min(88dvh,760px) !important;
+  overflow:auto !important; overscroll-behavior:contain !important;
+  border-radius:16px !important;
+  background:var(--panel,#fff) !important;
+  color:var(--ink,#111827) !important;
+  border:1px solid var(--line,#d7dce5) !important;
+  box-shadow:0 24px 80px rgba(0,0,0,.38) !important;
+}
+.conik-dialog-head {
+  display:flex !important; align-items:flex-start !important; gap:12px !important;
+  padding:18px 18px 12px !important; min-width:0 !important;
+}
+.conik-dialog-icon {
+  flex:0 0 40px !important; width:40px !important; height:40px !important;
+  display:grid !important; place-items:center !important; border-radius:12px !important;
+  color:var(--accent,#ff6b00) !important;
+  background:color-mix(in srgb,var(--accent,#ff6b00) 13%,transparent) !important;
+}
+.conik-dialog-icon.danger { color:#dc2626 !important; background:rgba(220,38,38,.12) !important; }
+.conik-dialog-icon.success { color:#16a34a !important; background:rgba(22,163,74,.12) !important; }
+.conik-dialog-copy { flex:1 1 auto !important; min-width:0 !important; }
+.conik-dialog-copy h2 { margin:0 !important; color:var(--ink) !important; font-size:17px !important; line-height:1.3 !important; overflow-wrap:anywhere !important; }
+.conik-dialog-copy p { margin:7px 0 0 !important; color:var(--muted) !important; font-size:13px !important; line-height:1.5 !important; overflow-wrap:anywhere !important; }
+.conik-dialog-x {
+  flex:0 0 34px !important; width:34px !important; height:34px !important;
+  display:grid !important; place-items:center !important; border:1px solid var(--line) !important;
+  border-radius:9px !important; background:var(--bg) !important; color:var(--muted) !important;
+}
+.conik-dialog-content { padding:0 18px 16px !important; min-width:0 !important; }
+.conik-dialog-actions {
+  display:flex !important; justify-content:flex-end !important; flex-wrap:wrap !important;
+  gap:8px !important; padding:12px 18px 18px !important;
+  border-top:1px solid var(--line) !important;
+}
+.conik-dialog-actions > button { max-width:100% !important; }
+[role="menu"],.landing-menu,.home-menu,.country-modal,.role-modal {
+  background:var(--panel,#fff) !important;
+  color:var(--ink,#111827) !important;
+  border:1px solid var(--line,#d7dce5) !important;
+  border-radius:14px !important;
+  box-shadow:0 18px 48px rgba(0,0,0,.24) !important;
+}
+[role="menu"] a,[role="menu"] button,.landing-menu-item,.home-menu-item {
+  color:var(--ink) !important;
+}
+[role="menu"] a:hover,[role="menu"] button:hover,.landing-menu-item:hover,.home-menu-item:hover {
+  background:color-mix(in srgb,var(--accent) 12%,transparent) !important;
+}
