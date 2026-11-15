@@ -98,7 +98,7 @@ export default function AnalyticsPage() {
         <div>
           <small style={{ fontWeight: 700, color: '#64748b', letterSpacing: 0.3 }}>PERFORMANCE</small>
           <h1 style={{ marginTop: 4 }}>Analytics</h1>
-          <p className="muted">Trafic, clics, soumissions et conversions de vos tunnels.</p>
+
         </div>
         <div className="button-row" style={{ position: 'relative' }} ref={calRef}>
           {[7, 30, 90].map((d) => (
