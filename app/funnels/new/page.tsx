@@ -191,10 +191,7 @@ function NewFunnelInner() {
         </Link>
         <small>IMPORT PROJET</small>
         <h1>Importer un projet web complet</h1>
-        <p className="funnel-new-intro">
-          Téléversez un <b>ZIP</b> contenant tout votre site : plusieurs pages HTML, CSS, JavaScript, images,
-          vidéos, audio et polices. Conik recrée un tunnel multi-pages avec navigation interne.
-        </p>
+
 
       <div className="choice funnel-create-card">
           <div className="ico">
@@ -235,7 +232,7 @@ function NewFunnelInner() {
               >
                 <FileArchive size={22} />
                 <span>{fileName || 'Glissez un ZIP ici ou cliquez pour choisir'}</span>
-                <small className="muted">Uniquement .zip — max 25 Mo — index.html + pages + assets</small>
+
               </div>
               <input
                 ref={fileRef}
@@ -263,11 +260,7 @@ function NewFunnelInner() {
           </form>
         </div>
 
-        <p className="muted" style={{ marginTop: 20, maxWidth: 640, lineHeight: 1.6 }}>
-          Important : n’importez pas un fichier <code>.json</code> seul. Conik attend un <b>ZIP</b> de site
-          web. Si un message parle de JSON, c’est en général une erreur serveur (timeout), pas un défaut de
-          votre projet.
-        </p>
+
 
         <style jsx>{`
           .funnel-new-page {
@@ -359,10 +352,7 @@ function NewFunnelInner() {
       </Link>
       <small>NOUVEAU TUNNEL</small>
       <h1>Créer un tunnel</h1>
-      <p className="funnel-new-intro">
-        Commencez simplement : donnez un nom à votre tunnel. Pour un site multi-pages, utilisez{' '}
-        <Link href="/funnels/new?mode=import">Importer un tunnel</Link>.
-      </p>
+
       <div className="choice funnel-create-card">
         <div className="ico">
           <Plus />
