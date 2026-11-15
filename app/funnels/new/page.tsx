@@ -62,18 +62,68 @@ function NewFunnelInner() {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '')
           .slice(0, 80) || `tunnel-${Date.now()}`
+      // Ensure a unique public slug inside the workspace before creating the tunnel.
+      let uniqueSlug = slug
+      let suffix = 2
+      while (true) {
+        const { data: existing, error: slugError } = await supabase
+          .from('funnels')
+          .select('id')
+          .eq('slug', uniqueSlug)
+          .maybeSingle()
+        if (slugError) throw new Error(slugError.message)
+        if (!existing) break
+        uniqueSlug = `${slug}-${suffix++}`
+      }
+
       const { data, error: insertError } = await supabase
         .from('funnels')
         .insert({
           organization_id: member.organization_id,
           name: name.trim(),
-          slug,
+          slug: uniqueSlug,
           source: 'manual',
         })
         .select('id')
         .single()
-      if (insertError) throw new Error(insertError.message)
-      window.location.href = `/funnels/${data.id}`
+      if (insertError || !data) throw new Error(insertError?.message || 'Impossible de créer le tunnel.')
+
+      // A newly created tunnel must contain a usable first page and draft version.
+      const { data: firstPage, error: pageError } = await supabase
+        .from('funnel_pages')
+        .insert({
+          funnel_id: data.id,
+          name: 'Accueil',
+          title: 'Accueil',
+          slug: 'home',
+          page_type: 'landing',
+          position: 0,
+          is_home: true,
+          html_content: '<main style="font-family:system-ui;max-width:900px;margin:80px auto;padding:24px"><h1>Votre tunnel commence ici</h1><p>Personnalisez cette page ou importez votre HTML, CSS et JavaScript.</p><a href="#cta" id="cta">Commencer</a></main>',
+        })
+        .select('id')
+        .single()
+      if (pageError || !firstPage) {
+        await supabase.from('funnels').delete().eq('id', data.id)
+        throw new Error(pageError?.message || 'Impossible de créer la première page.')
+      }
+
+      const { error: versionError } = await supabase
+        .from('funnel_versions')
+        .insert({
+          page_id: firstPage.id,
+          version_number: 1,
+          html: '<main style="font-family:system-ui;max-width:900px;margin:80px auto;padding:24px"><h1>Votre tunnel commence ici</h1><p>Personnalisez cette page ou importez votre HTML, CSS et JavaScript.</p><a href="#cta" id="cta">Commencer</a></main>',
+          css: 'body{margin:0;background:#fff;color:#111827}a{font-weight:700;color:#ea580c}',
+          js: '',
+          metadata: { editor: 'conik', initial: true },
+        })
+      if (versionError) {
+        await supabase.from('funnels').delete().eq('id', data.id)
+        throw new Error(versionError.message)
+      }
+
+      window.location.href = `/funnels/${data.id}/editor`
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de créer le tunnel.')
       setLoading(false)
