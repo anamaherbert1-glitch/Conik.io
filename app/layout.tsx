@@ -9,6 +9,7 @@ import './landing-desktop-fix.css'
 import './shell-scope.css'
 import './readability.css'
 import './ui-polish.css'
+import './quality-pass.css'
 import './plans.css'
 import { PreferencesProvider } from '@/components/preferences-provider'
 
@@ -53,8 +54,8 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-icon', type: 'image/png' }],
   },
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#EEF2FF' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f1220' },
+    { media: '(prefers-color-scheme: light)', color: '#FFF7F0' },
+    { media: '(prefers-color-scheme: dark)', color: '#0B0D12' },
   ],
 }
 
