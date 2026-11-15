@@ -78,9 +78,6 @@ export default function ResetPasswordPage() {
 
       <section className="home-center">
         <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>Nouveau mot de passe</h1>
-        <p className="home-desc">
-          Choisissez un nouveau mot de passe sécurisé pour votre compte.
-        </p>
 
         <div className="home-form-wrap">
           {!ready && !success ? (
