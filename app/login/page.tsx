@@ -138,7 +138,6 @@ export default function LoginPage() {
 
       <section className="home-center">
         <h1 className="home-title" style={{ fontSize: 'clamp(28px,6vw,36px)' }}>Se connecter</h1>
-        <p className="home-desc">Accédez à votre espace Conik.</p>
 
         <div className="home-form-wrap">
           <button
