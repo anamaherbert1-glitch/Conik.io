@@ -531,3 +531,41 @@ td,th { overflow-wrap:anywhere; }
 [role="menu"] a:hover,[role="menu"] button:hover,.landing-menu-item:hover,.home-menu-item:hover {
   background:color-mix(in srgb,var(--accent) 12%,transparent) !important;
 }
+
+
+/* Apply the same centered backdrop to legacy country, role and profile dialogs */
+.modal-backdrop {
+  position:fixed !important; inset:0 !important; z-index:2000 !important;
+  display:grid !important; place-items:center !important; padding:16px !important;
+  background:rgba(3,6,12,.68) !important;
+  backdrop-filter:blur(6px) !important;
+  -webkit-backdrop-filter:blur(6px) !important;
+}
+.country-modal,.role-modal {
+  background:var(--panel) !important; color:var(--ink) !important;
+  border:1px solid var(--line) !important; border-radius:16px !important;
+  box-shadow:0 24px 80px rgba(0,0,0,.38) !important;
+  max-width:min(460px,100%) !important;
+  max-height:min(88dvh,760px) !important;
+  overflow:auto !important;
+}
+.conik-capture-backdrop { z-index:2100 !important; }
+.conik-capture-dialog {
+  max-width:min(720px,100%) !important;
+  max-height:calc(100dvh - 32px) !important;
+  border:1px solid var(--line) !important;
+  border-radius:16px !important;
+  box-shadow:0 24px 80px rgba(0,0,0,.38) !important;
+  overflow:hidden !important;
+}
+[role="dialog"] { min-width:0 !important; }
+[role="dialog"] h1,[role="dialog"] h2,[role="dialog"] h3,
+[role="dialog"] p,[role="dialog"] span,[role="dialog"] label {
+  overflow-wrap:anywhere;
+}
+@media(max-width:520px) {
+  .conik-dialog-backdrop,.modal-backdrop { padding:8px !important; }
+  .conik-dialog { width:100% !important; border-radius:14px !important; }
+  .country-modal,.role-modal { width:100% !important; }
+  .conik-capture-dialog { max-height:calc(100dvh - 16px) !important; }
+}
