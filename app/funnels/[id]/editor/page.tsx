@@ -330,7 +330,8 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
     const { error } = await createClient().from('funnel_pages').delete().eq('id', selected.id)
     if (error) setMessage(error.message)
     else {
-      setDeleteOpen(false) const remaining = pages.filter((p) => p.id !== selected.id); setPages(remaining); await selectPage(remaining[0]); setMessage('Page supprimée.') }
+      setDeleteOpen(false)
+      const remaining = pages.filter((p) => p.id !== selected.id); setPages(remaining); await selectPage(remaining[0]); setMessage('Page supprimée.') }
     setBusy(false)
   }
 
