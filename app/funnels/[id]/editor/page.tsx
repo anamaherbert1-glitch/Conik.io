@@ -391,9 +391,9 @@ export default function FunnelEditor({ params }: { params: Promise<{ id: string 
         </section>
 
         {selected && showCode && (
-          <div className="code-modal-backdrop" role="presentation" onClick={() => setShowCode(false)}>
-          <section className="panel code-panel code-modal" role="dialog" aria-modal="true" aria-label="Code et configuration" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="code-modal-close outline" onClick={() => setShowCode(false)} aria-label="Fermer le code"><X size={17} /> Fermer</button>
+          <div className="code-fullscreen-shell">
+          <section className="panel code-panel code-fullscreen" aria-label="Code et configuration">
+            <button type="button" className="code-fullscreen-close outline" onClick={() => setShowCode(false)} aria-label="Revenir à l’aperçu"><Eye size={17} /> Retour à l’aperçu</button>
             <div className="code-panel-header">
               <div>
                 <small>ÉDITEUR</small>
