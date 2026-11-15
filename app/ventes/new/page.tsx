@@ -153,7 +153,6 @@ export default function NewProductPage() {
         <header className="product-studio-top">
           <div>
             <h1>{name.trim() || 'Ajouter un produit'}</h1>
-            <p className="muted">Configurez l\u2019offre. Le tunnel de vente se branche ensuite depuis Funnels.</p>
           </div>
           <Link href="/ventes" className="outline" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <X size={15} /> Fermer
@@ -197,7 +196,6 @@ export default function NewProductPage() {
           {step === 'fichier' && (
             <div className="product-studio-section">
               <h2>T\u00e9l\u00e9verser le produit</h2>
-              <p className="muted">PDF, ZIP, vid\u00e9o, audio\u2026 livr\u00e9 apr\u00e8s paiement via le tunnel.</p>
               <input
                 ref={fileRef}
                 type="file"
