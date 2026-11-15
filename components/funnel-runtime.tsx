@@ -366,6 +366,7 @@ export function FunnelRuntime({
       )}
       {showCapture && captureSrc && (
         <div
+          className="conik-dialog-backdrop conik-capture-backdrop"
           role="dialog"
           aria-modal="true"
           style={{
@@ -379,6 +380,7 @@ export function FunnelRuntime({
           }}
         >
           <div
+            className="conik-capture-dialog"
             style={{
               position: 'relative',
               width: 'min(720px,100%)',
