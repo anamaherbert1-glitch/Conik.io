@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Check, Copy, Eye, EyeOff, FileCode2, FileType2, Globe2, ImageIcon, Plus, Save, Trash2, UploadCloud, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Eye, EyeOff, FileCode2, FileType2, Globe2, ImageIcon, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CodeEditor } from '@/components/code-editor'
