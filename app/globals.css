@@ -434,3 +434,35 @@ header h1{font-size:24px}
   .shell > aside > .settings{margin-top:10px;flex-shrink:0}
   .shell > aside > .logout-form{flex-shrink:0}
 }
+
+
+/* Desktop sidebar readability: stronger contrast and clearer navigation labels. */
+@media (min-width:821px){
+  .shell > aside{color:#f3f4f6}
+  .shell > aside .workspace{color:#e2e8f0;font-size:12px;line-height:1.45}
+  .shell > aside .brand small{color:#b8c0ce}
+  .shell > aside nav a,
+  .shell > aside .settings,
+  .shell > aside .logout,
+  .shell > aside .sidebar-group-trigger{
+    color:#cbd5e1 !important;
+    font-size:13px !important;
+    font-weight:550;
+    line-height:1.4;
+  }
+  .shell > aside nav a,
+  .shell > aside .sidebar-group-trigger{min-height:39px}
+  .shell > aside nav a:hover,
+  .shell > aside nav a.active,
+  .shell > aside .sidebar-group-trigger:hover,
+  .shell > aside .settings:hover,
+  .shell > aside .settings.active,
+  .shell > aside .logout:hover{color:#ffffff !important}
+  .shell > aside .sidebar-group-children a{
+    color:#cbd5e1 !important;
+    font-size:12.5px !important;
+    padding-left:17px;
+  }
+  .shell > aside .shell-plan-chip{color:#e2e8f0}
+  .shell > aside .shell-plan-chip span{color:#cbd5e1}
+}
