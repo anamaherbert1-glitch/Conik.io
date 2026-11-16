@@ -598,3 +598,148 @@ td,th { overflow-wrap:anywhere; }
   width:100% !important; justify-content:flex-start !important;
   min-height:42px !important; border-radius:10px !important;
 }
+
+
+/* Screen-specific layout corrections for Dashboard, Live, CRM, links, settings and funnels */
+.shell > main { min-width:0 !important; }
+.shell > main > header,
+.shell > main > .page > header,
+.shell > main > .page > .head {
+  min-width:0 !important;
+  max-width:100% !important;
+  flex-wrap:wrap !important;
+}
+.shell > main .hero,
+.shell > main .stats,
+.shell > main .grid,
+.shell > main .choices,
+.shell > main .form-grid,
+.shell > main .live-studio-workspace,
+.shell > main .editor-workspace,
+.shell > main .revenus-layout {
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+}
+.shell > main .stats,
+.shell > main .grid,
+.shell > main .choices,
+.shell > main .form-grid,
+.shell > main .live-studio-workspace,
+.shell > main .editor-workspace,
+.shell > main .revenus-layout {
+  align-items:stretch !important;
+}
+.shell > main .stats > *,
+.shell > main .grid > *,
+.shell > main .choices > *,
+.shell > main .form-grid > *,
+.shell > main .live-studio-workspace > *,
+.shell > main .editor-workspace > *,
+.shell > main .revenus-layout > * {
+  min-width:0 !important;
+  max-width:100% !important;
+}
+.shell > main .card,
+.shell > main .panel,
+.shell > main .choice,
+.shell > main .emptybox,
+.shell > main .settings-section {
+  min-width:0 !important;
+  max-width:100% !important;
+}
+.shell > main .card *,
+.shell > main .panel *,
+.shell > main .choice *,
+.shell > main .emptybox * {
+  max-width:100%;
+}
+.shell > main .card h1,
+.shell > main .card h2,
+.shell > main .card h3,
+.shell > main .panel h1,
+.shell > main .panel h2,
+.shell > main .panel h3,
+.shell > main .choice h1,
+.shell > main .choice h2,
+.shell > main .choice h3,
+.shell > main .emptybox h1,
+.shell > main .emptybox h2,
+.shell > main .emptybox h3 {
+  line-height:1.25 !important;
+  overflow-wrap:anywhere !important;
+}
+.shell > main .card p,
+.shell > main .panel p,
+.shell > main .choice p,
+.shell > main .emptybox p,
+.shell > main .muted {
+  line-height:1.5 !important;
+  overflow-wrap:anywhere !important;
+}
+.shell > main .live-studio-workspace {
+  grid-template-columns:minmax(0,1fr) minmax(260px,340px) !important;
+}
+.shell > main .live-studio-main,
+.shell > main .live-studio-chat { min-width:0 !important; max-width:100% !important; }
+.shell > main .live-studio-chat .panel { width:100% !important; min-width:0 !important; }
+.shell > main .page-tabs { min-width:0 !important; max-width:100% !important; }
+.shell > main .page-tabs-scroll {
+  display:flex !important; align-items:center !important; gap:6px !important;
+  min-width:0 !important; max-width:100% !important; overflow-x:auto !important;
+  overscroll-behavior-inline:contain !important;
+}
+.shell > main .page-tab-wrap { flex:0 0 auto !important; min-width:0 !important; }
+.shell > main .page-tab { max-width:180px !important; min-width:82px !important; }
+.shell > main .page-tab small { display:block !important; max-width:100% !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+.shell > main .preview-panel,
+.shell > main .code-fullscreen { min-width:0 !important; max-width:100% !important; }
+.shell > main .preview-frame { display:block !important; width:100% !important; max-width:100% !important; }
+.shell > main .editor-sidebar,
+.shell > main .editor-sidebar-section,
+.shell > main .editor-config-card { min-width:0 !important; max-width:100% !important; }
+.shell > main .editor-config-card code,
+.shell > main .editor-config-card b { overflow-wrap:anywhere !important; white-space:normal !important; }
+.shell > main .table-wrap { width:100% !important; max-width:100% !important; overflow-x:auto !important; }
+.shell > main .table-wrap table { min-width:640px; }
+.shell > main .table-wrap td { vertical-align:middle; }
+.shell > main .table-wrap td:last-child { white-space:normal !important; }
+.shell > main .link-actions {
+  display:flex !important; align-items:center !important; justify-content:flex-end !important;
+  flex-wrap:wrap !important; gap:6px !important; min-width:108px !important;
+}
+.shell > main .link-actions > * { flex:0 0 auto !important; }
+.shell > main .form-grid > label,
+.shell > main .form-grid > input,
+.shell > main .form-grid > select,
+.shell > main .form-grid > textarea { min-width:0 !important; max-width:100% !important; }
+@media(max-width:980px) {
+  .shell > main .live-studio-workspace { grid-template-columns:minmax(0,1fr) !important; }
+}
+@media(max-width:850px) {
+  .shell > main .stats { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  .shell > main .grid,
+  .shell > main .choices,
+  .shell > main .form-grid,
+  .shell > main .editor-workspace,
+  .shell > main .live-studio-workspace,
+  .shell > main .revenus-layout { grid-template-columns:minmax(0,1fr) !important; }
+  .shell > main .head,
+  .shell > main .section-head,
+  .shell > main .button-row { min-width:0 !important; flex-wrap:wrap !important; }
+  .shell > main .head > *,
+  .shell > main .section-head > *,
+  .shell > main .button-row > * { min-width:0 !important; max-width:100% !important; }
+  .shell > main .panel { overflow-x:visible !important; }
+  .shell > main .table-wrap { overflow-x:auto !important; }
+}
+@media(max-width:520px) {
+  .shell > main .stats { grid-template-columns:minmax(0,1fr) !important; }
+  .shell > main .card,
+  .shell > main .panel,
+  .shell > main .choice,
+  .shell > main .emptybox { padding:13px !important; }
+  .shell > main .button-row { flex-direction:row !important; }
+  .shell > main .button-row > * { width:auto !important; flex:1 1 auto !important; }
+  .shell > main .table-wrap table { min-width:600px; }
+}
