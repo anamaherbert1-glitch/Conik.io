@@ -203,6 +203,7 @@
   display:inline-flex;align-items:center;gap:10px;
   font-weight:800;font-size:15px;color:var(--ink);text-decoration:none;
 }
+.landing-logo-name{display:block;white-space:nowrap;line-height:1;min-width:max-content}
 .landing-logo-mark{
   width:34px;height:34px;border-radius:11px;
   display:grid;place-items:center;
