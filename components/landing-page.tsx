@@ -82,8 +82,7 @@ export function LandingPage({ alreadyRegistered, email }: Props) {
 
       <header className="landing-nav landing-glass">
         <Link href="/" className="landing-logo">
-          <span className="landing-logo-mark">C</span>
-          <span>Conik.io</span>
+          <span className="landing-logo-name">Conik.io</span>
         </Link>
 
         <nav className="landing-links" aria-label="Navigation">
